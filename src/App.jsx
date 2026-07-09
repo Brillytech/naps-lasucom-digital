@@ -24,7 +24,7 @@ import Requests from "./pages/Requests";
 import Executives from "./pages/Executives";
 import Naps from "./pages/Naps";
 import ResourceViewer from "./pages/ResourceViewer";
-import Constitution from "./pages/Constitution";
+import Constitution from "./pages/constitution";
 import Notifications from "./pages/Notifications";
 
 /* ADMIN PAGES - ACTIVE */
