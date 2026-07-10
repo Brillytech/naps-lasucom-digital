@@ -11964,3 +11964,115 @@ body {
     padding: 18px;
   }
 }
+
+@media (max-width: 600px) {
+  .phone-screen {
+    max-width: 430px !important;
+    padding: 18px 18px 96px !important;
+  }
+
+  .home-hero {
+    margin-top: 18px !important;
+  }
+
+  .home-hero p {
+    font-size: 12.5px !important;
+  }
+
+  .home-hero h1 {
+    font-size: 30px !important;
+    line-height: 1 !important;
+  }
+
+  .home-hero h2 {
+    font-size: 20px !important;
+  }
+
+  .home-identity-card {
+    padding: 13px !important;
+    border-radius: 22px !important;
+  }
+
+  .quick-action-card {
+    min-height: 74px !important;
+    padding: 13px !important;
+    border-radius: 22px !important;
+  }
+
+  .quick-action-card h3 {
+    font-size: 15px !important;
+  }
+
+  .quick-action-card p {
+    font-size: 11.5px !important;
+  }
+
+  .mini-home-card {
+    min-height: 66px !important;
+    padding: 9px !important;
+  }
+
+  .notice-card {
+    margin-top: 16px !important;
+    padding: 14px !important;
+  }
+
+  .bottom-nav {
+    min-height: 62px !important;
+    padding: 9px 12px !important;
+  }
+
+  .center-logo {
+    width: 50px !important;
+    height: 50px !important;
+    margin-top: -27px !important;
+  }
+
+  .center-logo img {
+    width: 35px !important;
+    height: 35px !important;
+  }
+}
+
+/* =========================================================
+   GLOBAL MOBILE SCALE FIX
+   This reduces the whole app feel on real phones
+========================================================= */
+
+@media (max-width: 600px) {
+  html {
+    font-size: 14px !important;
+  }
+
+  body {
+    zoom: 0.92;
+  }
+
+  .phone-screen {
+    min-height: calc(100vh / 0.92) !important;
+    padding: 18px 18px 100px !important;
+  }
+
+  .page-header h1,
+  .home-hero h1 {
+    font-size: 2.55rem !important;
+    line-height: 1.02 !important;
+  }
+
+  .page-header span,
+  .home-hero p,
+  .home-identity-card p,
+  .quick-action-card p {
+    font-size: 0.9rem !important;
+  }
+
+  .quick-action-card {
+    min-height: 76px !important;
+  }
+
+  .bottom-nav {
+    transform: scale(0.94) !important;
+    transform-origin: bottom center !important;
+    bottom: 10px !important;
+  }
+}

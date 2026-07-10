@@ -1,5 +1,5 @@
 {
-  "name": "NAPS LASUCOM Digital Secretariat",
+  "name": "NAPS LASUCOM Digital Connect",
   "short_name": "NAPS LASUCOM",
   "description": "Official digital secretariat for NAPS LASUCOM.",
   "start_url": "/",
@@ -7,7 +7,7 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#eef6ff",
-  "theme_color": "#062b63",
+  "theme_color": "#03152f"
   "categories": ["education", "productivity"],
   "icons": [
     {

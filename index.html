@@ -5,16 +5,16 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>NAPS LASUCOM Digital Secretariat</title>
+    <title>NAPS LASUCOM Digital Connect</title>
 
     <meta
       name="description"
-      content="Official digital secretariat for NAPS LASUCOM. Access announcements, resources, requests, timetables, executives and official student updates in one place."
+      content="Official digital connect platform for NAPS LASUCOM. Access announcements, resources, requests, timetables, executives and official student updates in one place."
     />
 
     <meta
       name="keywords"
-      content="NAPS LASUCOM, NAPS, LASUCOM, Nigeria Association of Physiotherapy Students, Physiotherapy Students LASUCOM, NAPS Digital Secretariat, LASUCOM Physiotherapy"
+      content="NAPS LASUCOM, NAPS, LASUCOM, Nigeria Association of Physiotherapy Students, Physiotherapy Students LASUCOM, NAPS Digital Connect, LASUCOM Physiotherapy"
     />
 
     <meta name="author" content="NAPS LASUCOM" />
@@ -22,12 +22,13 @@
 
     <!-- Favicon / App Icons -->
     <link rel="icon" type="image/png" href="/images/naps-logo.png" />
+    <link rel="shortcut icon" type="image/png" href="/images/naps-logo.png" />
     <link rel="apple-touch-icon" href="/images/naps-logo.png" />
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#062b63" />
-    <meta name="background-color" content="#eef6ff" />
+    <meta name="theme-color" content="#03152f" />
+    <meta name="background-color" content="#03152f" />
 
     <!-- Mobile App Feel -->
     <meta name="mobile-web-app-capable" content="yes" />
@@ -37,10 +38,10 @@
 
     <!-- Open Graph / WhatsApp / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="NAPS LASUCOM Digital Secretariat" />
+    <meta property="og:title" content="NAPS LASUCOM Digital Connect" />
     <meta
       property="og:description"
-      content="The official digital secretariat for NAPS LASUCOM. Get announcements, resources, requests, timetables, executives and official updates in one place."
+      content="The official digital connect platform for NAPS LASUCOM. Get announcements, resources, requests, timetables, executives and official updates in one place."
     />
     <meta property="og:image" content="/images/naps-logo.png" />
     <meta property="og:image:alt" content="NAPS LASUCOM Logo" />
@@ -48,15 +49,201 @@
 
     <!-- Twitter / X Preview -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="NAPS LASUCOM Digital Secretariat" />
+    <meta name="twitter:title" content="NAPS LASUCOM Digital Connect" />
     <meta
       name="twitter:description"
-      content="Official digital secretariat for NAPS LASUCOM. Access announcements, resources, requests and official student updates."
+      content="Official digital connect platform for NAPS LASUCOM. Access announcements, resources, requests and official student updates."
     />
     <meta name="twitter:image" content="/images/naps-logo.png" />
 
     <!-- Browser Address Color -->
-    <meta name="msapplication-TileColor" content="#062b63" />
+    <meta name="msapplication-TileColor" content="#03152f" />
+
+    <!-- Premium Splash Screen -->
+    <style>
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(
+            circle at 18% 12%,
+            rgba(34, 164, 71, 0.28),
+            transparent 32%
+          ),
+          radial-gradient(
+            circle at 82% 18%,
+            rgba(7, 82, 184, 0.36),
+            transparent 35%
+          ),
+          radial-gradient(
+            circle at 50% 100%,
+            rgba(159, 208, 255, 0.12),
+            transparent 38%
+          ),
+          linear-gradient(145deg, #020617 0%, #062b63 52%, #03152f 100%);
+        overflow: hidden;
+        transition: opacity 0.45s ease, visibility 0.45s ease;
+      }
+
+      #app-splash::before {
+        content: "";
+        position: absolute;
+        width: 460px;
+        height: 460px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.055);
+        filter: blur(2px);
+        top: -210px;
+        right: -180px;
+      }
+
+      #app-splash::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 42px 42px;
+        mask-image: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.9),
+          transparent 82%
+        );
+        pointer-events: none;
+      }
+
+      .splash-card {
+        position: relative;
+        z-index: 2;
+        width: min(84vw, 345px);
+        min-height: 370px;
+        border-radius: 40px;
+        padding: 40px 26px 28px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        background: linear-gradient(
+          145deg,
+          rgba(255, 255, 255, 0.18),
+          rgba(255, 255, 255, 0.065)
+        );
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        box-shadow:
+          0 34px 95px rgba(0, 0, 0, 0.38),
+          inset 0 1px 0 rgba(255, 255, 255, 0.26);
+        backdrop-filter: blur(24px);
+      }
+
+      .splash-logo-wrap {
+        width: 116px;
+        height: 116px;
+        border-radius: 36px;
+        display: grid;
+        place-items: center;
+        background:
+          linear-gradient(#ffffff, #ffffff) padding-box,
+          linear-gradient(
+              135deg,
+              rgba(255, 255, 255, 0.95),
+              rgba(34, 164, 71, 0.75),
+              rgba(7, 82, 184, 0.95)
+            )
+            border-box;
+        border: 2px solid transparent;
+        box-shadow:
+          0 24px 58px rgba(0, 0, 0, 0.34),
+          0 0 0 10px rgba(255, 255, 255, 0.055);
+        animation: splashFloat 1.8s ease-in-out infinite alternate;
+      }
+
+      .splash-logo-wrap img {
+        width: 88px;
+        height: 88px;
+        object-fit: contain;
+        border-radius: 24px;
+      }
+
+      .splash-card h1 {
+        margin: 27px 0 0;
+        color: #ffffff;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        font-size: 25px;
+        font-weight: 950;
+        letter-spacing: -0.9px;
+      }
+
+      .splash-card p {
+        margin: 7px 0 26px;
+        color: #9fd0ff;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        font-size: 17px;
+        font-weight: 900;
+      }
+
+      .splash-loader {
+        width: 88px;
+        height: 5px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .splash-loader::before {
+        content: "";
+        display: block;
+        width: 42%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #ffffff, #9fd0ff, #22a447);
+        animation: splashLoad 1s ease-in-out infinite;
+      }
+
+      .splash-powered {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 18px;
+        color: rgba(255, 255, 255, 0.48);
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        font-size: 9.5px;
+        font-weight: 750;
+        letter-spacing: 0.35px;
+        text-transform: uppercase;
+      }
+
+      @keyframes splashFloat {
+        from {
+          transform: translateY(0) scale(1);
+        }
+
+        to {
+          transform: translateY(-6px) scale(1.02);
+        }
+      }
+
+      @keyframes splashLoad {
+        0% {
+          transform: translateX(-110%);
+        }
+
+        100% {
+          transform: translateX(250%);
+        }
+      }
+
+      body.app-loaded #app-splash {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+    </style>
 
     <!-- Structured Data -->
     <script type="application/ld+json">
@@ -67,12 +254,27 @@
         "alternateName": "Nigeria Association of Physiotherapy Students LASUCOM",
         "url": "https://naps-lasucom-digital.vercel.app",
         "logo": "https://naps-lasucom-digital.vercel.app/images/naps-logo.png",
-        "description": "Official digital secretariat for NAPS LASUCOM."
+        "description": "Official digital connect platform for NAPS LASUCOM."
       }
     </script>
   </head>
 
   <body>
+    <div id="app-splash">
+      <div class="splash-card">
+        <div class="splash-logo-wrap">
+          <img src="/images/naps-logo.png" alt="NAPS LASUCOM" />
+        </div>
+
+        <h1>NAPS LASUCOM</h1>
+        <p>Digital Connect</p>
+
+        <div class="splash-loader"></div>
+
+        <small class="splash-powered">Powered by BrillyTech Networks</small>
+      </div>
+    </div>
+
     <div id="root"></div>
 
     <script type="module" src="/src/main.jsx"></script>

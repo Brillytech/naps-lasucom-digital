@@ -58,7 +58,7 @@ function HomePage() {
       <section className="hero home-hero">
         <p>Welcome back, Dear NAPSITE 👋</p>
         <h1>NAPS LASUCOM</h1>
-        <h2>Digital Secretariat</h2>
+        <h2>Digital Connect</h2>
       </section>
 
       <section className="home-identity-card">
