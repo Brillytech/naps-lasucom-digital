@@ -7,7 +7,32 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#eef6ff",
-  "theme_color": "#0752b8",
+  "theme_color": "#062b63",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}{
+  "name": "NAPS LASUCOM Digital Secretariat",
+  "short_name": "NAPS LASUCOM",
+  "description": "Official digital secretariat for NAPS LASUCOM.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#eef6ff",
+  "theme_color": "#062b63",
   "categories": ["education", "productivity"],
   "icons": [
     {

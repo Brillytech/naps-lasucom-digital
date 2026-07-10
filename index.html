@@ -2,19 +2,79 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="manifest" href="/manifest.json" />
-<meta name="theme-color" content="#0752b8" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-title" content="NAPS LASUCOM" />
-<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>naps-lasucom-digital</title>
+
+    <title>NAPS LASUCOM Digital Secretariat</title>
+
+    <meta
+      name="description"
+      content="Official digital secretariat for NAPS LASUCOM. Access announcements, resources, requests, timetables, executives and official student updates in one place."
+    />
+
+    <meta
+      name="keywords"
+      content="NAPS LASUCOM, NAPS, LASUCOM, Nigeria Association of Physiotherapy Students, Physiotherapy Students LASUCOM, NAPS Digital Secretariat, LASUCOM Physiotherapy"
+    />
+
+    <meta name="author" content="NAPS LASUCOM" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Favicon / App Icons -->
+    <link rel="icon" type="image/png" href="/images/naps-logo.png" />
+    <link rel="apple-touch-icon" href="/images/naps-logo.png" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#062b63" />
+    <meta name="background-color" content="#eef6ff" />
+
+    <!-- Mobile App Feel -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="NAPS LASUCOM" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Open Graph / WhatsApp / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="NAPS LASUCOM Digital Secretariat" />
+    <meta
+      property="og:description"
+      content="The official digital secretariat for NAPS LASUCOM. Get announcements, resources, requests, timetables, executives and official updates in one place."
+    />
+    <meta property="og:image" content="/images/naps-logo.png" />
+    <meta property="og:image:alt" content="NAPS LASUCOM Logo" />
+    <meta property="og:site_name" content="NAPS LASUCOM" />
+
+    <!-- Twitter / X Preview -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="NAPS LASUCOM Digital Secretariat" />
+    <meta
+      name="twitter:description"
+      content="Official digital secretariat for NAPS LASUCOM. Access announcements, resources, requests and official student updates."
+    />
+    <meta name="twitter:image" content="/images/naps-logo.png" />
+
+    <!-- Browser Address Color -->
+    <meta name="msapplication-TileColor" content="#062b63" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "NAPS LASUCOM",
+        "alternateName": "Nigeria Association of Physiotherapy Students LASUCOM",
+        "url": "https://naps-lasucom-digital.vercel.app",
+        "logo": "https://naps-lasucom-digital.vercel.app/images/naps-logo.png",
+        "description": "Official digital secretariat for NAPS LASUCOM."
+      }
+    </script>
   </head>
+
   <body>
     <div id="root"></div>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
