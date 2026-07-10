@@ -22,6 +22,21 @@ if ("serviceWorker" in navigator) {
       .catch((error) => {
         console.log("Service worker registration failed:", error);
       });
+
+    const splash = document.getElementById("app-splash");
+
+    if (!splash) return;
+
+    setTimeout(() => {
+      splash.classList.add("show");
+    }, 120);
+
+    setTimeout(() => {
+      splash.style.opacity = "0";
+
+      setTimeout(() => {
+        splash.remove();
+      }, 400);
+    }, 850);
   });
 }
-
