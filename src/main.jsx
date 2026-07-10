@@ -24,3 +24,9 @@ if ("serviceWorker" in navigator) {
       });
   });
 }
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    document.body.classList.add("app-loaded");
+  }, 750);
+});
