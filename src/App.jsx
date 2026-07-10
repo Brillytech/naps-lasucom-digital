@@ -12,7 +12,7 @@ import {
   Sun,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 /* STUDENT / PUBLIC PAGES */
 import HomePage from "./pages/Home";
@@ -55,7 +55,13 @@ function App() {
   const isAdminLogin = location.pathname === "/naps-admin/login";
   const isAdminSetPassword = location.pathname === "/naps-admin/set-password";
 
-  const [darkMode, setDarkMode] = useState(false);
+ const [darkMode, setDarkMode] = useState(() => {
+  return localStorage.getItem("theme") === "dark";
+});
+
+useEffect(() => {
+  localStorage.setItem("theme", darkMode ? "dark" : "light");
+}, [darkMode]);
 
   return (
     <div
