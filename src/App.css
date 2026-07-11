@@ -6705,6 +6705,30 @@ body {
   background: rgba(7, 82, 184, 0.09);
   color: #0752b8;
 }
+.admin-reset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 10px;
+  background: #eef4ff;
+  color: #1849c6;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-reset-btn:hover {
+  background: #dce8ff;
+}
+
+.admin-reset-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 .admin-save-btn,
 .admin-activate-btn {
@@ -12119,4 +12143,10 @@ body {
     width: 38px !important;
     height: 38px !important;
   }
+}
+
+.notifications-enabled-btn{
+    background:#18a558 !important;
+    color:#fff !important;
+    cursor:default;
 }

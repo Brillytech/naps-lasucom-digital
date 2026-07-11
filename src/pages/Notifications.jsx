@@ -20,10 +20,19 @@ function Notifications() {
 
   const [pushStatus, setPushStatus] = useState("");
   const [enablingPush, setEnablingPush] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
-  useEffect(() => {
-    fetchAnnouncements();
-  }, []);
+ useEffect(() => {
+  fetchAnnouncements();
+
+  if (
+    Notification.permission === "granted" &&
+    localStorage.getItem("notifications_enabled") === "true"
+  ) {
+    setNotificationsEnabled(true);
+    setPushStatus("Notifications enabled successfully.");
+  }
+}, []);
 
   async function fetchAnnouncements() {
     setLoading(true);
@@ -48,18 +57,25 @@ function Notifications() {
   }
 
   async function handleEnablePush() {
-    setEnablingPush(true);
-    setPushStatus("");
+  if (notificationsEnabled) return;
 
-    try {
-      await enablePushNotifications();
-      setPushStatus("Notifications enabled successfully.");
-    } catch (error) {
-      setPushStatus(error.message || "Unable to enable notifications.");
-    }
+  setEnablingPush(true);
+  setPushStatus("");
 
-    setEnablingPush(false);
+  try {
+    await enablePushNotifications();
+
+    localStorage.setItem("notifications_enabled", "true");
+
+    setNotificationsEnabled(true);
+
+    setPushStatus("Notifications enabled successfully.");
+  } catch (error) {
+    setPushStatus(error.message || "Unable to enable notifications.");
   }
+
+  setEnablingPush(false);
+}
 
   return (
     <>
@@ -101,9 +117,18 @@ function Notifications() {
           {pushStatus && <span>{pushStatus}</span>}
         </div>
 
-        <button type="button" onClick={handleEnablePush} disabled={enablingPush}>
-          {enablingPush ? "Enabling..." : "Enable Notifications"}
-        </button>
+       <button
+  type="button"
+  onClick={handleEnablePush}
+  disabled={enablingPush || notificationsEnabled}
+  className={notificationsEnabled ? "notifications-enabled-btn" : ""}
+>
+  {notificationsEnabled
+    ? "✓ Notifications Enabled"
+    : enablingPush
+    ? "Enabling..."
+    : "Enable Notifications"}
+</button>
       </section>
 
       <section className="notifications-list-section">

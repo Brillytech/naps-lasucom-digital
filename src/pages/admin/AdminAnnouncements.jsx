@@ -2,6 +2,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Edit3,
+  ImagePlus,
   Megaphone,
   Pin,
   Plus,
@@ -12,7 +13,6 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { sendPushNotification } from "../../utils/sendPushNotification";
 
 const categories = [
   "General Notice",
@@ -31,12 +31,15 @@ const initialForm = {
   audience: "All NAPSITES",
   status: "published",
   is_pinned: false,
+  image_url: "",
 };
 
 function AdminAnnouncements() {
   const [profile, setProfile] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
+
   const [form, setForm] = useState(initialForm);
+  const [imageFile, setImageFile] = useState(null);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
 
@@ -121,12 +124,8 @@ function AdminAnnouncements() {
 
   function openCreateForm() {
     setEditing(null);
-    setForm({
-      ...initialForm,
-      audience: "All NAPSITES",
-      status: "published",
-      is_pinned: false,
-    });
+    setImageFile(null);
+    setForm(initialForm);
     setShowForm(true);
     setSuccessMessage("");
     setErrorMessage("");
@@ -139,6 +138,7 @@ function AdminAnnouncements() {
     }
 
     setEditing(item);
+    setImageFile(null);
     setForm({
       title: item.title || "",
       body: item.body || "",
@@ -146,6 +146,7 @@ function AdminAnnouncements() {
       audience: item.audience || "All NAPSITES",
       status: item.status || "published",
       is_pinned: Boolean(item.is_pinned),
+      image_url: item.image_url || "",
     });
     setShowForm(true);
     setSuccessMessage("");
@@ -155,19 +156,36 @@ function AdminAnnouncements() {
   function closeForm() {
     setShowForm(false);
     setEditing(null);
+    setImageFile(null);
     setForm(initialForm);
   }
 
-  async function notifyPublishedAnnouncement({ title, body, image = "" }) {
-    try {
-      await sendPushNotification({
-        title,
-        body: body.slice(0, 140),
-        image,
+  async function uploadAnnouncementImage() {
+    if (!imageFile) return form.image_url || null;
+
+    const fileExt = imageFile.name.split(".").pop();
+    const fileName = `${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.${fileExt}`;
+
+    const filePath = `announcements/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("announcement-images")
+      .upload(filePath, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
       });
-    } catch (pushError) {
-      console.log("Push notification error:", pushError.message);
+
+    if (uploadError) {
+      throw new Error(uploadError.message);
     }
+
+    const { data } = supabase.storage
+      .from("announcement-images")
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
   }
 
   async function saveAnnouncement(e) {
@@ -192,69 +210,59 @@ function AdminAnnouncements() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    const wasDraftBeforeEdit = editing?.status === "draft";
-    const isPublishingNow = form.status === "published";
+      const uploadedImageUrl = await uploadAnnouncementImage();
 
-    const payload = {
-      title: form.title.trim(),
-      body: form.body.trim(),
-      category: form.category,
-      audience: form.audience.trim() || "All NAPSITES",
-      status: form.status,
-      is_pinned: Boolean(form.is_pinned),
-      source_office: profile?.office || "Public Relations Officer",
-      updated_at: new Date().toISOString(),
-      published_at:
-        form.status === "published" ? new Date().toISOString() : null,
-    };
+      const payload = {
+        title: form.title.trim(),
+        body: form.body.trim(),
+        category: form.category,
+        audience: form.audience.trim() || "All NAPSITES",
+        status: form.status,
+        is_pinned: Boolean(form.is_pinned),
+        image_url: uploadedImageUrl,
+        source_office: profile?.office || "Public Relations Officer",
+        updated_at: new Date().toISOString(),
+        published_at:
+          form.status === "published" ? new Date().toISOString() : null,
+      };
 
-    let error;
+      let error;
 
-    if (editing?.id) {
-      const result = await supabase
-        .from("announcements")
-        .update(payload)
-        .eq("id", editing.id);
+      if (editing?.id) {
+        const result = await supabase
+          .from("announcements")
+          .update(payload)
+          .eq("id", editing.id);
 
-      error = result.error;
-    } else {
-      const result = await supabase.from("announcements").insert({
-        ...payload,
-        created_by: user?.id || null,
-      });
+        error = result.error;
+      } else {
+        const result = await supabase.from("announcements").insert({
+          ...payload,
+          created_by: user?.id || null,
+        });
 
-      error = result.error;
+        error = result.error;
+      }
+
+      if (error) throw new Error(error.message);
+
+      setSuccessMessage(
+        editing
+          ? "Announcement updated successfully."
+          : "Announcement saved successfully."
+      );
+
+      closeForm();
+      await fetchAnnouncements();
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to save announcement.");
     }
 
-    if (error) {
-      setErrorMessage(error.message);
-      setSaving(false);
-      return;
-    }
-
-    if (isPublishingNow) {
-      await notifyPublishedAnnouncement({
-        title: payload.title,
-        body: payload.body,
-      });
-    }
-
-    setSuccessMessage(
-      editing
-        ? wasDraftBeforeEdit && isPublishingNow
-          ? "Announcement published successfully."
-          : "Announcement updated successfully."
-        : isPublishingNow
-        ? "Announcement published successfully."
-        : "Announcement saved as draft."
-    );
-
-    closeForm();
-    await fetchAnnouncements();
     setSaving(false);
   }
 
@@ -265,7 +273,6 @@ function AdminAnnouncements() {
     }
 
     const confirmDelete = window.confirm(`Delete "${item.title}"?`);
-
     if (!confirmDelete) return;
 
     const { error } = await supabase
@@ -327,18 +334,6 @@ function AdminAnnouncements() {
       return;
     }
 
-    if (nextStatus === "published") {
-      await notifyPublishedAnnouncement({
-        title: item.title || "NAPS LASUCOM",
-        body: item.body || "New announcement posted.",
-        image: item.image_url || "",
-      });
-
-      setSuccessMessage("Announcement published and notification sent.");
-    } else {
-      setSuccessMessage("Announcement moved to draft.");
-    }
-
     await fetchAnnouncements();
   }
 
@@ -374,7 +369,7 @@ function AdminAnnouncements() {
         {canManageAnnouncements() && (
           <button type="button" onClick={openCreateForm}>
             <Plus size={17} />
-            New
+            <span>New</span>
           </button>
         )}
       </header>
@@ -459,6 +454,8 @@ function AdminAnnouncements() {
           form={form}
           editing={editing}
           saving={saving}
+          imageFile={imageFile}
+          setImageFile={setImageFile}
           updateField={updateField}
           closeForm={closeForm}
           saveAnnouncement={saveAnnouncement}
@@ -491,6 +488,14 @@ function AnnouncementSection({
         <div className="announcements-list">
           {items.map((item) => (
             <article className="announcement-card" key={item.id}>
+              {item.image_url && (
+                <img
+                  className="announcement-image"
+                  src={item.image_url}
+                  alt=""
+                />
+              )}
+
               <div className="announcement-card-top">
                 <span>{item.category}</span>
 
@@ -566,10 +571,16 @@ function AnnouncementModal({
   form,
   editing,
   saving,
+  imageFile,
+  setImageFile,
   updateField,
   closeForm,
   saveAnnouncement,
 }) {
+  const imagePreview = imageFile
+    ? URL.createObjectURL(imageFile)
+    : form.image_url;
+
   return (
     <div className="record-modal-backdrop">
       <section className="record-modal announcement-modal">
@@ -585,6 +596,37 @@ function AnnouncementModal({
         </div>
 
         <form className="record-form" onSubmit={saveAnnouncement}>
+          <label className="announcement-image-picker">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+            />
+
+            {imagePreview ? (
+              <img src={imagePreview} alt="" />
+            ) : (
+              <div>
+                <ImagePlus size={25} />
+                <strong>Add announcement image</strong>
+                <span>Optional flyer, notice graphic or event image</span>
+              </div>
+            )}
+          </label>
+
+          {imagePreview && (
+            <button
+              type="button"
+              className="announcement-remove-image"
+              onClick={() => {
+                setImageFile(null);
+                updateField("image_url", "");
+              }}
+            >
+              Remove image
+            </button>
+          )}
+
           <div className="request-form-group">
             <label>Title</label>
             <input
