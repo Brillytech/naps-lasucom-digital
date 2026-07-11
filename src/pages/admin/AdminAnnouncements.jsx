@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { sendPushNotification } from "../../utils/sendPushNotification";
 
 const categories = [
   "General Notice",
@@ -249,13 +250,26 @@ function AdminAnnouncements() {
         error = result.error;
       }
 
-      if (error) throw new Error(error.message);
+     if (error) throw new Error(error.message);
 
-      setSuccessMessage(
-        editing
-          ? "Announcement updated successfully."
-          : "Announcement saved successfully."
-      );
+// Send push notification only when publishing
+if (form.status === "published") {
+  try {
+    await sendPushNotification({
+      title: payload.title,
+      body: payload.body,
+      image: payload.image_url,
+    });
+  } catch (pushError) {
+    console.error("Push notification failed:", pushError);
+  }
+}
+
+setSuccessMessage(
+  editing
+    ? "Announcement updated successfully."
+    : "Announcement saved successfully."
+);
 
       closeForm();
       await fetchAnnouncements();

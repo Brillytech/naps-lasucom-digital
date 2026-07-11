@@ -14,29 +14,32 @@ createRoot(document.getElementById("root")).render(
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/service-worker.js")
-      .then(() => {
-        console.log("NAPS LASUCOM service worker registered");
-      })
-      .catch((error) => {
-        console.log("Service worker registration failed:", error);
-      });
+  navigator.serviceWorker
+    .register("/service-worker.js")
+    .then(() => {
+      console.log("NAPS LASUCOM service worker registered");
+    })
+    .catch((error) => {
+      console.log("Service worker registration failed:", error);
+    });
 
-    const splash = document.getElementById("app-splash");
+  const splash = document.getElementById("app-splash");
 
-    if (!splash) return;
+  if (!splash) return;
 
+  // Animate content in
+  setTimeout(() => {
+    splash.classList.add("show");
+  }, 120);
+
+  // Keep splash visible longer
+  setTimeout(() => {
+    splash.style.opacity = "0";
+
+    // Smooth fade before removing
     setTimeout(() => {
-      splash.classList.add("show");
-    }, 120);
-
-    setTimeout(() => {
-      splash.style.opacity = "0";
-
-      setTimeout(() => {
-        splash.remove();
-      }, 400);
-    }, 850);
-  });
+      splash.remove();
+    }, 700);
+  }, 2500);
+});
 }

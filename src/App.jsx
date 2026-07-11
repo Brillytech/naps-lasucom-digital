@@ -56,8 +56,18 @@ function App() {
   const isAdminSetPassword = location.pathname === "/naps-admin/set-password";
 
  const [darkMode, setDarkMode] = useState(() => {
-  return localStorage.getItem("theme") === "dark";
+  const savedTheme = localStorage.getItem("theme");
+
+  if (savedTheme === null) {
+    return true; // Default to dark mode
+  }
+
+  return savedTheme === "dark";
 });
+
+useEffect(() => {
+  localStorage.setItem("theme", darkMode ? "dark" : "light");
+}, [darkMode]);
 
 useEffect(() => {
   localStorage.setItem("theme", darkMode ? "dark" : "light");
@@ -90,13 +100,22 @@ useEffect(() => {
 
             <div className="soft-brand-mark cross-mark">+</div>
 
-            <button
-              className="theme-toggle"
-              onClick={() => setDarkMode(!darkMode)}
-              aria-label="Toggle theme"
-            >
-              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
+         <button
+  className="theme-toggle"
+  onClick={() => setDarkMode(!darkMode)}
+>
+  {darkMode ? (
+    <>
+      <Sun size={16}/>
+      <span>Light</span>
+    </>
+  ) : (
+    <>
+      <Moon size={16}/>
+      <span>Dark</span>
+    </>
+  )}
+</button>
           </>
         )}
 
