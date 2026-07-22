@@ -247,9 +247,8 @@ function ConfirmModal({ count, onCancel, onConfirm }) {
         <h2>Clear all notifications?</h2>
 
         <p>
-          This removes all {count} notice{count === 1 ? "" : "s"} from this
-          list on your device only. Announcements stay visible to other
-          NAPSITES and can still be managed by admins.
+          This removes all {count} notice{count === 1 ? "" : "s"} from your
+          list.
         </p>
 
         <div className="confirm-modal-actions">
