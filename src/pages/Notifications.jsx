@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   ArrowLeft,
   Bell,
   BookOpen,
@@ -32,6 +33,7 @@ function Notifications() {
   const [announcements, setAnnouncements] = useState([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const [pushStatus, setPushStatus] = useState("");
   const [enablingPush, setEnablingPush] = useState(false);
@@ -103,21 +105,19 @@ function Notifications() {
     setAnnouncements((prev) => prev.filter((item) => item.id !== id));
   }
 
-  function handleClearAll() {
+  function requestClearAll() {
     if (announcements.length === 0) return;
+    setShowClearConfirm(true);
+  }
 
-    const confirmed = window.confirm(
-      "Clear all notifications from this list? This only removes them from your device — announcements stay visible to other NAPSITES and can still be managed by admins."
-    );
-
-    if (!confirmed) return;
-
+  function confirmClearAll() {
     const dismissed = getDismissedIds();
     const idsToDismiss = announcements.map((item) => item.id);
     const updated = [...new Set([...dismissed, ...idsToDismiss])];
 
     saveDismissedIds(updated);
     setAnnouncements([]);
+    setShowClearConfirm(false);
   }
 
   return (
@@ -185,7 +185,7 @@ function Notifications() {
               <button
                 type="button"
                 className="notifications-clear-all-btn"
-                onClick={handleClearAll}
+                onClick={requestClearAll}
               >
                 Clear all
               </button>
@@ -221,7 +221,49 @@ function Notifications() {
           onClose={() => setSelectedAnnouncement(null)}
         />
       )}
+
+      {showClearConfirm && (
+        <ConfirmModal
+          count={announcements.length}
+          onCancel={() => setShowClearConfirm(false)}
+          onConfirm={confirmClearAll}
+        />
+      )}
     </>
+  );
+}
+
+function ConfirmModal({ count, onCancel, onConfirm }) {
+  return (
+    <div className="confirm-modal-backdrop" onClick={onCancel}>
+      <section
+        className="confirm-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="confirm-modal-icon">
+          <AlertTriangle size={22} />
+        </div>
+
+        <h2>Clear all notifications?</h2>
+
+        <p>
+          This removes all {count} notice{count === 1 ? "" : "s"} from this
+          list on your device only. Announcements stay visible to other
+          NAPSITES and can still be managed by admins.
+        </p>
+
+        <div className="confirm-modal-actions">
+          <button type="button" className="confirm-modal-cancel" onClick={onCancel}>
+            Cancel
+          </button>
+
+          <button type="button" className="confirm-modal-confirm" onClick={onConfirm}>
+            <Trash2 size={15} />
+            Clear all
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
