@@ -109,15 +109,11 @@ function AdminUploads() {
     setLoadingResources(false);
   }
 
-  function canUpload(role) {
-    return [
-      "president",
-      "general_secretary",
-      "assistant_general_secretary",
-      "pro",
-      "social_director",
-    ].includes(role);
-  }
+ function canUpload(role) {
+  // Open to all active executives — any role in admin_profiles qualifies.
+  // profile is already filtered to is_active = true when loaded via loadAdmin()
+  return Boolean(role);
+}
 
   function updateField(name, value) {
     setForm((prev) => ({
@@ -126,17 +122,14 @@ function AdminUploads() {
     }));
   }
 
-  function resetForm() {
-    setEditingId(null);
-    setForm({
-      category: "Materials",
-      level: "200L",
-      semester: "First Semester",
-      course_code: "",
-      title: "",
-      external_link: "",
-    });
-  }
+ function resetForm() {
+  setEditingId(null);
+  setForm((prev) => ({
+    ...prev,
+    title: "",
+    external_link: "",
+  }));
+}
 
   function startEdit(item) {
     setEditingId(item.id);

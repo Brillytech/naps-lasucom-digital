@@ -113,13 +113,13 @@ function HomePage() {
       </section>
 
       <section className="notice-card home-announcements-shell">
-      <div className="section-head">
-  <h3>Recent Announcements</h3>
+        <div className="section-head">
+          <h3>Recent Announcements</h3>
 
-  <Link to="/notifications" className="section-head-link">
-    See all
-  </Link>
-</div>
+          <Link to="/notifications" className="section-head-link">
+            See all
+          </Link>
+        </div>
 
         {loadingAnnouncements ? (
           <div className="home-announcement-loading">
@@ -183,42 +183,40 @@ function HomePage() {
 
 function AnnouncementPreview({ announcement, onOpen }) {
   return (
-    <button type="button" className="home-announcement-preview" onClick={onOpen}>
-      {announcement.image_url && (
+    <button
+      type="button"
+      className="home-announcement-row"
+      onClick={onOpen}
+    >
+      {announcement.image_url ? (
         <img
           src={announcement.image_url}
           alt=""
-          className="home-announcement-thumb"
+          className="home-announcement-row-thumb"
         />
+      ) : (
+        <div className="home-announcement-row-icon">
+          <Megaphone size={18} />
+        </div>
       )}
 
-      <div className="home-announcement-preview-body">
-        <div className="home-announcement-icon">
-          <Megaphone size={19} />
+      <section className="home-announcement-row-content">
+        <div className="home-announcement-row-top">
+          <h4>{announcement.title}</h4>
+          {announcement.is_pinned && (
+            <Pin size={12} className="home-announcement-row-pin" />
+          )}
         </div>
 
-        <section>
-          <div className="home-announcement-preview-top">
-            <h4>{announcement.title}</h4>
+        <p>{announcement.body}</p>
+      </section>
 
-            {announcement.is_pinned && (
-              <span>
-                <Pin size={11} />
-                Pinned
-              </span>
-            )}
-          </div>
-
-          <p>{announcement.body}</p>
-
-          <div className="home-announcement-preview-meta">
-            <small>{announcement.category || "General Notice"}</small>
-            <small>{formatNoticeTime(announcement.published_at)}</small>
-          </div>
-        </section>
-
-        <ChevronRight size={17} className="home-announcement-more-icon" />
+      <div className="home-announcement-row-meta">
+        <span>{formatNoticeTime(announcement.published_at)}</span>
+        <i className="home-announcement-row-dot" />
       </div>
+
+      <ChevronRight size={16} className="home-announcement-row-arrow" />
     </button>
   );
 }

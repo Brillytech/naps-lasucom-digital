@@ -2,6 +2,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronLeft,
+  Download,
   ExternalLink,
   FileArchive,
   FileText,
@@ -21,6 +22,18 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import {
+  getSchemaForCategory,
+  buildEmptyContentFields,
+  normalizeContentFields,
+  flattenContentFields,
+} from "../../data/recordFieldSchemas";
+import {
+  downloadRecordAsPDF,
+  downloadRecordAsDocx,
+  downloadRecordAsExcel,
+  downloadRecordsAsExcel,
+} from "../../utils/recordExport";
 
 const recordCategories = [
   {
@@ -187,7 +200,7 @@ const initialForm = {
   dec_set_id: "",
   record_date: "",
   summary: "",
-  content_body: "",
+  content_fields: buildEmptyContentFields("Meeting Minutes"),
   drive_link: "",
   prepared_by: "",
   reviewed_by: "",
@@ -207,6 +220,7 @@ function AdminRecords() {
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [viewRecord, setViewRecord] = useState(null);
+  const [downloadMenuId, setDownloadMenuId] = useState(null);
 
   const [form, setForm] = useState(initialForm);
 
@@ -351,6 +365,7 @@ function AdminRecords() {
     setForm({
       ...initialForm,
       category: firstAllowedCategory,
+      content_fields: buildEmptyContentFields(firstAllowedCategory),
       dec_set_id: currentSet?.id || sets[0]?.id || "",
       record_date: new Date().toISOString().slice(0, 10),
       prepared_by: profile?.full_name || "",
@@ -377,7 +392,7 @@ function AdminRecords() {
       dec_set_id: record.dec_set_id || "",
       record_date: record.record_date || "",
       summary: record.summary || "",
-      content_body: record.content_body || "",
+      content_fields: normalizeContentFields(record),
       drive_link: record.drive_link || "",
       prepared_by: record.prepared_by || "",
       reviewed_by: record.reviewed_by || "",
@@ -406,8 +421,12 @@ function AdminRecords() {
       return;
     }
 
-    if (form.record_type !== "drive" && !form.content_body.trim()) {
-      setErrorMessage("Written record content is required.");
+    const hasWrittenContent = Object.values(form.content_fields || {}).some(
+      (v) => v && v.trim()
+    );
+
+    if (form.record_type !== "drive" && !hasWrittenContent) {
+      setErrorMessage("Please fill in at least one written record field.");
       return;
     }
 
@@ -434,8 +453,11 @@ function AdminRecords() {
       dec_set_id: form.dec_set_id || null,
       record_date: form.record_date || null,
       summary: form.summary.trim() || null,
+      content_fields: form.record_type === "drive" ? null : form.content_fields,
       content_body:
-        form.record_type === "drive" ? null : form.content_body.trim(),
+        form.record_type === "drive"
+          ? null
+          : flattenContentFields(form.category, form.content_fields),
       drive_link:
         form.record_type === "written" ? null : form.drive_link.trim(),
       prepared_by: form.prepared_by.trim() || null,
@@ -737,6 +759,17 @@ function AdminRecords() {
         </div>
       </section>
 
+      {filteredRecords.length > 0 && (
+        <button
+          type="button"
+          className="records-bulk-export-btn"
+          onClick={() => downloadRecordsAsExcel(filteredRecords, getSetLabel)}
+        >
+          <Download size={16} />
+          Export {filteredRecords.length} record{filteredRecords.length === 1 ? "" : "s"} to Excel
+        </button>
+      )}
+
       {pinnedRecords.length > 0 && !selectedCategory && (
         <section className="records-section">
           <div className="records-section-title">
@@ -868,6 +901,17 @@ function AdminRecords() {
                 <aside>
                   {record.is_pinned && <Pin size={14} />}
 
+                  <DownloadMenu
+                    record={record}
+                    setLabel={getSetLabel(record)}
+                    open={downloadMenuId === record.id}
+                    onToggle={() =>
+                      setDownloadMenuId(
+                        downloadMenuId === record.id ? null : record.id
+                      )
+                    }
+                  />
+
                   {canPinRecord() && (
                     <button type="button" onClick={() => togglePin(record)}>
                       {record.is_pinned ? "Unpin" : "Pin"}
@@ -901,6 +945,43 @@ function AdminRecords() {
         />
       )}
     </main>
+  );
+}
+
+function DownloadMenu({ record, setLabel, open, onToggle }) {
+  return (
+    <div className="record-download-menu">
+      <button type="button" onClick={onToggle}>
+        <Download size={13} />
+        Export
+      </button>
+
+      {open && (
+        <div className="record-download-options">
+          <button
+            type="button"
+            className="pdf"
+            onClick={() => downloadRecordAsPDF(record, setLabel)}
+          >
+            PDF Document
+          </button>
+          <button
+            type="button"
+            className="docx"
+            onClick={() => downloadRecordAsDocx(record, setLabel)}
+          >
+            Word Document
+          </button>
+          <button
+            type="button"
+            className="xlsx"
+            onClick={() => downloadRecordAsExcel(record, setLabel)}
+          >
+            Excel Sheet
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -949,7 +1030,11 @@ function RecordFormModal({
               <label>Category</label>
               <select
                 value={form.category}
-                onChange={(e) => updateField("category", e.target.value)}
+                onChange={(e) => {
+                  const nextCategory = e.target.value;
+                  updateField("category", nextCategory);
+                  updateField("content_fields", buildEmptyContentFields(nextCategory));
+                }}
               >
                 {recordCategories.map((category) => (
                   <option
@@ -1018,14 +1103,39 @@ function RecordFormModal({
           </div>
 
           {showWritten && (
-            <div className="request-form-group">
-              <label>Full written record</label>
-              <textarea
-                rows="9"
-                placeholder={getBodyPlaceholder(form.category)}
-                value={form.content_body}
-                onChange={(e) => updateField("content_body", e.target.value)}
-              />
+            <div className="record-structured-fields">
+              <p className="record-structured-fields-title">Written Record Details</p>
+
+              {getSchemaForCategory(form.category).map((field) => (
+                <div className="request-form-group" key={field.key}>
+                  <label>{field.label}</label>
+                  {field.type === "textarea" ? (
+                    <textarea
+                      rows="3"
+                      placeholder={field.label}
+                      value={form.content_fields[field.key] || ""}
+                      onChange={(e) =>
+                        updateField("content_fields", {
+                          ...form.content_fields,
+                          [field.key]: e.target.value,
+                        })
+                      }
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder={field.label}
+                      value={form.content_fields[field.key] || ""}
+                      onChange={(e) =>
+                        updateField("content_fields", {
+                          ...form.content_fields,
+                          [field.key]: e.target.value,
+                        })
+                      }
+                    />
+                  )}
+                </div>
+              ))}
             </div>
           )}
 
@@ -1191,6 +1301,16 @@ function RecordReader({
   const canEdit = canEditRecord(record);
   const canDelete = canDeleteRecord();
 
+  const structuredEntries =
+    record.content_fields && typeof record.content_fields === "object"
+      ? getSchemaForCategory(record.category)
+          .map((field) => ({
+            label: field.label,
+            value: record.content_fields[field.key],
+          }))
+          .filter((entry) => entry.value)
+      : [];
+
   return (
     <main className="admin-dashboard-page record-reader-page">
       <button type="button" className="record-reader-back" onClick={onBack}>
@@ -1239,11 +1359,25 @@ function RecordReader({
           </section>
         )}
 
-        {record.content_body && (
+        {structuredEntries.length > 0 ? (
           <section className="record-reader-body">
             <h3>Written Record</h3>
-            <p>{record.content_body}</p>
+            <div className="record-reader-fields">
+              {structuredEntries.map((entry) => (
+                <div className="record-reader-field" key={entry.label}>
+                  <span>{entry.label}</span>
+                  <p>{entry.value}</p>
+                </div>
+              ))}
+            </div>
           </section>
+        ) : (
+          record.content_body && (
+            <section className="record-reader-body">
+              <h3>Written Record</h3>
+              <p>{record.content_body}</p>
+            </section>
+          )
         )}
 
         {record.drive_link && (
@@ -1264,113 +1398,57 @@ function RecordReader({
           <span>Office: {record.source_office || "Not stated"}</span>
         </div>
 
-        {(canEdit || canDelete) && (
-          <div className="record-reader-actions">
-            {canEdit && (
-              <button type="button" onClick={onEdit}>
-                <Pencil size={15} />
-                Edit
-              </button>
-            )}
+        <div className="record-reader-actions">
+          <div className="record-reader-download-row">
+            <button
+              type="button"
+              className="pdf"
+              onClick={() => downloadRecordAsPDF(record, setLabel)}
+            >
+              <Download size={14} />
+              PDF
+            </button>
 
-            {canDelete && (
-              <button type="button" onClick={onDelete}>
-                <Trash2 size={15} />
-                Delete
-              </button>
-            )}
+            <button
+              type="button"
+              className="docx"
+              onClick={() => downloadRecordAsDocx(record, setLabel)}
+            >
+              <Download size={14} />
+              Word
+            </button>
+
+            <button
+              type="button"
+              className="xlsx"
+              onClick={() => downloadRecordAsExcel(record, setLabel)}
+            >
+              <Download size={14} />
+              Excel
+            </button>
           </div>
-        )}
+
+          {(canEdit || canDelete) && (
+            <div className="record-reader-edit-row">
+              {canEdit && (
+                <button type="button" className="edit-btn" onClick={onEdit}>
+                  <Pencil size={15} />
+                  Edit Record
+                </button>
+              )}
+
+              {canDelete && (
+                <button type="button" className="delete-btn" onClick={onDelete}>
+                  <Trash2 size={15} />
+                  Delete
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );
-}
-
-function getBodyPlaceholder(category) {
-  if (category === "Meeting Minutes") {
-    return `Meeting Title:
-Venue / Platform:
-Attendance:
-Agenda:
-Discussion:
-Resolutions:
-Action Points:
-Closing Note:`;
-  }
-
-  if (category === "Financial Records") {
-    return `Income / Expense:
-Purpose:
-Amount:
-Approved By:
-Voucher / Receipt Details:
-Breakdown:
-Supporting Note:`;
-  }
-
-  if (category === "Reports") {
-    return `Reporting Period:
-Activities Carried Out:
-Achievements:
-Challenges:
-Recommendations:
-Pending Action:`;
-  }
-
-  if (category === "Handover Notes") {
-    return `Outgoing Officer:
-Incoming Officer:
-Office:
-Key Documents:
-Pending Tasks:
-Important Contacts:
-Final Note:`;
-  }
-
-  if (category === "Letters / Memos") {
-    return `Subject:
-Recipient:
-Sender:
-Body:
-Reference Number:`;
-  }
-
-  if (category === "Event Records") {
-    return `Event Title:
-Planning Committee:
-Venue / Platform:
-Activity Summary:
-Attendance:
-Income / Proceeds:
-Amount Remitted:
-Submitted To:
-Outcome:
-Pending Action:`;
-  }
-
-  if (category === "Sports Records") {
-    return `Sporting Activity:
-Date / Venue:
-Participants:
-Equipment Used:
-Representation Details:
-Outcome:
-Challenges:
-Recommendations:
-Pending Action:`;
-  }
-
-  if (category === "Constitution / Policies") {
-    return `Document Title:
-Policy / Constitutional Area:
-Summary:
-Resolution / Amendment:
-Approved By:
-Effective Date:
-Notes:`;
-  }
-
-  return "Write the official record here...";
 }
 
 export default AdminRecords;

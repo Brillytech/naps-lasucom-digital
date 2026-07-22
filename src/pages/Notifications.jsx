@@ -6,12 +6,27 @@ import {
   ChevronRight,
   Megaphone,
   Pin,
+  Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { enablePushNotifications } from "../utils/sendPushNotification";
+
+const DISMISSED_KEY = "napslasucom_dismissed_notifications";
+
+function getDismissedIds() {
+  try {
+    return JSON.parse(localStorage.getItem(DISMISSED_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveDismissedIds(ids) {
+  localStorage.setItem(DISMISSED_KEY, JSON.stringify(ids));
+}
 
 function Notifications() {
   const [announcements, setAnnouncements] = useState([]);
@@ -22,17 +37,17 @@ function Notifications() {
   const [enablingPush, setEnablingPush] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
- useEffect(() => {
-  fetchAnnouncements();
+  useEffect(() => {
+    fetchAnnouncements();
 
-  if (
-    Notification.permission === "granted" &&
-    localStorage.getItem("notifications_enabled") === "true"
-  ) {
-    setNotificationsEnabled(true);
-    setPushStatus("Notifications enabled successfully.");
-  }
-}, []);
+    if (
+      Notification.permission === "granted" &&
+      localStorage.getItem("notifications_enabled") === "true"
+    ) {
+      setNotificationsEnabled(true);
+      setPushStatus("Notifications enabled successfully.");
+    }
+  }, []);
 
   async function fetchAnnouncements() {
     setLoading(true);
@@ -52,30 +67,58 @@ function Notifications() {
       return;
     }
 
-    setAnnouncements(data || []);
+    const dismissed = getDismissedIds();
+    const visible = (data || []).filter((item) => !dismissed.includes(item.id));
+
+    setAnnouncements(visible);
     setLoading(false);
   }
 
   async function handleEnablePush() {
-  if (notificationsEnabled) return;
+    if (notificationsEnabled) return;
 
-  setEnablingPush(true);
-  setPushStatus("");
+    setEnablingPush(true);
+    setPushStatus("");
 
-  try {
-    await enablePushNotifications();
+    try {
+      await enablePushNotifications();
 
-    localStorage.setItem("notifications_enabled", "true");
+      localStorage.setItem("notifications_enabled", "true");
 
-    setNotificationsEnabled(true);
+      setNotificationsEnabled(true);
 
-    setPushStatus("Notifications enabled successfully.");
-  } catch (error) {
-    setPushStatus(error.message || "Unable to enable notifications.");
+      setPushStatus("Notifications enabled successfully.");
+    } catch (error) {
+      setPushStatus(error.message || "Unable to enable notifications.");
+    }
+
+    setEnablingPush(false);
   }
 
-  setEnablingPush(false);
-}
+  function dismissAnnouncement(id) {
+    const dismissed = getDismissedIds();
+    const updated = [...new Set([...dismissed, id])];
+    saveDismissedIds(updated);
+
+    setAnnouncements((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  function handleClearAll() {
+    if (announcements.length === 0) return;
+
+    const confirmed = window.confirm(
+      "Clear all notifications from this list? This only removes them from your device — announcements stay visible to other NAPSITES and can still be managed by admins."
+    );
+
+    if (!confirmed) return;
+
+    const dismissed = getDismissedIds();
+    const idsToDismiss = announcements.map((item) => item.id);
+    const updated = [...new Set([...dismissed, ...idsToDismiss])];
+
+    saveDismissedIds(updated);
+    setAnnouncements([]);
+  }
 
   return (
     <>
@@ -117,24 +160,37 @@ function Notifications() {
           {pushStatus && <span>{pushStatus}</span>}
         </div>
 
-       <button
-  type="button"
-  onClick={handleEnablePush}
-  disabled={enablingPush || notificationsEnabled}
-  className={notificationsEnabled ? "notifications-enabled-btn" : ""}
->
-  {notificationsEnabled
-    ? "✓ Notifications Enabled"
-    : enablingPush
-    ? "Enabling..."
-    : "Enable Notifications"}
-</button>
+        <button
+          type="button"
+          onClick={handleEnablePush}
+          disabled={enablingPush || notificationsEnabled}
+          className={notificationsEnabled ? "notifications-enabled-btn" : ""}
+        >
+          {notificationsEnabled
+            ? "✓ Notifications Enabled"
+            : enablingPush
+            ? "Enabling..."
+            : "Enable Notifications"}
+        </button>
       </section>
 
       <section className="notifications-list-section">
         <div className="section-head">
           <h3>Recent Notices</h3>
-          <span>{announcements.length} shown</span>
+
+          <div className="notifications-head-actions">
+            <span>{announcements.length} shown</span>
+
+            {announcements.length > 0 && (
+              <button
+                type="button"
+                className="notifications-clear-all-btn"
+                onClick={handleClearAll}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -142,10 +198,11 @@ function Notifications() {
         ) : announcements.length > 0 ? (
           <div className="notifications-list">
             {announcements.map((announcement) => (
-              <NotificationCard
+              <SwipeableNotification
                 key={announcement.id}
                 announcement={announcement}
                 onOpen={() => setSelectedAnnouncement(announcement)}
+                onDismiss={() => dismissAnnouncement(announcement.id)}
               />
             ))}
           </div>
@@ -168,48 +225,123 @@ function Notifications() {
   );
 }
 
+const SWIPE_OPEN_X = -84;
+const SWIPE_THRESHOLD = -42;
+
+function SwipeableNotification({ announcement, onOpen, onDismiss }) {
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+
+  const startXRef = useRef(0);
+  const baseXRef = useRef(0);
+  const movedRef = useRef(false);
+
+  function handleTouchStart(e) {
+    startXRef.current = e.touches[0].clientX;
+    baseXRef.current = dragX;
+    movedRef.current = false;
+    setDragging(true);
+  }
+
+  function handleTouchMove(e) {
+    const delta = e.touches[0].clientX - startXRef.current;
+
+    if (Math.abs(delta) > 6) {
+      movedRef.current = true;
+    }
+
+    let next = baseXRef.current + delta;
+
+    if (next > 0) next = 0;
+    if (next < SWIPE_OPEN_X) next = SWIPE_OPEN_X;
+
+    setDragX(next);
+  }
+
+  function handleTouchEnd() {
+    setDragging(false);
+
+    if (dragX <= SWIPE_THRESHOLD) {
+      setDragX(SWIPE_OPEN_X);
+    } else {
+      setDragX(0);
+    }
+  }
+
+  function handleRowClick() {
+    if (movedRef.current) {
+      movedRef.current = false;
+      return;
+    }
+
+    if (dragX !== 0) {
+      setDragX(0);
+      return;
+    }
+
+    onOpen();
+  }
+
+  return (
+    <div className="notification-swipe-wrap">
+      <button
+        type="button"
+        className="notification-swipe-delete"
+        onClick={onDismiss}
+        aria-label="Delete notification"
+      >
+        <Trash2 size={18} />
+        <span>Delete</span>
+      </button>
+
+      <div
+        className="notification-swipe-surface"
+        style={{
+          transform: `translateX(${dragX}px)`,
+          transition: dragging ? "none" : "transform 0.22s ease",
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <NotificationCard announcement={announcement} onOpen={handleRowClick} />
+      </div>
+    </div>
+  );
+}
+
 function NotificationCard({ announcement, onOpen }) {
   return (
-    <button type="button" className="notification-card" onClick={onOpen}>
-      {announcement.image_url && (
+    <button type="button" className="notification-row" onClick={onOpen}>
+      {announcement.image_url ? (
         <img
           src={announcement.image_url}
           alt=""
-          className="notification-card-image"
+          className="notification-row-thumb"
         />
+      ) : (
+        <div className="notification-row-icon">
+          <Megaphone size={18} />
+        </div>
       )}
 
-      <div className="notification-card-content">
-        <div className="notification-icon">
-          <Megaphone size={20} />
+      <section className="notification-row-content">
+        <div className="notification-row-top">
+          <h3>{announcement.title}</h3>
+          {announcement.is_pinned && (
+            <Pin size={12} className="notification-row-pin" />
+          )}
         </div>
 
-        <section>
-          <div className="notification-card-top">
-            <h3>{announcement.title}</h3>
+        <p>{announcement.body}</p>
+      </section>
 
-            {announcement.is_pinned && (
-              <span>
-                <Pin size={12} />
-                Pinned
-              </span>
-            )}
-          </div>
-
-          <p>{announcement.body}</p>
-
-          <div className="notification-tags">
-            <small>{announcement.category || "General Notice"}</small>
-            <small>{announcement.audience || "All NAPSITES"}</small>
-            <small>
-              <CalendarDays size={12} />
-              {formatNoticeTime(announcement.published_at)}
-            </small>
-          </div>
-        </section>
-
-        <ChevronRight size={18} className="notification-arrow" />
+      <div className="notification-row-meta">
+        <span>{formatNoticeTime(announcement.published_at)}</span>
+        <i className="notification-row-dot" />
       </div>
+
+      <ChevronRight size={16} className="notification-row-arrow" />
     </button>
   );
 }
