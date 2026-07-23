@@ -14,10 +14,26 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
+const READ_KEY = "napslasucom_read_notifications";
+
+function getReadIds() {
+  try {
+    return JSON.parse(localStorage.getItem(READ_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveReadIds(ids) {
+  localStorage.setItem(READ_KEY, JSON.stringify(ids));
+}
+
 function HomePage() {
   const [announcements, setAnnouncements] = useState([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+
+  const [readIds, setReadIds] = useState(() => new Set(getReadIds()));
 
   useEffect(() => {
     fetchAnnouncements();
@@ -43,6 +59,14 @@ function HomePage() {
 
     setAnnouncements(data || []);
     setLoadingAnnouncements(false);
+  }
+
+  function markAsRead(id) {
+    if (readIds.has(id)) return;
+
+    const updated = [...getReadIds(), id];
+    saveReadIds(updated);
+    setReadIds((prev) => new Set(prev).add(id));
   }
 
   return (
@@ -131,7 +155,11 @@ function HomePage() {
               <AnnouncementPreview
                 key={announcement.id}
                 announcement={announcement}
-                onOpen={() => setSelectedAnnouncement(announcement)}
+                isRead={readIds.has(announcement.id)}
+                onOpen={() => {
+                  markAsRead(announcement.id);
+                  setSelectedAnnouncement(announcement);
+                }}
               />
             ))}
           </div>
@@ -181,7 +209,7 @@ function HomePage() {
   );
 }
 
-function AnnouncementPreview({ announcement, onOpen }) {
+function AnnouncementPreview({ announcement, isRead, onOpen }) {
   return (
     <button
       type="button"
@@ -213,7 +241,7 @@ function AnnouncementPreview({ announcement, onOpen }) {
 
       <div className="home-announcement-row-meta">
         <span>{formatNoticeTime(announcement.published_at)}</span>
-        <i className="home-announcement-row-dot" />
+        {!isRead && <i className="home-announcement-row-dot" />}
       </div>
 
       <ChevronRight size={16} className="home-announcement-row-arrow" />

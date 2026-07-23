@@ -16,6 +16,7 @@ import { supabase } from "../lib/supabase";
 import { enablePushNotifications } from "../utils/sendPushNotification";
 
 const DISMISSED_KEY = "napslasucom_dismissed_notifications";
+const READ_KEY = "napslasucom_read_notifications";
 
 function getDismissedIds() {
   try {
@@ -29,6 +30,18 @@ function saveDismissedIds(ids) {
   localStorage.setItem(DISMISSED_KEY, JSON.stringify(ids));
 }
 
+function getReadIds() {
+  try {
+    return JSON.parse(localStorage.getItem(READ_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveReadIds(ids) {
+  localStorage.setItem(READ_KEY, JSON.stringify(ids));
+}
+
 function Notifications() {
   const [announcements, setAnnouncements] = useState([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
@@ -38,6 +51,8 @@ function Notifications() {
   const [pushStatus, setPushStatus] = useState("");
   const [enablingPush, setEnablingPush] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  const [readIds, setReadIds] = useState(() => new Set(getReadIds()));
 
   useEffect(() => {
     fetchAnnouncements();
@@ -95,6 +110,14 @@ function Notifications() {
     }
 
     setEnablingPush(false);
+  }
+
+  function markAsRead(id) {
+    if (readIds.has(id)) return;
+
+    const updated = [...getReadIds(), id];
+    saveReadIds(updated);
+    setReadIds((prev) => new Set(prev).add(id));
   }
 
   function dismissAnnouncement(id) {
@@ -201,7 +224,11 @@ function Notifications() {
               <SwipeableNotification
                 key={announcement.id}
                 announcement={announcement}
-                onOpen={() => setSelectedAnnouncement(announcement)}
+                isRead={readIds.has(announcement.id)}
+                onOpen={() => {
+                  markAsRead(announcement.id);
+                  setSelectedAnnouncement(announcement);
+                }}
                 onDismiss={() => dismissAnnouncement(announcement.id)}
               />
             ))}
@@ -236,10 +263,7 @@ function Notifications() {
 function ConfirmModal({ count, onCancel, onConfirm }) {
   return (
     <div className="confirm-modal-backdrop" onClick={onCancel}>
-      <section
-        className="confirm-modal"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <section className="confirm-modal" onClick={(e) => e.stopPropagation()}>
         <div className="confirm-modal-icon">
           <AlertTriangle size={22} />
         </div>
@@ -269,7 +293,7 @@ function ConfirmModal({ count, onCancel, onConfirm }) {
 const SWIPE_OPEN_X = -84;
 const SWIPE_THRESHOLD = -42;
 
-function SwipeableNotification({ announcement, onOpen, onDismiss }) {
+function SwipeableNotification({ announcement, isRead, onOpen, onDismiss }) {
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
 
@@ -345,13 +369,17 @@ function SwipeableNotification({ announcement, onOpen, onDismiss }) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <NotificationCard announcement={announcement} onOpen={handleRowClick} />
+        <NotificationCard
+          announcement={announcement}
+          isRead={isRead}
+          onOpen={handleRowClick}
+        />
       </div>
     </div>
   );
 }
 
-function NotificationCard({ announcement, onOpen }) {
+function NotificationCard({ announcement, isRead, onOpen }) {
   return (
     <button type="button" className="notification-row" onClick={onOpen}>
       {announcement.image_url ? (
@@ -379,7 +407,7 @@ function NotificationCard({ announcement, onOpen }) {
 
       <div className="notification-row-meta">
         <span>{formatNoticeTime(announcement.published_at)}</span>
-        <i className="notification-row-dot" />
+        {!isRead && <i className="notification-row-dot" />}
       </div>
 
       <ChevronRight size={16} className="notification-row-arrow" />
