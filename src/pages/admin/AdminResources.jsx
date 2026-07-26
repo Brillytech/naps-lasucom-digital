@@ -6,9 +6,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 
 function AdminResources() {
+  const navigate = useNavigate();
+
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,6 +40,10 @@ function AdminResources() {
     }
 
     setLoading(false);
+  }
+
+  function editResource(item) {
+    navigate("/naps-admin/uploads", { state: { editItem: item } });
   }
 
   async function togglePublish(item) {
@@ -182,7 +189,7 @@ function AdminResources() {
                     </section>
 
                     <div className="admin-recent-actions">
-                      <button type="button">
+                      <button type="button" onClick={() => editResource(item)}>
                         <Pencil size={15} />
                         Edit
                       </button>

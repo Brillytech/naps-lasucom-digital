@@ -11,7 +11,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { hasValidDriveFileId } from "../../utils/driveLinks";
 import { supabase } from "../../lib/supabase";
@@ -41,6 +41,9 @@ const levels = ["200L", "300L", "400L", "500L", "600L"];
 const semesters = ["First Semester", "Second Semester"];
 
 function AdminUploads() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
@@ -68,6 +71,14 @@ function AdminUploads() {
   useEffect(() => {
     loadAdmin();
     fetchResources();
+
+    if (location.state?.editItem) {
+      startEdit(location.state.editItem);
+      // Clear the navigation state so a page refresh doesn't
+      // re-trigger the edit form.
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadAdmin() {
@@ -109,11 +120,11 @@ function AdminUploads() {
     setLoadingResources(false);
   }
 
- function canUpload(role) {
-  // Open to all active executives — any role in admin_profiles qualifies.
-  // profile is already filtered to is_active = true when loaded via loadAdmin()
-  return Boolean(role);
-}
+  function canUpload(role) {
+    // Open to all active executives — any role in admin_profiles qualifies.
+    // profile is already filtered to is_active = true when loaded via loadAdmin()
+    return Boolean(role);
+  }
 
   function updateField(name, value) {
     setForm((prev) => ({
@@ -122,14 +133,14 @@ function AdminUploads() {
     }));
   }
 
- function resetForm() {
-  setEditingId(null);
-  setForm((prev) => ({
-    ...prev,
-    title: "",
-    external_link: "",
-  }));
-}
+  function resetForm() {
+    setEditingId(null);
+    setForm((prev) => ({
+      ...prev,
+      title: "",
+      external_link: "",
+    }));
+  }
 
   function startEdit(item) {
     setEditingId(item.id);
