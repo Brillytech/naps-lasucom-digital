@@ -49,6 +49,7 @@ function Notifications() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const [pushStatus, setPushStatus] = useState("");
+  const [pushStatusType, setPushStatusType] = useState("success");
   const [enablingPush, setEnablingPush] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
@@ -63,6 +64,7 @@ function Notifications() {
     ) {
       setNotificationsEnabled(true);
       setPushStatus("Notifications enabled successfully.");
+      setPushStatusType("success");
     }
   }, []);
 
@@ -105,8 +107,10 @@ function Notifications() {
       setNotificationsEnabled(true);
 
       setPushStatus("Notifications enabled successfully.");
+      setPushStatusType("success");
     } catch (error) {
       setPushStatus(error.message || "Unable to enable notifications.");
+      setPushStatusType("error");
     }
 
     setEnablingPush(false);
@@ -180,7 +184,11 @@ function Notifications() {
             posted.
           </p>
 
-          {pushStatus && <span>{pushStatus}</span>}
+          {pushStatus && (
+            <span className={pushStatusType === "error" ? "push-status-error" : ""}>
+              {pushStatus}
+            </span>
+          )}
         </div>
 
         <button

@@ -11,7 +11,7 @@ import {
   Star,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { getDriveDownloadLink } from "../utils/driveLinks";
 import { isFavorited, toggleFavorite } from "../utils/localLibrary";
@@ -68,6 +68,26 @@ function ResourceListPage({ category }) {
   const [selectedSemester, setSelectedSemester] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Level/semester/course selection is normal component state — it isn't
+  // tied to the URL, so by default the phone's back button/gesture would
+  // just leave the whole page instead of stepping back one selection at a
+  // time. We push a history entry each time the user drills deeper, and
+  // listen for popstate (back button) to undo one step, so back behaves
+  // the way people expect.
+  const historyDepthRef = useRef(0);
+
+  useEffect(() => {
+    function handlePopState() {
+      if (historyDepthRef.current > 0) {
+        historyDepthRef.current -= 1;
+      }
+      stepBack();
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  });
 
   useEffect(() => {
     fetchCategoryIndex();
@@ -199,6 +219,14 @@ function ResourceListPage({ category }) {
   ]);
 
   function resetAll() {
+    if (historyDepthRef.current > 0) {
+      // Popping these will fire popstate for each one, and our listener
+      // calls stepBack() each time — which progressively clears course,
+      // then semester, then level, landing at a fully reset state.
+      window.history.go(-historyDepthRef.current);
+      return;
+    }
+
     setSelectedLevel("");
     setSelectedSemester("");
     setSelectedCourse("");
@@ -214,6 +242,9 @@ function ResourceListPage({ category }) {
     setSelectedCourse("");
     setSearchTerm("");
     setResources([]);
+
+    window.history.pushState({}, "");
+    historyDepthRef.current += 1;
   }
 
   function chooseSemester(semester, count) {
@@ -222,6 +253,9 @@ function ResourceListPage({ category }) {
     setSelectedSemester(semester);
     setSelectedCourse("");
     setSearchTerm("");
+
+    window.history.pushState({}, "");
+    historyDepthRef.current += 1;
   }
 
   function chooseCourse(course, count) {
@@ -229,9 +263,15 @@ function ResourceListPage({ category }) {
 
     setSelectedCourse(course);
     setSearchTerm("");
+
+    window.history.pushState({}, "");
+    historyDepthRef.current += 1;
   }
 
-  function goBackOneStep() {
+  // Performs the actual one-step-back state change. Triggered either by
+  // the in-app "Go back" button (via history.back(), see goBackOneStep
+  // below) or directly by the phone's back button/gesture (popstate).
+  function stepBack() {
     if (selectedCourse || searchTerm) {
       setSelectedCourse("");
       setSearchTerm("");
@@ -246,7 +286,17 @@ function ResourceListPage({ category }) {
 
     if (selectedLevel) {
       setSelectedLevel("");
-      return;
+    }
+  }
+
+  // Called by the in-app "Go back" button — goes through history.back()
+  // so our pushed entries and the actual selection state never drift out
+  // of sync with each other.
+  function goBackOneStep() {
+    if (historyDepthRef.current > 0) {
+      window.history.back();
+    } else {
+      stepBack();
     }
   }
 

@@ -5094,6 +5094,7 @@ body {
 .admin-request-actions {
   margin-top: 14px;
   display: grid;
+  grid-template-columns: 1fr 1fr 1fr 44px;
   gap: 8px;
 }
 
@@ -5106,15 +5107,37 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 11.5px;
   font-weight: 900;
   cursor: pointer;
 }
 
-.admin-request-actions button:last-child {
+.admin-request-actions button.active {
+  background: #0752b8;
+  color: #fff;
+}
+
+.admin-request-actions button.resolved-btn {
   background: rgba(34, 164, 71, 0.12);
   color: #168238;
+}
+
+.admin-request-actions button.resolved-btn.active {
+  background: #168238;
+  color: #fff;
+}
+
+.admin-request-actions button.request-delete-btn {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.admin-request-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .request-type-switch {
@@ -5516,16 +5539,75 @@ body {
 }
 
 .request-row {
-  min-height: 82px;
   border-radius: 22px;
   padding: 12px;
   background: rgba(255, 255, 255, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.76);
   box-shadow: 0 12px 28px rgba(20, 49, 95, 0.08);
+}
+
+.request-row.expanded {
+  box-shadow: 0 16px 36px rgba(20, 49, 95, 0.14);
+  border-color: rgba(7, 82, 184, 0.25);
+}
+
+.request-row-header {
+  width: 100%;
+  min-height: 58px;
+  border: 0;
+  background: none;
+  padding: 0;
   display: grid;
-  grid-template-columns: 8px 1fr 36px;
+  grid-template-columns: 8px 1fr auto;
   gap: 10px;
   align-items: center;
+  text-align: left;
+  cursor: pointer;
+}
+
+.request-row-header svg.chevron-flip {
+  transform: rotate(180deg);
+}
+
+.request-row-header svg {
+  color: #6d7890;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.request-row-details {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(109, 120, 144, 0.28);
+}
+
+.request-row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.request-row-actions button {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: rgba(7, 82, 184, 0.08);
+  color: #0752b8;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.request-row-actions button.danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+.request-row-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .request-row-dot {
@@ -5572,16 +5654,37 @@ body {
   font-weight: 900;
 }
 
-.request-row button {
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: 13px;
-  display: grid;
-  place-items: center;
-  background: rgba(7, 82, 184, 0.08);
-  color: #0752b8;
+/* ===== Hide resolved toggle + hidden-count banner ===== */
+.hide-resolved-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #6d7890;
   cursor: pointer;
+}
+
+.hide-resolved-toggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: #0752b8;
+  cursor: pointer;
+}
+
+.hidden-resolved-banner {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border: 1px dashed rgba(7, 82, 184, 0.35);
+  border-radius: 16px;
+  background: rgba(7, 82, 184, 0.05);
+  color: #0752b8;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: left;
 }
 
 .request-status {
@@ -12525,6 +12628,10 @@ body {
   color: var(--green);
   font-size: 11.5px;
   font-weight: 850;
+}
+
+.push-enable-card span.push-status-error {
+  color: #dc2626;
 }
 
 .push-enable-card button {
