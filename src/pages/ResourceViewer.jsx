@@ -15,6 +15,7 @@ import {
   hasValidDriveFileId,
   isGoogleDriveLink,
 } from "../utils/driveLinks";
+import { addRecentlyViewed } from "../utils/localLibrary";
 
 function ResourceViewer() {
   const [searchParams] = useSearchParams();
@@ -30,6 +31,13 @@ function ResourceViewer() {
   const previewUrl = isDrive ? getDriveViewLink(rawUrl) : rawUrl;
   const openUrl = isDrive ? getDriveOpenLink(rawUrl) : rawUrl;
   const downloadUrl = isDrive ? getDriveDownloadLink(rawUrl) : rawUrl;
+
+  useEffect(() => {
+    if (rawUrl && validDriveFile) {
+      addRecentlyViewed({ url: rawUrl, title });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawUrl, validDriveFile]);
 
   // Keep state in sync if the user exits fullscreen using the device's own
   // back gesture/button/escape key rather than our own toggle button.

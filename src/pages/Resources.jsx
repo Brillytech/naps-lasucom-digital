@@ -6,6 +6,7 @@ import {
   FileText,
   FolderOpen,
   Sparkles,
+  Star,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -33,6 +34,14 @@ const resourceCategories = [
     link: "/timetables",
     icon: <CalendarDays size={24} />,
     color: "green",
+  },
+  {
+    title: "Favorites",
+    label: "Saved by you",
+    text: "Resources you've starred for quick access later.",
+    link: "/favorites",
+    icon: <Star size={24} />,
+    color: "blue",
   },
 ];
 

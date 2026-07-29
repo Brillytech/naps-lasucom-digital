@@ -26,6 +26,8 @@ import Naps from "./pages/Naps";
 import ResourceViewer from "./pages/ResourceViewer";
 import Constitution from "./pages/constitution";
 import Notifications from "./pages/Notifications";
+import Favorites from "./pages/Favorites";
+import InstallPrompt from "./components/InstallPrompt";
 
 /* ADMIN PAGES - ACTIVE */
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -136,6 +138,7 @@ useEffect(() => {
           <Route path="/resource-viewer" element={<ResourceViewer />} />
           <Route path="/constitution" element={<Constitution />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/favorites" element={<Favorites />} />
 
           {/* ADMIN ROUTES */}
           <Route path="/naps-admin/login" element={<AdminLogin />} />
@@ -196,6 +199,8 @@ useEffect(() => {
         {isAdminRoute && !isAdminLogin && !isAdminSetPassword && (
           <AdminBottomNav />
         )}
+
+        {!isAdminRoute && <InstallPrompt />}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import {
   Building2,
   CalendarDays,
   ChevronRight,
+  Clock,
   FileText,
   Megaphone,
   MessageCircle,
@@ -13,6 +14,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { getRecentlyViewed } from "../utils/localLibrary";
 
 const READ_KEY = "napslasucom_read_notifications";
 
@@ -34,9 +36,11 @@ function HomePage() {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
   const [readIds, setReadIds] = useState(() => new Set(getReadIds()));
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
 
   useEffect(() => {
     fetchAnnouncements();
+    setRecentlyViewed(getRecentlyViewed());
   }, []);
 
   async function fetchAnnouncements() {
@@ -135,6 +139,31 @@ function HomePage() {
           <ChevronRight size={15} className="mini-arrow" />
         </Link>
       </section>
+
+      {recentlyViewed.length > 0 && (
+        <section className="notice-card home-continue-shell">
+          <div className="section-head">
+            <h3>Continue Reading</h3>
+          </div>
+
+          <div className="continue-reading-strip">
+            {recentlyViewed.map((entry) => (
+              <Link
+                key={entry.url}
+                to={`/resource-viewer?url=${encodeURIComponent(
+                  entry.url
+                )}&title=${encodeURIComponent(entry.title)}`}
+                className="continue-reading-card"
+              >
+                <div className="continue-reading-icon">
+                  <Clock size={16} />
+                </div>
+                <span>{entry.title}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="notice-card home-announcements-shell">
         <div className="section-head">

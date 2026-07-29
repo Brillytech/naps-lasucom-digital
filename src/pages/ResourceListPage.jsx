@@ -8,11 +8,13 @@ import {
   FileText,
   Search,
   SlidersHorizontal,
+  Star,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { getDriveDownloadLink } from "../utils/driveLinks";
+import { isFavorited, toggleFavorite } from "../utils/localLibrary";
 
 const pageData = {
   Materials: {
@@ -466,11 +468,18 @@ function ResourceCard({ item, pageInfo }) {
   const mainLink = item.external_link || item.file_url;
   const downloadLink = getDriveDownloadLink(mainLink);
 
+  const [favorited, setFavorited] = useState(() => isFavorited(item.id));
+
   const viewerPath = mainLink
     ? `/resource-viewer?url=${encodeURIComponent(mainLink)}&title=${encodeURIComponent(
         item.title || "Resource"
       )}`
     : "";
+
+  function handleToggleFavorite() {
+    toggleFavorite(item);
+    setFavorited((prev) => !prev);
+  }
 
   return (
     <article className={`compact-resource-card ${pageInfo.cardClass}`}>
@@ -490,6 +499,16 @@ function ResourceCard({ item, pageInfo }) {
       </div>
 
       <div className="compact-actions">
+        <button
+          type="button"
+          className={favorited ? "favorite-toggle active" : "favorite-toggle"}
+          onClick={handleToggleFavorite}
+          title={favorited ? "Remove from favorites" : "Save to favorites"}
+          aria-label={favorited ? "Remove from favorites" : "Save to favorites"}
+        >
+          <Star size={14} fill={favorited ? "currentColor" : "none"} />
+        </button>
+
         {mainLink ? (
           <Link to={viewerPath} title="View" aria-label="View resource">
             <Eye size={14} />
