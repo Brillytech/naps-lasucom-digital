@@ -70,8 +70,12 @@ useEffect(() => {
 }, [darkMode]);
 
 useEffect(() => {
-  localStorage.setItem("theme", darkMode ? "dark" : "light");
-}, [darkMode]);
+  if (typeof window.gtag === "function") {
+    window.gtag("config", "G-38MG29216W", {
+      page_path: location.pathname + location.search,
+    });
+  }
+}, [location]);
 
   return (
     <div
