@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
   Star,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { getDriveDownloadLink } from "../utils/driveLinks";
@@ -57,6 +57,28 @@ const semesters = ["First Semester", "Second Semester"];
 function ResourceListPage({ category }) {
   const pageInfo = pageData[category];
   const isTimetable = category === "Timetables";
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  function handleTopBack() {
+    // If the user has an active selection (level/semester/course/search),
+    // "back" should undo that one step first — just like a real back
+    // button would — rather than immediately leaving the page.
+    if (selectedCourse || searchTerm || selectedSemester || selectedLevel) {
+      goBackOneStep();
+      return;
+    }
+
+    // Nothing left to step back through — actually leave the page.
+    // location.key is "default" when there's no real previous entry in
+    // this tab's history (e.g. a fresh/shared link) — in that case
+    // navigate(-1) would do nothing, so fall back to the Resources page.
+    if (location.key && location.key !== "default") {
+      navigate(-1);
+    } else {
+      navigate("/resources");
+    }
+  }
 
   const [allCategoryResources, setAllCategoryResources] = useState([]);
   const [resources, setResources] = useState([]);
@@ -76,9 +98,19 @@ function ResourceListPage({ category }) {
   // listen for popstate (back button) to undo one step, so back behaves
   // the way people expect.
   const historyDepthRef = useRef(0);
+  const suppressPopCountRef = useRef(0);
 
   useEffect(() => {
     function handlePopState() {
+      // If this popstate was triggered by our own button (see
+      // goBackOneStep/resetAll below), the state change already happened
+      // synchronously — just consume one "credit" and skip, so a single
+      // tap doesn't get applied twice.
+      if (suppressPopCountRef.current > 0) {
+        suppressPopCountRef.current -= 1;
+        return;
+      }
+
       if (historyDepthRef.current > 0) {
         historyDepthRef.current -= 1;
       }
@@ -219,19 +251,17 @@ function ResourceListPage({ category }) {
   ]);
 
   function resetAll() {
-    if (historyDepthRef.current > 0) {
-      // Popping these will fire popstate for each one, and our listener
-      // calls stepBack() each time — which progressively clears course,
-      // then semester, then level, landing at a fully reset state.
-      window.history.go(-historyDepthRef.current);
-      return;
-    }
-
     setSelectedLevel("");
     setSelectedSemester("");
     setSelectedCourse("");
     setSearchTerm("");
     setResources([]);
+
+    if (historyDepthRef.current > 0) {
+      suppressPopCountRef.current += historyDepthRef.current;
+      window.history.go(-historyDepthRef.current);
+      historyDepthRef.current = 0;
+    }
   }
 
   function chooseLevel(level, count) {
@@ -289,14 +319,19 @@ function ResourceListPage({ category }) {
     }
   }
 
-  // Called by the in-app "Go back" button — goes through history.back()
-  // so our pushed entries and the actual selection state never drift out
-  // of sync with each other.
+  // Called by the in-app back button. Updates the UI immediately instead
+  // of waiting on window.history.back()'s async popstate event — that
+  // round-trip is what made the button feel like it needed two taps.
+  // We still call history.back() to keep the stack in sync for the
+  // phone's physical back gesture, but flag it so our own listener
+  // doesn't apply the same step twice.
   function goBackOneStep() {
+    stepBack();
+
     if (historyDepthRef.current > 0) {
+      historyDepthRef.current -= 1;
+      suppressPopCountRef.current += 1;
       window.history.back();
-    } else {
-      stepBack();
     }
   }
 
@@ -313,10 +348,14 @@ function ResourceListPage({ category }) {
   return (
     <>
       <section className="page-header materials-header">
-        <Link to="/resources" className="back-link">
-          <ArrowLeft size={18} />
-          Resources
-        </Link>
+        <button
+          type="button"
+          className="back-icon-btn"
+          onClick={handleTopBack}
+          aria-label="Back"
+        >
+          <ArrowLeft size={20} />
+        </button>
 
         <p>{pageInfo.eyebrow}</p>
         <h1>{pageInfo.title}</h1>
@@ -354,16 +393,6 @@ function ResourceListPage({ category }) {
             {isTimetable ? "Timetable" : selectedCourse || "Course"}
           </span>
         </div>
-
-        {(selectedLevel || selectedSemester || selectedCourse || searchTerm) && (
-          <button
-            type="button"
-            className="library-back-step"
-            onClick={goBackOneStep}
-          >
-            Go back
-          </button>
-        )}
       </section>
 
       {!selectedLevel && (
