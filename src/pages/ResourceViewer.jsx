@@ -6,7 +6,7 @@ import {
   Maximize2,
   Minimize2,
 } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import {
   getDriveDownloadLink,
@@ -19,8 +19,21 @@ import { addRecentlyViewed } from "../utils/localLibrary";
 
 function ResourceViewer() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const frameWrapperRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  function handleBack() {
+    // location.key is "default" when there's no real previous entry in
+    // this tab's history (e.g. a shared link opened directly) — in that
+    // case navigate(-1) would do nothing, so fall back to Resources.
+    if (location.key && location.key !== "default") {
+      navigate(-1);
+    } else {
+      navigate("/resources");
+    }
+  }
 
   const rawUrl = searchParams.get("url");
   const title = searchParams.get("title") || "Resource";
@@ -140,10 +153,9 @@ function ResourceViewer() {
   if (!rawUrl) {
     return (
       <main className="resource-viewer-page">
-        <Link to="/resources" className="back-link">
-          <ArrowLeft size={18} />
-          Back
-        </Link>
+        <button type="button" className="back-icon-btn" onClick={handleBack} aria-label="Back">
+          <ArrowLeft size={20} />
+        </button>
 
         <section className="empty-state">
           <FileText size={32} />
@@ -157,10 +169,9 @@ function ResourceViewer() {
   if (!validDriveFile) {
     return (
       <main className="resource-viewer-page">
-        <Link to="/resources" className="back-link">
-          <ArrowLeft size={18} />
-          Back
-        </Link>
+        <button type="button" className="back-icon-btn" onClick={handleBack} aria-label="Back">
+          <ArrowLeft size={20} />
+        </button>
 
         <section className="empty-state">
           <FileText size={32} />
@@ -184,10 +195,9 @@ function ResourceViewer() {
     >
       {!isFullscreen && (
         <header className="resource-viewer-header">
-          <Link to="/resources" className="back-link">
-            <ArrowLeft size={18} />
-            Back
-          </Link>
+          <button type="button" className="back-icon-btn" onClick={handleBack} aria-label="Back">
+            <ArrowLeft size={20} />
+          </button>
 
           <h1>{title}</h1>
 
