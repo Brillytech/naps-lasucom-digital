@@ -3,8 +3,13 @@ import {
   Download,
   ExternalLink,
   FileText,
+  Flag,
   Maximize2,
   Minimize2,
+  Moon,
+  RotateCw,
+  Share2,
+  Sun,
 } from "lucide-react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
@@ -85,14 +90,60 @@ function ResourceViewer() {
     };
   }, []);
 
-  async function lockOrientation() {
+  const [isLandscapeLocked, setIsLandscapeLocked] = useState(false);
+  const [isDimmed, setIsDimmed] = useState(false);
+  const [shareStatus, setShareStatus] = useState("");
+
+  function toggleDimmer() {
+    setIsDimmed((prev) => !prev);
+  }
+
+  async function handleShare() {
+    const shareUrl = `${window.location.origin}/resource-viewer?url=${encodeURIComponent(
+      rawUrl
+    )}&title=${encodeURIComponent(title)}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url: shareUrl });
+      } catch (err) {
+        // User cancelled the share sheet — nothing to do.
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareStatus("Link copied!");
+      setTimeout(() => setShareStatus(""), 2000);
+    } catch (err) {
+      setShareStatus("Could not copy link.");
+      setTimeout(() => setShareStatus(""), 2000);
+    }
+  }
+
+  function handleReportBroken() {
+    const message = `The link for "${title}" appears to be broken or invalid.\n\nLink: ${
+      rawUrl || "(none provided)"
+    }`;
+
+    navigate(
+      `/requests?category=${encodeURIComponent(
+        "Complaint"
+      )}&message=${encodeURIComponent(message)}`
+    );
+  }
+
+  async function lockLandscape() {
     try {
       if (screen.orientation && screen.orientation.lock) {
         await screen.orientation.lock("landscape");
+        setIsLandscapeLocked(true);
       }
     } catch (err) {
-      // Orientation lock isn't supported on this device/browser.
-      // The page still works — the user can just rotate manually.
+      // Orientation lock isn't supported on this device/browser
+      // (common on iOS Safari) — nothing we can do here, the user
+      // can still rotate their phone manually and it'll follow.
     }
   }
 
@@ -103,6 +154,15 @@ function ResourceViewer() {
       }
     } catch (err) {
       // ignore — nothing to unlock on unsupported browsers
+    }
+    setIsLandscapeLocked(false);
+  }
+
+  function toggleLandscapeLock() {
+    if (isLandscapeLocked) {
+      unlockOrientation();
+    } else {
+      lockLandscape();
     }
   }
 
@@ -120,8 +180,11 @@ function ResourceViewer() {
       // fall back to the CSS-only immersive mode below.
     }
 
+    // No orientation lock here — fullscreen opens in whatever orientation
+    // the phone is already in (usually portrait, with scrolling working
+    // normally). Landscape is now an explicit opt-in via the rotate
+    // button, not forced on everyone.
     setIsFullscreen(true);
-    lockOrientation();
   }
 
   async function exitFullscreen() {
@@ -180,6 +243,15 @@ function ResourceViewer() {
             This file link does not look correct. Please report this resource so
             the admin can update the link.
           </p>
+
+          <button
+            type="button"
+            className="report-broken-btn"
+            onClick={handleReportBroken}
+          >
+            <Flag size={16} />
+            Report broken link
+          </button>
         </section>
       </main>
     );
@@ -202,6 +274,11 @@ function ResourceViewer() {
           <h1>{title}</h1>
 
           <div className="resource-viewer-actions">
+            <button type="button" onClick={handleShare}>
+              <Share2 size={16} />
+              Share
+            </button>
+
             <a href={openUrl} target="_blank" rel="noreferrer">
               <ExternalLink size={16} />
               Open
@@ -212,6 +289,8 @@ function ResourceViewer() {
               Download
             </a>
           </div>
+
+          {shareStatus && <span className="share-status-toast">{shareStatus}</span>}
         </header>
       )}
 
@@ -223,14 +302,46 @@ function ResourceViewer() {
             : "resource-viewer-frame"
         }
       >
-        <button
-          type="button"
-          className="reader-toggle-btn"
-          onClick={toggleFullscreen}
-          aria-label={isFullscreen ? "Exit fullscreen" : "Read fullscreen"}
-        >
-          {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-        </button>
+        <div className="viewer-toolbar">
+          <button
+            type="button"
+            className={isDimmed ? "toolbar-icon-btn active" : "toolbar-icon-btn"}
+            onClick={toggleDimmer}
+            aria-label={isDimmed ? "Turn off night reading" : "Dim for night reading"}
+            title={isDimmed ? "Turn off night reading" : "Dim for night reading"}
+          >
+            {isDimmed ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+
+          {isFullscreen && (
+            <button
+              type="button"
+              className={
+                isLandscapeLocked ? "toolbar-icon-btn active" : "toolbar-icon-btn"
+              }
+              onClick={toggleLandscapeLock}
+              aria-label={
+                isLandscapeLocked ? "Return to portrait" : "Rotate to landscape"
+              }
+              title={
+                isLandscapeLocked ? "Return to portrait" : "Rotate to landscape"
+              }
+            >
+              <RotateCw size={17} />
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="toolbar-icon-btn"
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Read fullscreen"}
+          >
+            {isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+          </button>
+        </div>
+
+        {isDimmed && <div className="viewer-dimmer-overlay" />}
 
         <iframe src={previewUrl} title={title} allowFullScreen />
       </section>

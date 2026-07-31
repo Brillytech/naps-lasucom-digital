@@ -7,7 +7,8 @@ import {
   ShieldCheck,
   User,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 const requestCategories = [
@@ -22,6 +23,7 @@ const requestCategories = [
 ];
 
 function Requests() {
+  const [searchParams] = useSearchParams();
   const [requestType, setRequestType] = useState("normal");
 
   const [form, setForm] = useState({
@@ -32,6 +34,20 @@ function Requests() {
     category: "Academic",
     message: "",
   });
+
+  useEffect(() => {
+    const prefilledCategory = searchParams.get("category");
+    const prefilledMessage = searchParams.get("message");
+
+    if (prefilledCategory || prefilledMessage) {
+      setForm((prev) => ({
+        ...prev,
+        category: prefilledCategory || prev.category,
+        message: prefilledMessage || prev.message,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
