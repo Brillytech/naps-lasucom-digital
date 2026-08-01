@@ -3607,12 +3607,19 @@ body {
   z-index: 6;
   display: flex;
   gap: 8px;
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+
+.viewer-toolbar.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .toolbar-icon-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
   border: none;
   background: rgba(3, 21, 47, 0.72);
   color: #fff;
@@ -3631,6 +3638,30 @@ body {
 .toolbar-icon-btn.active {
   background: #4da3ff;
   color: #03152f;
+}
+
+.toolbar-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.viewer-zoom-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+.viewer-zoom-wrapper iframe {
+  border: 0;
+  background: white;
+  display: block;
+}
+
+.resource-viewer-actions button.favorite-active {
+  background: rgba(245, 179, 1, 0.14);
+  border-color: #f5b301;
+  color: #b3800a;
 }
 
 .viewer-dimmer-overlay {
