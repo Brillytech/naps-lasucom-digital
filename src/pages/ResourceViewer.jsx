@@ -6,21 +6,35 @@ import {
   Flag,
   Maximize2,
   Minimize2,
+  Minus,
   Moon,
+  Plus,
   RotateCw,
   Share2,
   Sun,
 } from "lucide-react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "../lib/supabase";
 import {
   getDriveDownloadLink,
+  getDriveFileId,
   getDriveOpenLink,
   getDriveViewLink,
   hasValidDriveFileId,
   isGoogleDriveLink,
 } from "../utils/driveLinks";
 import { addRecentlyViewed } from "../utils/localLibrary";
+
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 2;
+const ZOOM_STEP = 0.25;
+
+function trackEvent(eventName, params) {
+  if (typeof window !== "undefined" && typeof window.gtag === "function") {
+    window.gtag("event", eventName, params);
+  }
+}
 
 function ResourceViewer() {
   const [searchParams] = useSearchParams();
@@ -40,8 +54,53 @@ function ResourceViewer() {
     }
   }
 
-  const rawUrl = searchParams.get("url");
-  const title = searchParams.get("title") || "Resource";
+  // Short links: if a "fid" (Google Drive file id) param is present, we
+  // rebuild a standard Drive URL from it. This goes through the exact
+  // same isGoogleDriveLink/getDriveViewLink pipeline as a normal full
+  // link — no new fetch, no new code path, so it behaves identically.
+  const fidParam = searchParams.get("fid");
+  const legacyUrlParam = searchParams.get("url");
+
+  // Some older saved links (Favorites / Continue Reading saved while an
+  // earlier version of this page was live) use a database "id" instead
+  // of fid/url. This lookup ONLY runs for that specific case — it never
+  // touches the fid/url paths above, so it can't affect them.
+  const dbIdParam = searchParams.get("id");
+  const [dbResource, setDbResource] = useState(null);
+  const [dbLookupDone, setDbLookupDone] = useState(
+    !dbIdParam || Boolean(fidParam) || Boolean(legacyUrlParam)
+  );
+
+  useEffect(() => {
+    if (!dbIdParam || fidParam || legacyUrlParam) return;
+
+    let cancelled = false;
+    setDbLookupDone(false);
+
+    supabase
+      .from("resources")
+      .select("title, external_link, file_url")
+      .eq("id", dbIdParam)
+      .single()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (!error && data) {
+          setDbResource(data);
+        }
+        setDbLookupDone(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbIdParam]);
+
+  const rawUrl = fidParam
+    ? `https://drive.google.com/file/d/${fidParam}/view`
+    : legacyUrlParam || dbResource?.external_link || dbResource?.file_url || "";
+
+  const title = searchParams.get("title") || dbResource?.title || "Resource";
 
   const isDrive = isGoogleDriveLink(rawUrl);
   const validDriveFile = isDrive ? hasValidDriveFileId(rawUrl) : true;
@@ -53,6 +112,7 @@ function ResourceViewer() {
   useEffect(() => {
     if (rawUrl && validDriveFile) {
       addRecentlyViewed({ url: rawUrl, title });
+      trackEvent("view_resource", { resource_title: title });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawUrl, validDriveFile]);
@@ -93,15 +153,63 @@ function ResourceViewer() {
   const [isLandscapeLocked, setIsLandscapeLocked] = useState(false);
   const [isDimmed, setIsDimmed] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
+  const [zoomLevel, setZoomLevel] = useState(1);
+
+  // ===== Auto-hide toolbar so the icons stop sitting on top of the
+  // document once you're actually reading — tapping the frame brings
+  // them back for a few seconds. =====
+  const [toolbarVisible, setToolbarVisible] = useState(true);
+  const hideTimerRef = useRef(null);
+
+  function scheduleToolbarHide() {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setToolbarVisible(false), 3000);
+  }
+
+  function revealToolbar() {
+    setToolbarVisible(true);
+    scheduleToolbarHide();
+  }
+
+  useEffect(() => {
+    revealToolbar();
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFullscreen]);
 
   function toggleDimmer() {
     setIsDimmed((prev) => !prev);
+    revealToolbar();
+  }
+
+  function zoomIn() {
+    setZoomLevel((prev) => Math.min(ZOOM_MAX, +(prev + ZOOM_STEP).toFixed(2)));
+    revealToolbar();
+  }
+
+  function zoomOut() {
+    setZoomLevel((prev) => Math.max(ZOOM_MIN, +(prev - ZOOM_STEP).toFixed(2)));
+    revealToolbar();
+  }
+
+  function resetZoom() {
+    setZoomLevel(1);
+    revealToolbar();
   }
 
   async function handleShare() {
-    const shareUrl = `${window.location.origin}/resource-viewer?url=${encodeURIComponent(
-      rawUrl
-    )}&title=${encodeURIComponent(title)}`;
+    // Prefer the short fid-based link when this is a Drive file — much
+    // cleaner than the old fully-encoded URL. Falls back to the original
+    // full-url format for anything that isn't a recognizable Drive link.
+    const fileId = isDrive ? getDriveFileId(rawUrl) : "";
+
+    const shareUrl = fileId
+      ? `${window.location.origin}/resource-viewer?fid=${fileId}&title=${encodeURIComponent(title)}`
+      : `${window.location.origin}/resource-viewer?url=${encodeURIComponent(rawUrl)}&title=${encodeURIComponent(title)}`;
+
+    trackEvent("share_resource", { resource_title: title });
 
     if (navigator.share) {
       try {
@@ -120,6 +228,10 @@ function ResourceViewer() {
       setShareStatus("Could not copy link.");
       setTimeout(() => setShareStatus(""), 2000);
     }
+  }
+
+  function handleDownloadClick() {
+    trackEvent("download_resource", { resource_title: title });
   }
 
   function handleReportBroken() {
@@ -164,6 +276,7 @@ function ResourceViewer() {
     } else {
       lockLandscape();
     }
+    revealToolbar();
   }
 
   async function enterFullscreen() {
@@ -211,6 +324,23 @@ function ResourceViewer() {
     } else {
       enterFullscreen();
     }
+    revealToolbar();
+  }
+
+  if (!dbLookupDone) {
+    return (
+      <main className="resource-viewer-page">
+        <button type="button" className="back-icon-btn" onClick={handleBack} aria-label="Back">
+          <ArrowLeft size={20} />
+        </button>
+
+        <section className="empty-state">
+          <FileText size={32} />
+          <h3>Loading...</h3>
+          <p>Fetching this resource.</p>
+        </section>
+      </main>
+    );
   }
 
   if (!rawUrl) {
@@ -284,7 +414,12 @@ function ResourceViewer() {
               Open
             </a>
 
-            <a href={downloadUrl} target="_blank" rel="noreferrer">
+            <a
+              href={downloadUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={handleDownloadClick}
+            >
               <Download size={16} />
               Download
             </a>
@@ -301,12 +436,59 @@ function ResourceViewer() {
             ? "resource-viewer-frame reader-mode"
             : "resource-viewer-frame"
         }
+        onClick={revealToolbar}
       >
-        <div className="viewer-toolbar">
+        <div className={toolbarVisible ? "viewer-toolbar" : "viewer-toolbar hidden"}>
+          <button
+            type="button"
+            className="toolbar-icon-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              zoomOut();
+            }}
+            disabled={zoomLevel <= ZOOM_MIN}
+            aria-label="Zoom out"
+            title="Zoom out"
+          >
+            <Minus size={16} />
+          </button>
+
+          <button
+            type="button"
+            className="toolbar-icon-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              resetZoom();
+            }}
+            aria-label="Reset zoom"
+            title={`${Math.round(zoomLevel * 100)}%`}
+          >
+            <span style={{ fontSize: 10, fontWeight: 900 }}>
+              {Math.round(zoomLevel * 100)}%
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="toolbar-icon-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              zoomIn();
+            }}
+            disabled={zoomLevel >= ZOOM_MAX}
+            aria-label="Zoom in"
+            title="Zoom in"
+          >
+            <Plus size={16} />
+          </button>
+
           <button
             type="button"
             className={isDimmed ? "toolbar-icon-btn active" : "toolbar-icon-btn"}
-            onClick={toggleDimmer}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleDimmer();
+            }}
             aria-label={isDimmed ? "Turn off night reading" : "Dim for night reading"}
             title={isDimmed ? "Turn off night reading" : "Dim for night reading"}
           >
@@ -319,7 +501,10 @@ function ResourceViewer() {
               className={
                 isLandscapeLocked ? "toolbar-icon-btn active" : "toolbar-icon-btn"
               }
-              onClick={toggleLandscapeLock}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleLandscapeLock();
+              }}
               aria-label={
                 isLandscapeLocked ? "Return to portrait" : "Rotate to landscape"
               }
@@ -334,7 +519,10 @@ function ResourceViewer() {
           <button
             type="button"
             className="toolbar-icon-btn"
-            onClick={toggleFullscreen}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFullscreen();
+            }}
             aria-label={isFullscreen ? "Exit fullscreen" : "Read fullscreen"}
           >
             {isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
@@ -343,7 +531,19 @@ function ResourceViewer() {
 
         {isDimmed && <div className="viewer-dimmer-overlay" />}
 
-        <iframe src={previewUrl} title={title} allowFullScreen />
+        <div className="viewer-zoom-wrapper">
+          <iframe
+            src={previewUrl}
+            title={title}
+            allowFullScreen
+            style={{
+              transformOrigin: "0 0",
+              transform: `scale(${zoomLevel})`,
+              width: "100%",
+              height: "100%",
+            }}
+          />
+        </div>
       </section>
     </main>
   );
