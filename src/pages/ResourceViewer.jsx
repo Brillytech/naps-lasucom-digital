@@ -7,17 +7,12 @@ import {
   Maximize2,
   Minimize2,
   Moon,
-  Plus,
-  Minus,
-  RotateCcw,
   RotateCw,
   Share2,
-  Star,
   Sun,
 } from "lucide-react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "../lib/supabase";
 import {
   getDriveDownloadLink,
   getDriveOpenLink,
@@ -25,84 +20,19 @@ import {
   hasValidDriveFileId,
   isGoogleDriveLink,
 } from "../utils/driveLinks";
-import {
-  addRecentlyViewed,
-  isFavorited,
-  toggleFavorite,
-} from "../utils/localLibrary";
-
-const ZOOM_MIN = 1;
-const ZOOM_MAX = 2;
-const ZOOM_STEP = 0.25;
+import { addRecentlyViewed } from "../utils/localLibrary";
 
 function ResourceViewer() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
   const frameWrapperRef = useRef(null);
-
-  const resourceId = searchParams.get("id");
-  const legacyUrl = searchParams.get("url");
-  const legacyTitle = searchParams.get("title");
-
-  // When opened via a short "?id=" link (the normal path from every card
-  // in the app), we fetch the resource fresh from Supabase — this keeps
-  // shared links short and clean instead of a long encoded Drive URL.
-  // Older "?url=&title=" links (already-shared links, or old entries in
-  // someone's localStorage) still work as a fallback below.
-  const [resource, setResource] = useState(null);
-  const [loadingResource, setLoadingResource] = useState(Boolean(resourceId));
-  const [fetchError, setFetchError] = useState("");
-
-  useEffect(() => {
-    if (!resourceId) {
-      setLoadingResource(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function fetchResource() {
-      setLoadingResource(true);
-      setFetchError("");
-
-      const { data, error } = await supabase
-        .from("resources")
-        .select("*")
-        .eq("id", resourceId)
-        .single();
-
-      if (cancelled) return;
-
-      if (error || !data) {
-        setFetchError("This resource could not be found.");
-      } else {
-        setResource(data);
-      }
-
-      setLoadingResource(false);
-    }
-
-    fetchResource();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [resourceId]);
-
-  const rawUrl = resource
-    ? resource.external_link || resource.file_url
-    : legacyUrl;
-  const title = resource ? resource.title || "Resource" : legacyTitle || "Resource";
-
-  const isDrive = isGoogleDriveLink(rawUrl);
-  const validDriveFile = isDrive ? hasValidDriveFileId(rawUrl) : Boolean(rawUrl);
-
-  const previewUrl = isDrive ? getDriveViewLink(rawUrl) : rawUrl;
-  const openUrl = isDrive ? getDriveOpenLink(rawUrl) : rawUrl;
-  const downloadUrl = isDrive ? getDriveDownloadLink(rawUrl) : rawUrl;
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   function handleBack() {
+    // location.key is "default" when there's no real previous entry in
+    // this tab's history (e.g. a shared link opened directly) — in that
+    // case navigate(-1) would do nothing, so fall back to Resources.
     if (location.key && location.key !== "default") {
       navigate(-1);
     } else {
@@ -110,15 +40,25 @@ function ResourceViewer() {
     }
   }
 
+  const rawUrl = searchParams.get("url");
+  const title = searchParams.get("title") || "Resource";
+
+  const isDrive = isGoogleDriveLink(rawUrl);
+  const validDriveFile = isDrive ? hasValidDriveFileId(rawUrl) : true;
+
+  const previewUrl = isDrive ? getDriveViewLink(rawUrl) : rawUrl;
+  const openUrl = isDrive ? getDriveOpenLink(rawUrl) : rawUrl;
+  const downloadUrl = isDrive ? getDriveDownloadLink(rawUrl) : rawUrl;
+
   useEffect(() => {
-    if (rawUrl && validDriveFile && !loadingResource) {
-      addRecentlyViewed({ url: rawUrl, title, id: resourceId || null });
+    if (rawUrl && validDriveFile) {
+      addRecentlyViewed({ url: rawUrl, title });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawUrl, validDriveFile, loadingResource]);
+  }, [rawUrl, validDriveFile]);
 
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
+  // Keep state in sync if the user exits fullscreen using the device's own
+  // back gesture/button/escape key rather than our own toggle button.
   useEffect(() => {
     function handleFullscreenChange() {
       const active = Boolean(
@@ -153,63 +93,15 @@ function ResourceViewer() {
   const [isLandscapeLocked, setIsLandscapeLocked] = useState(false);
   const [isDimmed, setIsDimmed] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
-  const [zoom, setZoom] = useState(1);
-  const [toolbarVisible, setToolbarVisible] = useState(true);
-  const [favorited, setFavorited] = useState(false);
-  const hideTimerRef = useRef(null);
-
-  useEffect(() => {
-    if (resource?.id) {
-      setFavorited(isFavorited(resource.id));
-    }
-  }, [resource]);
-
-  // Auto-hides the toolbar shortly after it appears so it stops covering
-  // the document — tapping the frame brings it back for a few seconds.
-  useEffect(() => {
-    scheduleToolbarHide();
-    return () => clearTimeout(hideTimerRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFullscreen]);
-
-  function scheduleToolbarHide() {
-    clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => setToolbarVisible(false), 3000);
-  }
-
-  function revealToolbar() {
-    setToolbarVisible(true);
-    scheduleToolbarHide();
-  }
-
-  function handleToggleFavorite() {
-    if (!resource) return;
-    toggleFavorite(resource);
-    setFavorited((prev) => !prev);
-  }
-
-  function zoomIn() {
-    setZoom((prev) => Math.min(ZOOM_MAX, +(prev + ZOOM_STEP).toFixed(2)));
-  }
-
-  function zoomOut() {
-    setZoom((prev) => Math.max(ZOOM_MIN, +(prev - ZOOM_STEP).toFixed(2)));
-  }
-
-  function resetZoom() {
-    setZoom(1);
-  }
 
   function toggleDimmer() {
     setIsDimmed((prev) => !prev);
   }
 
   async function handleShare() {
-    const shareUrl = resourceId
-      ? `${window.location.origin}/resource-viewer?id=${resourceId}`
-      : `${window.location.origin}/resource-viewer?url=${encodeURIComponent(
-          rawUrl
-        )}&title=${encodeURIComponent(title)}`;
+    const shareUrl = `${window.location.origin}/resource-viewer?url=${encodeURIComponent(
+      rawUrl
+    )}&title=${encodeURIComponent(title)}`;
 
     if (navigator.share) {
       try {
@@ -290,7 +182,8 @@ function ResourceViewer() {
 
     // No orientation lock here — fullscreen opens in whatever orientation
     // the phone is already in (usually portrait, with scrolling working
-    // normally). Landscape is an explicit opt-in via the rotate button.
+    // normally). Landscape is now an explicit opt-in via the rotate
+    // button, not forced on everyone.
     setIsFullscreen(true);
   }
 
@@ -320,19 +213,7 @@ function ResourceViewer() {
     }
   }
 
-  if (loadingResource) {
-    return (
-      <main className="resource-viewer-page">
-        <button type="button" className="back-icon-btn" onClick={handleBack} aria-label="Back">
-          <ArrowLeft size={20} />
-        </button>
-
-        <div className="admin-loading-card">Loading resource...</div>
-      </main>
-    );
-  }
-
-  if (!rawUrl || fetchError) {
+  if (!rawUrl) {
     return (
       <main className="resource-viewer-page">
         <button type="button" className="back-icon-btn" onClick={handleBack} aria-label="Back">
@@ -341,11 +222,8 @@ function ResourceViewer() {
 
         <section className="empty-state">
           <FileText size={32} />
-          <h3>{fetchError ? "Resource not found" : "No file found"}</h3>
-          <p>
-            {fetchError ||
-              "This resource does not have a valid link."}
-          </p>
+          <h3>No file found</h3>
+          <p>This resource does not have a valid link.</p>
         </section>
       </main>
     );
@@ -396,17 +274,6 @@ function ResourceViewer() {
           <h1>{title}</h1>
 
           <div className="resource-viewer-actions">
-            {resource && (
-              <button
-                type="button"
-                onClick={handleToggleFavorite}
-                className={favorited ? "favorite-active" : ""}
-              >
-                <Star size={16} fill={favorited ? "currentColor" : "none"} />
-                {favorited ? "Saved" : "Save"}
-              </button>
-            )}
-
             <button type="button" onClick={handleShare}>
               <Share2 size={16} />
               Share
@@ -434,61 +301,16 @@ function ResourceViewer() {
             ? "resource-viewer-frame reader-mode"
             : "resource-viewer-frame"
         }
-        onClick={revealToolbar}
       >
-        <div className={toolbarVisible ? "viewer-toolbar" : "viewer-toolbar hidden"}>
-          <button
-            type="button"
-            className="toolbar-icon-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              zoomOut();
-            }}
-            disabled={zoom <= ZOOM_MIN}
-            aria-label="Zoom out"
-            title="Zoom out"
-          >
-            <Minus size={16} />
-          </button>
-
-          <button
-            type="button"
-            className="toolbar-icon-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              resetZoom();
-            }}
-            aria-label="Reset zoom"
-            title={`Zoom: ${Math.round(zoom * 100)}%`}
-          >
-            <RotateCcw size={14} />
-          </button>
-
-          <button
-            type="button"
-            className="toolbar-icon-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              zoomIn();
-            }}
-            disabled={zoom >= ZOOM_MAX}
-            aria-label="Zoom in"
-            title="Zoom in"
-          >
-            <Plus size={16} />
-          </button>
-
+        <div className="viewer-toolbar">
           <button
             type="button"
             className={isDimmed ? "toolbar-icon-btn active" : "toolbar-icon-btn"}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleDimmer();
-            }}
+            onClick={toggleDimmer}
             aria-label={isDimmed ? "Turn off night reading" : "Dim for night reading"}
             title={isDimmed ? "Turn off night reading" : "Dim for night reading"}
           >
-            {isDimmed ? <Sun size={16} /> : <Moon size={16} />}
+            {isDimmed ? <Sun size={17} /> : <Moon size={17} />}
           </button>
 
           {isFullscreen && (
@@ -497,10 +319,7 @@ function ResourceViewer() {
               className={
                 isLandscapeLocked ? "toolbar-icon-btn active" : "toolbar-icon-btn"
               }
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleLandscapeLock();
-              }}
+              onClick={toggleLandscapeLock}
               aria-label={
                 isLandscapeLocked ? "Return to portrait" : "Rotate to landscape"
               }
@@ -508,38 +327,23 @@ function ResourceViewer() {
                 isLandscapeLocked ? "Return to portrait" : "Rotate to landscape"
               }
             >
-              <RotateCw size={16} />
+              <RotateCw size={17} />
             </button>
           )}
 
           <button
             type="button"
             className="toolbar-icon-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleFullscreen();
-            }}
+            onClick={toggleFullscreen}
             aria-label={isFullscreen ? "Exit fullscreen" : "Read fullscreen"}
           >
-            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            {isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
           </button>
         </div>
 
         {isDimmed && <div className="viewer-dimmer-overlay" />}
 
-        <div className="viewer-zoom-wrapper">
-          <iframe
-            src={previewUrl}
-            title={title}
-            allowFullScreen
-            style={{
-              transform: `scale(${zoom})`,
-              transformOrigin: "top left",
-              width: `${100 / zoom}%`,
-              height: `${100 / zoom}%`,
-            }}
-          />
-        </div>
+        <iframe src={previewUrl} title={title} allowFullScreen />
       </section>
     </main>
   );
