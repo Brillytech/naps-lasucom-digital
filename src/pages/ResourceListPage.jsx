@@ -549,11 +549,7 @@ function ResourceCard({ item, pageInfo }) {
 
   const [favorited, setFavorited] = useState(() => isFavorited(item.id));
 
-  const viewerPath = mainLink
-    ? `/resource-viewer?url=${encodeURIComponent(mainLink)}&title=${encodeURIComponent(
-        item.title || "Resource"
-      )}`
-    : "";
+  const viewerPath = mainLink && item.id ? `/resource-viewer?id=${item.id}` : "";
 
   function handleToggleFavorite() {
     toggleFavorite(item);
@@ -605,6 +601,13 @@ function ResourceCard({ item, pageInfo }) {
             aria-label="Download resource"
             target="_blank"
             rel="noreferrer"
+            onClick={() => {
+              if (typeof window.gtag === "function") {
+                window.gtag("event", "download_resource", {
+                  resource_title: item.title || "Resource",
+                });
+              }
+            }}
           >
             <Download size={14} />
           </a>

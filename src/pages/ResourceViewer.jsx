@@ -155,48 +155,20 @@ function ResourceViewer() {
   const [shareStatus, setShareStatus] = useState("");
   const [zoomLevel, setZoomLevel] = useState(1);
 
-  // ===== Auto-hide toolbar so the icons stop sitting on top of the
-  // document once you're actually reading — tapping the frame brings
-  // them back for a few seconds. =====
-  const [toolbarVisible, setToolbarVisible] = useState(true);
-  const hideTimerRef = useRef(null);
-
-  function scheduleToolbarHide() {
-    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => setToolbarVisible(false), 3000);
-  }
-
-  function revealToolbar() {
-    setToolbarVisible(true);
-    scheduleToolbarHide();
-  }
-
-  useEffect(() => {
-    revealToolbar();
-    return () => {
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFullscreen]);
-
   function toggleDimmer() {
     setIsDimmed((prev) => !prev);
-    revealToolbar();
   }
 
   function zoomIn() {
     setZoomLevel((prev) => Math.min(ZOOM_MAX, +(prev + ZOOM_STEP).toFixed(2)));
-    revealToolbar();
   }
 
   function zoomOut() {
     setZoomLevel((prev) => Math.max(ZOOM_MIN, +(prev - ZOOM_STEP).toFixed(2)));
-    revealToolbar();
   }
 
   function resetZoom() {
     setZoomLevel(1);
-    revealToolbar();
   }
 
   async function handleShare() {
@@ -276,7 +248,6 @@ function ResourceViewer() {
     } else {
       lockLandscape();
     }
-    revealToolbar();
   }
 
   async function enterFullscreen() {
@@ -324,7 +295,6 @@ function ResourceViewer() {
     } else {
       enterFullscreen();
     }
-    revealToolbar();
   }
 
   if (!dbLookupDone) {
@@ -436,16 +406,12 @@ function ResourceViewer() {
             ? "resource-viewer-frame reader-mode"
             : "resource-viewer-frame"
         }
-        onClick={revealToolbar}
       >
-        <div className={toolbarVisible ? "viewer-toolbar" : "viewer-toolbar hidden"}>
+        <div className="viewer-toolbar">
           <button
             type="button"
             className="toolbar-icon-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              zoomOut();
-            }}
+            onClick={zoomOut}
             disabled={zoomLevel <= ZOOM_MIN}
             aria-label="Zoom out"
             title="Zoom out"
@@ -456,10 +422,7 @@ function ResourceViewer() {
           <button
             type="button"
             className="toolbar-icon-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              resetZoom();
-            }}
+            onClick={resetZoom}
             aria-label="Reset zoom"
             title={`${Math.round(zoomLevel * 100)}%`}
           >
@@ -471,10 +434,7 @@ function ResourceViewer() {
           <button
             type="button"
             className="toolbar-icon-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              zoomIn();
-            }}
+            onClick={zoomIn}
             disabled={zoomLevel >= ZOOM_MAX}
             aria-label="Zoom in"
             title="Zoom in"
@@ -485,10 +445,7 @@ function ResourceViewer() {
           <button
             type="button"
             className={isDimmed ? "toolbar-icon-btn active" : "toolbar-icon-btn"}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleDimmer();
-            }}
+            onClick={toggleDimmer}
             aria-label={isDimmed ? "Turn off night reading" : "Dim for night reading"}
             title={isDimmed ? "Turn off night reading" : "Dim for night reading"}
           >
@@ -501,10 +458,7 @@ function ResourceViewer() {
               className={
                 isLandscapeLocked ? "toolbar-icon-btn active" : "toolbar-icon-btn"
               }
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleLandscapeLock();
-              }}
+              onClick={toggleLandscapeLock}
               aria-label={
                 isLandscapeLocked ? "Return to portrait" : "Rotate to landscape"
               }
@@ -519,10 +473,7 @@ function ResourceViewer() {
           <button
             type="button"
             className="toolbar-icon-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleFullscreen();
-            }}
+            onClick={toggleFullscreen}
             aria-label={isFullscreen ? "Exit fullscreen" : "Read fullscreen"}
           >
             {isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
