@@ -6,9 +6,7 @@ import {
   Flag,
   Maximize2,
   Minimize2,
-  Minus,
   Moon,
-  Plus,
   RotateCw,
   Share2,
   Sun,
@@ -25,10 +23,6 @@ import {
   isGoogleDriveLink,
 } from "../utils/driveLinks";
 import { addRecentlyViewed } from "../utils/localLibrary";
-
-const ZOOM_MIN = 1;
-const ZOOM_MAX = 2;
-const ZOOM_STEP = 0.25;
 
 function trackEvent(eventName, params) {
   if (typeof window !== "undefined" && typeof window.gtag === "function") {
@@ -153,22 +147,9 @@ function ResourceViewer() {
   const [isLandscapeLocked, setIsLandscapeLocked] = useState(false);
   const [isDimmed, setIsDimmed] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
-  const [zoomLevel, setZoomLevel] = useState(1);
 
   function toggleDimmer() {
     setIsDimmed((prev) => !prev);
-  }
-
-  function zoomIn() {
-    setZoomLevel((prev) => Math.min(ZOOM_MAX, +(prev + ZOOM_STEP).toFixed(2)));
-  }
-
-  function zoomOut() {
-    setZoomLevel((prev) => Math.max(ZOOM_MIN, +(prev - ZOOM_STEP).toFixed(2)));
-  }
-
-  function resetZoom() {
-    setZoomLevel(1);
   }
 
   async function handleShare() {
@@ -410,40 +391,6 @@ function ResourceViewer() {
         <div className="viewer-toolbar">
           <button
             type="button"
-            className="toolbar-icon-btn"
-            onClick={zoomOut}
-            disabled={zoomLevel <= ZOOM_MIN}
-            aria-label="Zoom out"
-            title="Zoom out"
-          >
-            <Minus size={16} />
-          </button>
-
-          <button
-            type="button"
-            className="toolbar-icon-btn"
-            onClick={resetZoom}
-            aria-label="Reset zoom"
-            title={`${Math.round(zoomLevel * 100)}%`}
-          >
-            <span style={{ fontSize: 10, fontWeight: 900 }}>
-              {Math.round(zoomLevel * 100)}%
-            </span>
-          </button>
-
-          <button
-            type="button"
-            className="toolbar-icon-btn"
-            onClick={zoomIn}
-            disabled={zoomLevel >= ZOOM_MAX}
-            aria-label="Zoom in"
-            title="Zoom in"
-          >
-            <Plus size={16} />
-          </button>
-
-          <button
-            type="button"
             className={isDimmed ? "toolbar-icon-btn active" : "toolbar-icon-btn"}
             onClick={toggleDimmer}
             aria-label={isDimmed ? "Turn off night reading" : "Dim for night reading"}
@@ -480,20 +427,10 @@ function ResourceViewer() {
           </button>
         </div>
 
-        {isDimmed && <div className="viewer-dimmer-overlay" />}
-
         <div className="viewer-zoom-wrapper">
-          <iframe
-            src={previewUrl}
-            title={title}
-            allowFullScreen
-            style={{
-              transformOrigin: "0 0",
-              transform: `scale(${zoomLevel})`,
-              width: "100%",
-              height: "100%",
-            }}
-          />
+          {isDimmed && <div className="viewer-dimmer-overlay" />}
+
+          <iframe src={previewUrl} title={title} allowFullScreen />
         </div>
       </section>
     </main>
