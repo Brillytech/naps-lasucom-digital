@@ -3632,6 +3632,28 @@ body {
   cursor: not-allowed;
 }
 
+/* In landscape, the whole viewport is much shorter, so the same toolbar
+   bar that's fine in portrait ends up eating a big chunk of the space.
+   Shrink it specifically when in fullscreen + landscape to give the
+   document room to breathe. */
+@media (orientation: landscape) {
+  .resource-viewer-frame.reader-mode .viewer-toolbar {
+    padding: 3px 8px;
+    gap: 6px;
+  }
+
+  .resource-viewer-frame.reader-mode .toolbar-icon-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+  }
+
+  .resource-viewer-frame.reader-mode .toolbar-icon-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
 .viewer-zoom-wrapper {
   position: relative;
   width: 100%;
@@ -3660,6 +3682,27 @@ body {
   z-index: 5;
   background: rgba(0, 0, 0, 0.45);
   pointer-events: none;
+}
+
+/* In landscape, screen height is much shorter, so the toolbar row eats
+   a much bigger share of the available viewing space. Shrink it down
+   so the document gets almost the full screen while rotated. */
+@media (orientation: landscape) {
+  .viewer-toolbar {
+    padding: 4px 8px !important;
+    gap: 5px !important;
+  }
+
+  .toolbar-icon-btn {
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 8px !important;
+  }
+
+  .toolbar-icon-btn svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
 }
 
 .share-status-toast {
