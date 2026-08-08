@@ -1,6 +1,8 @@
 import {
   AlertCircle,
+  Calendar,
   CheckCircle2,
+  Clock,
   Edit3,
   ImagePlus,
   Megaphone,
@@ -10,6 +12,7 @@ import {
   Send,
   Trash2,
   X,
+  XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
@@ -33,7 +36,19 @@ const initialForm = {
   status: "published",
   is_pinned: false,
   image_url: "",
+  publish_mode: "now",
+  scheduled_date: "",
+  scheduled_time: "",
 };
+
+// Nigeria does not observe daylight saving time, so Africa/Lagos is always
+// a fixed UTC+1 offset — no timezone library needed to convert reliably.
+const LAGOS_UTC_OFFSET = "+01:00";
+
+function buildLagosTimestamp(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return null;
+  return new Date(`${dateStr}T${timeStr}:00${LAGOS_UTC_OFFSET}`);
+}
 
 function AdminAnnouncements() {
   const [profile, setProfile] = useState(null);
@@ -98,6 +113,7 @@ function AdminAnnouncements() {
       .select("*")
       .order("is_pinned", { ascending: false })
       .order("published_at", { ascending: false })
+      .order("scheduled_for", { ascending: true })
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -138,6 +154,22 @@ function AdminAnnouncements() {
       return;
     }
 
+    const scheduledDate = item.scheduled_for
+      ? new Date(item.scheduled_for)
+      : null;
+
+    // Convert the stored UTC timestamp back into Lagos-local date/time
+    // strings for the picker inputs.
+    let scheduled_date = "";
+    let scheduled_time = "";
+
+    if (scheduledDate) {
+      const lagosMs = scheduledDate.getTime() + 60 * 60 * 1000; // UTC -> UTC+1
+      const lagos = new Date(lagosMs);
+      scheduled_date = lagos.toISOString().slice(0, 10);
+      scheduled_time = lagos.toISOString().slice(11, 16);
+    }
+
     setEditing(item);
     setImageFile(null);
     setForm({
@@ -145,9 +177,12 @@ function AdminAnnouncements() {
       body: item.body || "",
       category: item.category || "General Notice",
       audience: item.audience || "All NAPSITES",
-      status: item.status || "published",
+      status: item.status === "scheduled" ? "published" : (item.status || "published"),
       is_pinned: Boolean(item.is_pinned),
       image_url: item.image_url || "",
+      publish_mode: item.status === "scheduled" ? "scheduled" : "now",
+      scheduled_date,
+      scheduled_time,
     });
     setShowForm(true);
     setSuccessMessage("");
@@ -207,6 +242,13 @@ function AdminAnnouncements() {
       return;
     }
 
+    if (form.status === "published" && form.publish_mode === "scheduled") {
+      if (!form.scheduled_date || !form.scheduled_time) {
+        setErrorMessage("Please choose both a date and a time to schedule.");
+        return;
+      }
+    }
+
     setSaving(true);
     setErrorMessage("");
     setSuccessMessage("");
@@ -218,18 +260,52 @@ function AdminAnnouncements() {
 
       const uploadedImageUrl = await uploadAnnouncementImage();
 
+      let status = "draft";
+      let published_at = null;
+      let scheduled_for = null;
+      let publish_mode = "now";
+      let shouldSendPushNow = false;
+
+      if (form.status === "draft") {
+        // Explicit draft always stays a draft, regardless of publish_mode.
+        status = "draft";
+      } else if (form.publish_mode === "scheduled") {
+        const scheduledDateTime = buildLagosTimestamp(
+          form.scheduled_date,
+          form.scheduled_time
+        );
+
+        if (!scheduledDateTime || scheduledDateTime.getTime() <= Date.now()) {
+          // Scheduled time already passed (or invalid) — publish immediately
+          // instead, per spec.
+          status = "published";
+          published_at = new Date().toISOString();
+          shouldSendPushNow = true;
+        } else {
+          status = "scheduled";
+          scheduled_for = scheduledDateTime.toISOString();
+          publish_mode = "scheduled";
+        }
+      } else {
+        status = "published";
+        published_at = new Date().toISOString();
+        shouldSendPushNow = true;
+      }
+
       const payload = {
         title: form.title.trim(),
         body: form.body.trim(),
         category: form.category,
         audience: form.audience.trim() || "All NAPSITES",
-        status: form.status,
+        status,
         is_pinned: Boolean(form.is_pinned),
         image_url: uploadedImageUrl,
         source_office: profile?.office || "Public Relations Officer",
         updated_at: new Date().toISOString(),
-        published_at:
-          form.status === "published" ? new Date().toISOString() : null,
+        published_at,
+        scheduled_for,
+        publish_mode,
+        timezone: "Africa/Lagos",
       };
 
       let error;
@@ -250,26 +326,27 @@ function AdminAnnouncements() {
         error = result.error;
       }
 
-     if (error) throw new Error(error.message);
+      if (error) throw new Error(error.message);
 
-// Send push notification only when publishing
-if (form.status === "published") {
-  try {
-    await sendPushNotification({
-      title: payload.title,
-      body: payload.body,
-      image: payload.image_url,
-    });
-  } catch (pushError) {
-    console.error("Push notification failed:", pushError);
-  }
-}
+      if (shouldSendPushNow) {
+        try {
+          await sendPushNotification({
+            title: payload.title,
+            body: payload.body,
+            image: payload.image_url,
+          });
+        } catch (pushError) {
+          console.error("Push notification failed:", pushError);
+        }
+      }
 
-setSuccessMessage(
-  editing
-    ? "Announcement updated successfully."
-    : "Announcement saved successfully."
-);
+      setSuccessMessage(
+        status === "scheduled"
+          ? "Announcement scheduled successfully."
+          : editing
+          ? "Announcement updated successfully."
+          : "Announcement saved successfully."
+      );
 
       closeForm();
       await fetchAnnouncements();
@@ -348,11 +425,91 @@ setSuccessMessage(
       return;
     }
 
+    if (nextStatus === "published") {
+      try {
+        await sendPushNotification({
+          title: item.title,
+          body: item.body,
+          image: item.image_url,
+        });
+      } catch (pushError) {
+        console.error("Push notification failed:", pushError);
+      }
+    }
+
+    await fetchAnnouncements();
+  }
+
+  async function publishScheduledNow(item) {
+    if (!canManageAnnouncements()) {
+      setErrorMessage("Only PRO and President can publish announcements.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("announcements")
+      .update({
+        status: "published",
+        published_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+
+    try {
+      await sendPushNotification({
+        title: item.title,
+        body: item.body,
+        image: item.image_url,
+      });
+    } catch (pushError) {
+      console.error("Push notification failed:", pushError);
+    }
+
+    setSuccessMessage("Announcement published immediately.");
+    await fetchAnnouncements();
+  }
+
+  async function cancelScheduling(item) {
+    if (!canManageAnnouncements()) {
+      setErrorMessage("Only PRO and President can manage announcements.");
+      return;
+    }
+
+    const confirmCancel = window.confirm(
+      `Cancel the schedule for "${item.title}"? It will be moved back to drafts.`
+    );
+    if (!confirmCancel) return;
+
+    const { error } = await supabase
+      .from("announcements")
+      .update({
+        status: "draft",
+        scheduled_for: null,
+        publish_mode: "now",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", item.id);
+
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+
+    setSuccessMessage("Scheduling cancelled — moved back to drafts.");
     await fetchAnnouncements();
   }
 
   const publishedAnnouncements = useMemo(() => {
     return announcements.filter((item) => item.status === "published");
+  }, [announcements]);
+
+  const scheduledAnnouncements = useMemo(() => {
+    return announcements.filter((item) => item.status === "scheduled");
   }, [announcements]);
 
   const draftAnnouncements = useMemo(() => {
@@ -428,6 +585,11 @@ setSuccessMessage(
         </article>
 
         <article>
+          <strong>{scheduledAnnouncements.length}</strong>
+          <span>Scheduled</span>
+        </article>
+
+        <article>
           <strong>{draftAnnouncements.length}</strong>
           <span>Drafts</span>
         </article>
@@ -451,6 +613,21 @@ setSuccessMessage(
       />
 
       <AnnouncementSection
+        title="Scheduled Announcements"
+        description="Will publish automatically at their scheduled time."
+        items={scheduledAnnouncements}
+        canManage={canManageAnnouncements()}
+        canDelete={canDeleteAnnouncements()}
+        onEdit={openEditForm}
+        onDelete={deleteAnnouncement}
+        onPin={togglePin}
+        onPublishNow={publishScheduledNow}
+        onCancelSchedule={cancelScheduling}
+        isScheduledSection
+        emptyText="No scheduled announcement yet."
+      />
+
+      <AnnouncementSection
         title="Draft Announcements"
         description="Saved announcements not visible to the public."
         items={draftAnnouncements}
@@ -458,7 +635,6 @@ setSuccessMessage(
         canDelete={canDeleteAnnouncements()}
         onEdit={openEditForm}
         onDelete={deleteAnnouncement}
-        onPin={togglePin}
         onStatus={toggleStatus}
         emptyText="No draft announcement yet."
       />
@@ -489,6 +665,9 @@ function AnnouncementSection({
   onDelete,
   onPin,
   onStatus,
+  onPublishNow,
+  onCancelSchedule,
+  isScheduledSection,
   emptyText = "No announcement found.",
 }) {
   return (
@@ -513,12 +692,21 @@ function AnnouncementSection({
               <div className="announcement-card-top">
                 <span>{item.category}</span>
 
-                {item.is_pinned && (
-                  <strong>
-                    <Pin size={13} />
-                    Pinned
-                  </strong>
-                )}
+                <div className="announcement-badge-row">
+                  {item.is_pinned && (
+                    <strong>
+                      <Pin size={13} />
+                      Pinned
+                    </strong>
+                  )}
+
+                  {item.status === "scheduled" && (
+                    <strong className="scheduled-badge">
+                      <Clock size={13} />
+                      Scheduled
+                    </strong>
+                  )}
+                </div>
               </div>
 
               <h3>{item.title}</h3>
@@ -527,15 +715,34 @@ function AnnouncementSection({
               <div className="announcement-meta">
                 <span>{item.audience || "All NAPSITES"}</span>
                 <span>{item.source_office || "PRO"}</span>
-                <span>
-                  {item.published_at
-                    ? new Date(item.published_at).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })
-                    : "Draft"}
-                </span>
+
+                {item.status === "scheduled" && item.scheduled_for ? (
+                  <span>
+                    Publishes{" "}
+                    {new Date(item.scheduled_for).toLocaleString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      timeZone: "Africa/Lagos",
+                    })}{" "}
+                    (WAT)
+                  </span>
+                ) : (
+                  <span>
+                    {item.published_at
+                      ? new Date(item.published_at).toLocaleDateString(
+                          "en-GB",
+                          {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          }
+                        )
+                      : "Draft"}
+                  </span>
+                )}
               </div>
 
               {canManage && (
@@ -545,15 +752,40 @@ function AnnouncementSection({
                     Edit
                   </button>
 
-                  <button type="button" onClick={() => onPin(item)}>
-                    <Pin size={14} />
-                    {item.is_pinned ? "Unpin" : "Pin"}
-                  </button>
+                  {isScheduledSection ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onPublishNow(item)}
+                      >
+                        <Send size={14} />
+                        Publish Now
+                      </button>
 
-                  <button type="button" onClick={() => onStatus(item)}>
-                    <Send size={14} />
-                    {item.status === "published" ? "Draft" : "Publish"}
-                  </button>
+                      <button
+                        type="button"
+                        className="danger"
+                        onClick={() => onCancelSchedule(item)}
+                      >
+                        <XCircle size={14} />
+                        Cancel Schedule
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {onPin && (
+                        <button type="button" onClick={() => onPin(item)}>
+                          <Pin size={14} />
+                          {item.is_pinned ? "Unpin" : "Pin"}
+                        </button>
+                      )}
+
+                      <button type="button" onClick={() => onStatus(item)}>
+                        <Send size={14} />
+                        {item.status === "published" ? "Draft" : "Publish"}
+                      </button>
+                    </>
+                  )}
 
                   {canDelete && (
                     <button
@@ -698,6 +930,71 @@ function AnnouncementModal({
             />
           </div>
 
+          {form.status === "published" && (
+            <div className="publish-schedule-block">
+              <label>Publish</label>
+
+              <div className="publish-mode-switch">
+                <button
+                  type="button"
+                  className={form.publish_mode === "now" ? "active" : ""}
+                  onClick={() => updateField("publish_mode", "now")}
+                >
+                  <Send size={14} />
+                  Publish Now
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    form.publish_mode === "scheduled" ? "active" : ""
+                  }
+                  onClick={() => updateField("publish_mode", "scheduled")}
+                >
+                  <Clock size={14} />
+                  Schedule for Later
+                </button>
+              </div>
+
+              {form.publish_mode === "scheduled" && (
+                <div className="schedule-picker-grid">
+                  <div className="request-form-group">
+                    <label>
+                      <Calendar size={12} /> Date
+                    </label>
+                    <input
+                      type="date"
+                      value={form.scheduled_date}
+                      onChange={(e) =>
+                        updateField("scheduled_date", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="request-form-group">
+                    <label>
+                      <Clock size={12} /> Time
+                    </label>
+                    <input
+                      type="time"
+                      value={form.scheduled_time}
+                      onChange={(e) =>
+                        updateField("scheduled_time", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="request-form-group timezone-field">
+                    <label>Timezone</label>
+                    <div className="timezone-display">
+                      Africa/Lagos (WAT, GMT+1)
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <label className="record-pin-toggle">
             <input
               type="checkbox"
@@ -711,6 +1008,8 @@ function AnnouncementModal({
             <Save size={17} />
             {saving
               ? "Saving..."
+              : form.publish_mode === "scheduled" && form.status === "published"
+              ? "Schedule Announcement"
               : editing
               ? "Update Announcement"
               : "Save Announcement"}

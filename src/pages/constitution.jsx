@@ -283,15 +283,15 @@ function Constitution() {
           </div>
 
           <a
-  href={constitutionPdfPath}
-  target="_blank"
-  rel="noreferrer"
-  download="NAPS-LASUCOM-Constitution.pdf"
-  className="constitution-pdf-download-wide"
->
-  <Download size={18} />
-  Download / Open PDF
-</a>
+            href={constitutionPdfPath}
+            target="_blank"
+            rel="noreferrer"
+            download="NAPS-LASUCOM-Constitution.pdf"
+            className="constitution-pdf-download-wide"
+          >
+            <Download size={18} />
+            Download / Open PDF
+          </a>
         </section>
       </section>
     </main>

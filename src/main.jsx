@@ -12,16 +12,17 @@ createRoot(document.getElementById("root")).render(
   </StrictMode>
 );
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-  navigator.serviceWorker
-    .register("/service-worker.js")
-    .then(() => {
-      console.log("NAPS LASUCOM service worker registered");
-    })
-    .catch((error) => {
-      console.log("Service worker registration failed:", error);
-    });
+window.addEventListener("load", () => {
+  if (import.meta.env.PROD && "serviceWorker" in navigator) {
+    navigator.serviceWorker
+      .register("/service-worker.js")
+      .then(() => {
+        console.log("NAPS LASUCOM service worker registered");
+      })
+      .catch((error) => {
+        console.log("Service worker registration failed:", error);
+      });
+  }
 
   const splash = document.getElementById("app-splash");
 
@@ -42,4 +43,3 @@ if ("serviceWorker" in navigator) {
     }, 700);
   }, 2500);
 });
-}

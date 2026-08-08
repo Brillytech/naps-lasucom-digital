@@ -13146,3 +13146,127 @@ body {
   background: #dc2626;
   color: #fff;
 }
+/* ===== Scheduling UI (New/Edit Announcement modal + list badges) ===== */
+
+.announcement-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.announcement-badge-row strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.announcement-badge-row strong.scheduled-badge {
+  background: rgba(7, 82, 184, 0.1);
+  color: #0752b8;
+}
+
+.publish-schedule-block {
+  margin-top: 4px;
+  border-radius: 20px;
+  padding: 14px;
+  background: rgba(7, 82, 184, 0.045);
+  border: 1px solid rgba(7, 82, 184, 0.08);
+  display: grid;
+  gap: 12px;
+}
+
+.publish-schedule-block > label {
+  font-size: 12px;
+  font-weight: 900;
+  color: #10203f;
+}
+
+.publish-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.publish-mode-switch button {
+  min-height: 44px;
+  border: 1px solid rgba(7, 82, 184, 0.12);
+  border-radius: 15px;
+  background: #ffffff;
+  color: #6d7890;
+  font-size: 12.5px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.publish-mode-switch button.active {
+  background: linear-gradient(135deg, #0752b8, #22a447);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 10px 22px rgba(7, 82, 184, 0.2);
+}
+
+.schedule-picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.schedule-picker-grid .timezone-field {
+  grid-column: span 2;
+}
+
+.schedule-picker-grid label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 900;
+  color: #10203f;
+  margin-bottom: 6px;
+}
+
+.schedule-picker-grid input[type="date"],
+.schedule-picker-grid input[type="time"] {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid rgba(7, 82, 184, 0.12);
+  border-radius: 14px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #10203f;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.timezone-display {
+  min-height: 46px;
+  border-radius: 14px;
+  padding: 0 12px;
+  background: rgba(34, 164, 71, 0.09);
+  color: #168238;
+  font-size: 12.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 430px) {
+  .schedule-picker-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-picker-grid .timezone-field {
+    grid-column: span 1;
+  }
+}

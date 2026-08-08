@@ -61,18 +61,11 @@ function ResourceListPage({ category }) {
   const location = useLocation();
 
   function handleTopBack() {
-    // If the user has an active selection (level/semester/course/search),
-    // "back" should undo that one step first — just like a real back
-    // button would — rather than immediately leaving the page.
     if (selectedCourse || searchTerm || selectedSemester || selectedLevel) {
       goBackOneStep();
       return;
     }
 
-    // Nothing left to step back through — actually leave the page.
-    // location.key is "default" when there's no real previous entry in
-    // this tab's history (e.g. a fresh/shared link) — in that case
-    // navigate(-1) would do nothing, so fall back to the Resources page.
     if (location.key && location.key !== "default") {
       navigate(-1);
     } else {
@@ -91,21 +84,11 @@ function ResourceListPage({ category }) {
   const [selectedCourse, setSelectedCourse] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Level/semester/course selection is normal component state — it isn't
-  // tied to the URL, so by default the phone's back button/gesture would
-  // just leave the whole page instead of stepping back one selection at a
-  // time. We push a history entry each time the user drills deeper, and
-  // listen for popstate (back button) to undo one step, so back behaves
-  // the way people expect.
   const historyDepthRef = useRef(0);
   const suppressPopCountRef = useRef(0);
 
   useEffect(() => {
     function handlePopState() {
-      // If this popstate was triggered by our own button (see
-      // goBackOneStep/resetAll below), the state change already happened
-      // synchronously — just consume one "credit" and skip, so a single
-      // tap doesn't get applied twice.
       if (suppressPopCountRef.current > 0) {
         suppressPopCountRef.current -= 1;
         return;
@@ -298,9 +281,6 @@ function ResourceListPage({ category }) {
     historyDepthRef.current += 1;
   }
 
-  // Performs the actual one-step-back state change. Triggered either by
-  // the in-app "Go back" button (via history.back(), see goBackOneStep
-  // below) or directly by the phone's back button/gesture (popstate).
   function stepBack() {
     if (selectedCourse || searchTerm) {
       setSelectedCourse("");
@@ -319,12 +299,6 @@ function ResourceListPage({ category }) {
     }
   }
 
-  // Called by the in-app back button. Updates the UI immediately instead
-  // of waiting on window.history.back()'s async popstate event — that
-  // round-trip is what made the button feel like it needed two taps.
-  // We still call history.back() to keep the stack in sync for the
-  // phone's physical back gesture, but flag it so our own listener
-  // doesn't apply the same step twice.
   function goBackOneStep() {
     stepBack();
 

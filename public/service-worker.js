@@ -1,4 +1,4 @@
-const CACHE_NAME = "naps-lasucom-v2";
+const CACHE_NAME = "naps-lasucom-v3";
 
 const STATIC_ASSETS = [
   "/",

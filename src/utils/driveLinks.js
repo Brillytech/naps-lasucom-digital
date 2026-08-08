@@ -66,5 +66,28 @@ export function getDriveDownloadLink(url) {
 
   if (!fileId) return url;
 
+  const cleanUrl = decodeURIComponent(url);
+
+  // Native Google Docs/Sheets/Slides aren't files sitting in Drive storage —
+  // they're live documents, and Drive's generic file-download endpoint
+  // doesn't serve them (it just redirects back to the editor, which is
+  // exactly what produced the "can't frame drive.google.com" console error
+  // we hit). Each of these has its own dedicated export endpoint instead,
+  // exported as a PDF so it opens reliably on any phone without needing
+  // Word/PowerPoint/Sheets installed.
+  if (/docs\.google\.com\/presentation\//.test(cleanUrl)) {
+    return `https://docs.google.com/presentation/d/${fileId}/export/pdf`;
+  }
+
+  if (/docs\.google\.com\/document\//.test(cleanUrl)) {
+    return `https://docs.google.com/document/d/${fileId}/export?format=pdf`;
+  }
+
+  if (/docs\.google\.com\/spreadsheets\//.test(cleanUrl)) {
+    return `https://docs.google.com/spreadsheets/d/${fileId}/export?format=pdf`;
+  }
+
+  // A regular uploaded file living in Drive storage — this endpoint is
+  // correct for that case.
   return `https://drive.usercontent.google.com/download?id=${fileId}&export=download`;
 }

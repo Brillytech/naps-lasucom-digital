@@ -46,10 +46,14 @@ function HomePage() {
   async function fetchAnnouncements() {
     setLoadingAnnouncements(true);
 
+    const nowIso = new Date().toISOString();
+
     const { data, error } = await supabase
       .from("announcements")
       .select("*")
-      .eq("status", "published")
+      .or(
+        `status.eq.published,and(status.eq.scheduled,scheduled_for.lte.${nowIso})`
+      )
       .order("is_pinned", { ascending: false })
       .order("published_at", { ascending: false })
       .limit(3);
