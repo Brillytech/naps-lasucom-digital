@@ -13723,12 +13723,14 @@ a:focus-visible {
 }
 
 .skel-box {
+  display: block;
   width: 34px;
   height: 34px;
   border-radius: var(--r-sm);
 }
 
 .skel-line {
+  display: block;
   height: 10px;
 }
 
@@ -13864,175 +13866,91 @@ a:focus-visible {
 }
 
 /* ============================================================
-   FOLDER
-   For anything that CONTAINS things -- a level, a semester, a
-   course. Rows are for items you open; folders are for places you
-   go into. The name is set on the folder face, and sheets peek out
-   from behind when there is something inside.
+   PICKER
+   Levels, semesters and courses are places you go into, so they
+   get a folder glyph and a count -- the way a file browser does
+   it. A list, not a grid: names vary in length, courses can run
+   long, and a list stays readable at any count.
    ============================================================ */
 
-.folder-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+.picker-row {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  padding-block: var(--sp-3);
   gap: var(--sp-3);
 }
 
-.folder {
-  --tone: var(--blue-ink);
-
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  display: grid;
-  gap: 7px;
-}
-
-.folder-art {
-  position: relative;
+.picker-ico {
+  width: 38px;
+  height: 38px;
   display: block;
-  padding-top: 10px;
-  transition: transform 0.18s var(--ease);
+  color: var(--tone, var(--blue-ink));
 }
 
-.folder:not(:disabled):active .folder-art {
-  transform: translateY(2px);
+.picker-row:disabled .picker-ico {
+  color: var(--muted);
+  opacity: 0.55;
 }
 
-/* The tab. Sits flush on the face, same fill, so there is no seam. */
-.folder-tab {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 46%;
-  height: 13px;
-  border-radius: var(--r-sm) var(--r-sm) 0 0;
-  background: color-mix(in srgb, var(--tone) 21%, transparent);
-}
-
-/* Sheets of paper inside, peeking above the face. */
-.folder-sheet {
-  position: absolute;
-  border-radius: 3px 3px 0 0;
-  background: color-mix(in srgb, var(--text) 13%, transparent);
-}
-
-.folder-sheet-back {
-  left: 57%;
-  right: 15%;
-  top: 1px;
-  height: 9px;
-}
-
-.folder-sheet-front {
-  left: 50%;
-  right: 8%;
-  top: 5px;
-  height: 7px;
-  background: color-mix(in srgb, var(--text) 19%, transparent);
-}
-
-.folder-face {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  aspect-ratio: 8 / 5;
-  padding: 11px 12px;
-  border-radius: 0 var(--r-md) var(--r-md) var(--r-md);
-  background: color-mix(in srgb, var(--tone) 13%, transparent);
-}
-
-.app.dark .folder-tab {
-  background: color-mix(in srgb, var(--tone) 26%, transparent);
-}
-
-.app.dark .folder-face {
-  background: color-mix(in srgb, var(--tone) 17%, transparent);
-}
-
-/* The name, inscribed on the face. */
-.folder-label {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  color: var(--tone);
+.picker-name {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--text);
   overflow: hidden;
-  display: -webkit-box;
-  line-clamp: 2;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.folder-meta {
-  padding-left: 2px;
-  font-size: 11px;
+.picker-row:disabled .picker-name {
+  color: var(--muted);
+}
+
+.picker-count {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
-/* Empty: closed, greyed, nothing inside to show. */
-.folder:disabled {
-  cursor: default;
-  --tone: var(--muted);
-}
-
-.folder:disabled .folder-sheet {
-  display: none;
-}
-
-.folder:disabled .folder-face {
-  background: color-mix(in srgb, var(--muted) 10%, transparent);
-}
-
-.folder:disabled .folder-label {
+.picker-row .home-chev {
   color: var(--muted);
+  opacity: 0.7;
 }
 
-.folder:focus-visible {
-  outline: 2px solid var(--blue-ink);
-  outline-offset: 3px;
+.picker-row:disabled {
+  cursor: default;
+}
+
+/* Skeleton in the same silhouette. */
+.picker-skel-ico {
+  display: block;
+  width: 38px;
+  height: 38px;
   border-radius: var(--r-sm);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .folder-art {
-    transition: none;
-  }
-
-  .folder:not(:disabled):active .folder-art {
-    transform: none;
-  }
-}
-
-/* Folder skeleton, same silhouette. */
-.folder-skel .folder-face {
-  background: color-mix(in srgb, var(--muted) 12%, transparent);
-}
-
-.folder-skel .folder-tab {
-  background: color-mix(in srgb, var(--muted) 16%, transparent);
-}
-
 @media (min-width: 700px) {
-  .folder-grid {
-    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-    gap: var(--sp-4);
+  .picker-row {
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    padding-block: var(--sp-4);
   }
 
-  .folder-label {
-    font-size: 16px;
+  .picker-ico,
+  .picker-skel-ico {
+    width: 46px;
+    height: 46px;
   }
 
-  .folder-meta {
-    font-size: 12.5px;
+  .picker-name {
+    font-size: 16.5px;
+  }
+
+  .picker-count {
+    font-size: 13px;
   }
 }
-
 /* ============================================================
    RESOURCES
    One card -- the hero, which is the primary element here. The

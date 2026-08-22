@@ -379,16 +379,16 @@ function ResourceListPage({ category }) {
           </div>
 
           {loadingInitial ? (
-            <div className="folder-grid">
-              <FolderSkeleton />
-              <FolderSkeleton />
-              <FolderSkeleton />
-              <FolderSkeleton />
+            <div className="list">
+              <PickerSkeleton />
+              <PickerSkeleton />
+              <PickerSkeleton />
+              <PickerSkeleton />
             </div>
           ) : (
-            <div className="folder-grid">
+            <div className="list">
               {levelCards.map((item) => (
-                <PickerFolder
+                <PickerRow
                   key={item.level}
                   title={item.level}
                   count={item.count}
@@ -408,9 +408,9 @@ function ResourceListPage({ category }) {
             <h3>Select semester</h3>
           </div>
 
-          <div className="folder-grid">
+          <div className="list">
             {semesterCards.map((item) => (
-              <PickerFolder
+              <PickerRow
                 key={item.semester}
                 title={item.semester}
                 count={item.count}
@@ -434,16 +434,16 @@ function ResourceListPage({ category }) {
             </div>
 
             {loadingResources ? (
-              <div className="folder-grid">
-                <FolderSkeleton />
-                <FolderSkeleton />
-                <FolderSkeleton />
-                <FolderSkeleton />
+              <div className="list">
+                <PickerSkeleton />
+                <PickerSkeleton />
+                <PickerSkeleton />
+                <PickerSkeleton />
               </div>
             ) : courseCards.length > 0 ? (
-              <div className="folder-grid">
+              <div className="list">
                 {courseCards.map((item) => (
-                  <PickerFolder
+                  <PickerRow
                     key={item.course}
                     title={item.course}
                     count={item.count}
@@ -510,42 +510,66 @@ function ResourceListPage({ category }) {
   );
 }
 
-function PickerFolder({ title, count, emptyText, tone, onClick }) {
+/* Two-tone folder: a back panel with the tab, and a lighter front
+   panel over it. Reads as a folder without looking drawn-on. */
+function FolderIcon({ open }) {
+  return (
+    <svg
+      className="picker-ico"
+      viewBox="0 0 40 40"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M3 11.5A3.5 3.5 0 0 1 6.5 8h8.26a3.5 3.5 0 0 1 2.45 1l2.04 2a3.5 3.5 0 0 0 2.45 1H33.5A3.5 3.5 0 0 1 37 15.5v13A3.5 3.5 0 0 1 33.5 32h-27A3.5 3.5 0 0 1 3 28.5v-17Z"
+        fill="currentColor"
+        opacity="0.32"
+      />
+      <path
+        d={
+          open
+            ? "M6.2 19.6a3 3 0 0 1 2.93-2.35h25.4a3 3 0 0 1 2.9 3.78l-2.2 8.2A3 3 0 0 1 32.3 32H6.5A3.5 3.5 0 0 1 3 28.5v-6.2a3 3 0 0 1 .07-.65l3.13-2.05Z"
+            : "M3 20.2a3 3 0 0 1 3-3h28a3 3 0 0 1 3 3v8.3A3.5 3.5 0 0 1 33.5 32h-27A3.5 3.5 0 0 1 3 28.5v-8.3Z"
+        }
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function PickerRow({ title, count, emptyText, tone, onClick }) {
   const isEmpty = count === 0;
 
   return (
     <button
       type="button"
-      className={`folder ${tone}`}
+      className={`row picker-row ${tone}`}
       onClick={onClick}
       disabled={isEmpty}
     >
-      <span className="folder-art" aria-hidden="true">
-        <i className="folder-tab" />
-        <i className="folder-sheet folder-sheet-back" />
-        <i className="folder-sheet folder-sheet-front" />
+      <FolderIcon />
 
-        <span className="folder-face">
-          <span className="folder-label">{title}</span>
+      <span>
+        <span className="picker-name">{title}</span>
+        <span className="picker-count">
+          {isEmpty ? emptyText : `${count} ${count === 1 ? "item" : "items"}`}
         </span>
       </span>
 
-      <span className="folder-meta">
-        {isEmpty ? emptyText : `${count} ${count === 1 ? "item" : "items"}`}
-      </span>
+      {!isEmpty && <ChevronRight size={18} className="home-chev" />}
     </button>
   );
 }
 
-function FolderSkeleton() {
+function PickerSkeleton() {
   return (
-    <div className="folder folder-skel" aria-hidden="true">
-      <span className="folder-art">
-        <i className="folder-tab" />
-        <span className="folder-face" />
-      </span>
+    <div className="row picker-row" aria-hidden="true">
+      <span className="skel picker-skel-ico" />
 
-      <span className="skel skel-line" style={{ width: "58%" }} />
+      <span>
+        <span className="skel skel-line" style={{ width: "42%" }} />
+        <span className="skel skel-line" style={{ width: "24%" }} />
+      </span>
     </div>
   );
 }
