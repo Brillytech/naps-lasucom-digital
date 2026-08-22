@@ -3,7 +3,8 @@ import {
   FileText,
   HeartHandshake,
   Megaphone,
-  Phone,
+  AlertCircle,
+  MessageCircle,
   ShieldCheck,
   Trophy,
   Users,
@@ -136,46 +137,58 @@ function Executives() {
 
   return (
     <>
-      <section className="page-header executives-header">
-        <p>NAPS LASUCOM</p>
-        <h1>Executives</h1>
-        <span>Current executive council, offices and contact access.</span>
-      </section>
-
-      <section className="exec-hero-card">
-        <div>
-          <h3>{pageTitle}</h3>
-          <p>{pageSession}</p>
+      <header className="rl-head tone-blue">
+        <div className="rl-head-top">
+          <p className="rl-eyebrow">{pageTitle}</p>
         </div>
 
-        <img src="/images/naps-logo.png" alt="NAPS LASUCOM" />
-      </section>
+        <h1>Executives</h1>
+
+        <p className="rl-meta">
+          {loading
+            ? pageSession
+            : `${executives.length} ${
+                executives.length === 1 ? "officer" : "officers"
+              } · ${pageSession}`}
+        </p>
+      </header>
 
       {loading && (
-        <section className="empty-state">
-          <h3>Loading executives...</h3>
-          <p>Please wait while we fetch the current executive council.</p>
+        <section className="list" aria-busy="true">
+          <ExecutiveSkeleton />
+          <ExecutiveSkeleton />
+          <ExecutiveSkeleton />
+          <ExecutiveSkeleton />
         </section>
       )}
 
       {!loading && errorMessage && (
-        <section className="empty-state">
-          <h3>Unable to load executives</h3>
+        <section className="rl-empty">
+          <div className="ico ico-md ico--tint tone-amber">
+            <AlertCircle size={24} />
+          </div>
+          <h3>Could not load the council</h3>
           <p>{errorMessage}</p>
         </section>
       )}
 
       {!loading && !errorMessage && executives.length === 0 && (
-        <section className="empty-state">
-          <h3>No executive profile yet</h3>
-          <p>The current executive council will appear here once uploaded.</p>
+        <section className="rl-empty">
+          <div className="ico ico-md ico--tint tone-blue">
+            <Users size={24} />
+          </div>
+          <h3>No executives listed yet</h3>
+          <p>
+            The current executive council will show up here once the
+            secretariat uploads it.
+          </p>
         </section>
       )}
 
       {!loading && !errorMessage && executives.length > 0 && (
-        <section className="executives-list executive-photo-list">
+        <section className="list">
           {executives.map((exec) => (
-            <ExecutiveCard key={exec.id} exec={exec} />
+            <ExecutiveRow key={exec.id} exec={exec} />
           ))}
         </section>
       )}
@@ -183,50 +196,73 @@ function Executives() {
   );
 }
 
-function ExecutiveCard({ exec }) {
+function ExecutiveSkeleton() {
+  return (
+    <div className="row exec-row" aria-hidden="true">
+      <span className="skel exec-skel-photo" />
+
+      <span>
+        <span className="skel skel-line" style={{ width: "34%" }} />
+        <span className="skel skel-line" style={{ width: "62%" }} />
+      </span>
+    </div>
+  );
+}
+
+function ExecutiveRow({ exec }) {
   const details = officeDetails[exec.office] || {
     role: "Executive council member.",
-    icon: <Users size={24} />,
+    icon: <Users size={22} />,
     color: "blue",
   };
 
+  const [imageFailed, setImageFailed] = useState(false);
+
   const phoneLink = getPhoneLink(exec.phone);
+  const showPhoto = exec.image_url && !imageFailed;
 
   return (
-    <article className={`exec-photo-card ${details.color}`}>
-      <div className="exec-photo-box">
-        {exec.image_url && (
+    <article className={`row exec-row tone-${details.color}`}>
+      <div className="exec-photo">
+        {showPhoto && (
           <img
             src={exec.image_url}
             alt={exec.full_name}
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-              e.currentTarget.nextElementSibling.style.display = "grid";
-            }}
+            onError={() => setImageFailed(true)}
           />
         )}
 
-        <div
-          className={`exec-photo-fallback ${details.color}`}
-          style={{ display: exec.image_url ? "none" : "grid" }}
-        >
-          {details.icon}
-        </div>
+        {!showPhoto && (
+          <div className="exec-photo-fallback">{details.icon}</div>
+        )}
       </div>
 
-      <div className="exec-photo-content">
-        <span>{exec.office}</span>
+      <div>
+        <span className="exec-office">{exec.office}</span>
         <h3>{exec.full_name}</h3>
         <p>{details.role}</p>
       </div>
 
       {phoneLink ? (
-        <a href={phoneLink} target="_blank" rel="noreferrer">
-          <Phone size={15} />
+        <a
+          className="exec-contact"
+          href={phoneLink}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Message ${exec.full_name} on WhatsApp`}
+          title="Message on WhatsApp"
+        >
+          <MessageCircle size={17} />
         </a>
       ) : (
-        <button type="button" className="exec-phone-disabled" disabled>
-          <Phone size={15} />
+        <button
+          type="button"
+          className="exec-contact"
+          disabled
+          aria-label="No contact listed"
+          title="No contact listed"
+        >
+          <MessageCircle size={17} />
         </button>
       )}
     </article>
