@@ -14769,3 +14769,200 @@ a.file-open:active {
     font-size: 16px;
   }
 }
+
+/* ============================================================
+   RESOURCE VIEWER
+   Share, Open and Download were three identical glass buttons, so
+   the one people actually want carried no more weight than the
+   other two. Download leads now; the other two are ghost icons.
+   The toolbar layout is deliberately left alone -- it took a few
+   passes to stop it overlapping the document.
+   ============================================================ */
+
+.rv-head {
+  position: relative;
+  z-index: 2;
+  padding-top: var(--sp-6);
+}
+
+.rv-head-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.rv-eyebrow {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--blue-ink);
+}
+
+.rv-head h1 {
+  margin: var(--sp-3) 0 0;
+  font-size: 21px;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+  color: var(--heading);
+}
+
+.rv-actions {
+  position: relative;
+  z-index: 2;
+  margin: var(--sp-4) 0;
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.rv-primary {
+  flex: 1;
+  min-height: 46px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--blue), var(--deep-blue));
+  box-shadow: var(--sh-3);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.18s var(--ease);
+}
+
+.rv-primary:active {
+  transform: scale(0.99);
+}
+
+.rv-ghost {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text);
+  text-decoration: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.16s var(--ease);
+}
+
+.rv-ghost:active {
+  background: var(--press);
+}
+
+/* Transient confirmation, clear of the bottom nav. */
+.rv-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 9px 16px;
+  border-radius: var(--r-full);
+  background: var(--deep-blue);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: var(--sh-3);
+  animation: rv-toast-in 0.2s var(--ease);
+}
+
+.app.dark .rv-toast {
+  background: #16324f;
+}
+
+@keyframes rv-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Loading placeholder in the shape of the document. */
+.rv-skeleton {
+  margin-top: var(--sp-4);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 1px solid var(--rule);
+}
+
+.rv-skeleton-page {
+  height: 320px;
+}
+
+.rv-report {
+  margin-top: var(--sp-4);
+  min-height: 42px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.16s var(--ease);
+}
+
+.rv-report:active {
+  background: var(--press);
+}
+
+/* Toolbar buttons only -- layout untouched. */
+.toolbar-icon-btn {
+  border-radius: var(--r-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv-primary,
+  .rv-ghost,
+  .rv-report {
+    transition: none;
+  }
+
+  .rv-primary:active {
+    transform: none;
+  }
+
+  .rv-toast {
+    animation: none;
+  }
+}
+
+@media (min-width: 700px) {
+  .rv-head h1 {
+    font-size: 28px;
+  }
+
+  .rv-primary {
+    min-height: 52px;
+    font-size: 15px;
+  }
+
+  .rv-ghost {
+    width: 52px;
+    height: 52px;
+  }
+
+  .rv-skeleton-page {
+    height: 480px;
+  }
+}

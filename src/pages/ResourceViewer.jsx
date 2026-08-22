@@ -281,15 +281,26 @@ function ResourceViewer() {
   if (!dbLookupDone) {
     return (
       <main className="resource-viewer-page">
-        <button type="button" className="back-icon-btn" onClick={handleBack} aria-label="Back">
-          <ArrowLeft size={20} />
-        </button>
+        <header className="rv-head">
+          <div className="rv-head-top">
+            <button
+              type="button"
+              className="rl-back"
+              onClick={handleBack}
+              aria-label="Back"
+            >
+              <ArrowLeft size={18} />
+            </button>
 
-        <section className="empty-state">
-          <FileText size={32} />
-          <h3>Loading...</h3>
-          <p>Fetching this resource.</p>
-        </section>
+            <p className="rv-eyebrow">Opening</p>
+          </div>
+
+          <div className="skel skel-line" style={{ width: "70%", height: 20, marginTop: 14 }} />
+        </header>
+
+        <div className="rv-skeleton" aria-hidden="true">
+          <div className="skel rv-skeleton-page" />
+        </div>
       </main>
     );
   }
@@ -297,14 +308,25 @@ function ResourceViewer() {
   if (!rawUrl) {
     return (
       <main className="resource-viewer-page">
-        <button type="button" className="back-icon-btn" onClick={handleBack} aria-label="Back">
-          <ArrowLeft size={20} />
-        </button>
+        <header className="rv-head">
+          <div className="rv-head-top">
+            <button
+              type="button"
+              className="rl-back"
+              onClick={handleBack}
+              aria-label="Back"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          </div>
+        </header>
 
-        <section className="empty-state">
-          <FileText size={32} />
+        <section className="rl-empty">
+          <div className="ico ico-md ico--tint tone-blue">
+            <FileText size={24} />
+          </div>
           <h3>No file found</h3>
-          <p>This resource does not have a valid link.</p>
+          <p>This resource does not have a valid link attached to it.</p>
         </section>
       </main>
     );
@@ -313,23 +335,32 @@ function ResourceViewer() {
   if (!validDriveFile) {
     return (
       <main className="resource-viewer-page">
-        <button type="button" className="back-icon-btn" onClick={handleBack} aria-label="Back">
-          <ArrowLeft size={20} />
-        </button>
+        <header className="rv-head">
+          <div className="rv-head-top">
+            <button
+              type="button"
+              className="rl-back"
+              onClick={handleBack}
+              aria-label="Back"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          </div>
+        </header>
 
-        <section className="empty-state">
-          <FileText size={32} />
-          <h3>Invalid Google Drive link</h3>
+        <section className="rl-empty">
+          <div className="ico ico-md ico--tint tone-amber">
+            <Flag size={24} />
+          </div>
+
+          <h3>This link looks broken</h3>
+
           <p>
-            This file link does not look correct. Please report this resource so
-            the admin can update the link.
+            The file link is not a valid Google Drive address, so it cannot be
+            opened. Reporting it lets an admin fix the link.
           </p>
 
-          <button
-            type="button"
-            className="report-broken-btn"
-            onClick={handleReportBroken}
-          >
+          <button type="button" className="rv-report" onClick={handleReportBroken}>
             <Flag size={16} />
             Report broken link
           </button>
@@ -347,36 +378,55 @@ function ResourceViewer() {
       }
     >
       {!isFullscreen && (
-        <header className="resource-viewer-header">
-          <button type="button" className="back-icon-btn" onClick={handleBack} aria-label="Back">
-            <ArrowLeft size={20} />
-          </button>
+        <header className="rv-head">
+          <div className="rv-head-top">
+            <button
+              type="button"
+              className="rl-back"
+              onClick={handleBack}
+              aria-label="Back"
+            >
+              <ArrowLeft size={18} />
+            </button>
+
+            <p className="rv-eyebrow">Reading</p>
+          </div>
 
           <h1>{title}</h1>
 
-          <div className="resource-viewer-actions">
-            <button type="button" onClick={handleShare}>
-              <Share2 size={16} />
-              Share
-            </button>
-
-            <a href={openUrl} target="_blank" rel="noreferrer">
-              <ExternalLink size={16} />
-              Open
-            </a>
-
+          <div className="rv-actions">
             <a
+              className="rv-primary"
               href={downloadUrl}
               target="_blank"
               rel="noreferrer"
               onClick={handleDownloadClick}
             >
-              <Download size={16} />
+              <Download size={17} />
               Download
             </a>
-          </div>
 
-          {shareStatus && <span className="share-status-toast">{shareStatus}</span>}
+            <button
+              type="button"
+              className="rv-ghost"
+              onClick={handleShare}
+              aria-label="Share"
+              title="Share"
+            >
+              <Share2 size={17} />
+            </button>
+
+            <a
+              className="rv-ghost"
+              href={openUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Open in Google Drive"
+              title="Open in Google Drive"
+            >
+              <ExternalLink size={17} />
+            </a>
+          </div>
         </header>
       )}
 
@@ -433,6 +483,12 @@ function ResourceViewer() {
           <iframe src={previewUrl} title={title} allowFullScreen />
         </div>
       </section>
+
+      {shareStatus && (
+        <div className="rv-toast" role="status">
+          {shareStatus}
+        </div>
+      )}
     </main>
   );
 }
