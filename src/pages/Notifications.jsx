@@ -159,7 +159,13 @@ function Notifications() {
           <p className="rl-eyebrow">NAPS LASUCOM</p>
         </div>
 
-        <h1>Notifications</h1>
+        <div className="rl-head-main">
+          <span className="ico ico--tint tone-blue">
+            <Bell size={24} />
+          </span>
+
+          <h1>Notifications</h1>
+        </div>
 
         <p className="rl-meta">
           Official announcements and notices. Pinned first.

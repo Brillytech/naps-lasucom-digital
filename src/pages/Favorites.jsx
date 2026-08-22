@@ -27,7 +27,13 @@ function Favorites() {
           <p className="rl-eyebrow">Saved on this device</p>
         </div>
 
-        <h1>Favorites</h1>
+        <div className="rl-head-main">
+          <span className="ico ico--tint tone-amber">
+            <Star size={24} />
+          </span>
+
+          <h1>Favorites</h1>
+        </div>
 
         <p className="rl-meta">
           {favorites.length === 0

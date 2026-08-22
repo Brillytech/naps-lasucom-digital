@@ -1,5 +1,6 @@
 import {
   Hash,
+  MessageCircle,
   Phone,
   AlertCircle,
   CheckCircle2,
@@ -132,7 +133,13 @@ function Requests() {
           <p className="rl-eyebrow">NAPSITES support</p>
         </div>
 
-        <h1>Requests</h1>
+        <div className="rl-head-main">
+          <span className="ico ico--tint tone-green">
+            <MessageCircle size={24} />
+          </span>
+
+          <h1>Requests</h1>
+        </div>
 
         <p className="rl-meta">
           Academic, welfare, complaints, events, sports and finance.
@@ -253,7 +260,7 @@ function Requests() {
                     <input
                       id="rq-matric"
                       type="text"
-                      placeholder="Matric number"
+                      placeholder="Matric no."
                       value={form.matric_no}
                       onChange={(e) => updateField("matric_no", e.target.value)}
                     />
@@ -269,7 +276,7 @@ function Requests() {
                     <input
                       id="rq-phone"
                       type="tel"
-                      placeholder="WhatsApp number"
+                      placeholder="WhatsApp no."
                       value={form.phone}
                       onChange={(e) => updateField("phone", e.target.value)}
                     />
@@ -307,7 +314,7 @@ function Requests() {
           <textarea
             id="rq-message"
             maxLength={MESSAGE_LIMIT}
-            placeholder="Describe your request. The more detail you give, the faster it can be handled."
+            placeholder="Describe your request in detail."
             value={form.message}
             onChange={(e) => updateField("message", e.target.value)}
           />

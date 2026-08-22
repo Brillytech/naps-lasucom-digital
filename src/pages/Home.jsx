@@ -1,6 +1,7 @@
 import {
   Bell,
   BookOpen,
+  Building2,
   CalendarDays,
   ChevronRight,
   Clock,
@@ -92,9 +93,18 @@ function HomePage() {
         <h2>Digital Connect</h2>
       </section>
 
-      <p className="home-motto">
-        <strong>Strength in Knowledge,</strong> Service to Humanity.
-      </p>
+      <section className="motto">
+        <span className="ico ico-md ico--tint tone-blue">
+          <Building2 size={22} />
+        </span>
+
+        <div>
+          <span className="motto-label">Our motto</span>
+          <p className="motto-text">
+            Strength in Knowledge, <span>Service to Humanity.</span>
+          </p>
+        </div>
+      </section>
 
       <div className="sec-head">
         <h3>Go to</h3>

@@ -142,7 +142,13 @@ function Executives() {
           <p className="rl-eyebrow">{pageTitle}</p>
         </div>
 
-        <h1>Executives</h1>
+        <div className="rl-head-main">
+          <span className="ico ico--tint tone-blue">
+            <Users size={24} />
+          </span>
+
+          <h1>Executives</h1>
+        </div>
 
         <p className="rl-meta">
           {loading

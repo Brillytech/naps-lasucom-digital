@@ -14992,15 +14992,20 @@ a.file-open:active {
   align-items: center;
 }
 
+/* Absolutely positioned, so the parent's align-items does not
+   reach it -- it needs centring of its own. */
 .rq-input > svg {
   position: absolute;
-  left: 11px;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--muted);
   pointer-events: none;
 }
 
 .rq-input input {
-  padding-left: 35px;
+  padding-left: 32px;
+  text-overflow: ellipsis;
 }
 
 .rq-field input,
@@ -15472,5 +15477,231 @@ a.file-open:active {
 
   .nt-push p {
     font-size: 13px;
+  }
+}
+
+/* ============================================================
+   EXPRESSIVE PAGE HEADS
+   A page title on its own says what the page is called. Pairing
+   it with the section's own glyph says what the page IS, and
+   carries the section colour into the header where it sets the
+   tone for everything below.
+   ============================================================ */
+
+.rl-head-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.rl-head-main .ico {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--r-md);
+}
+
+.rl-head-main h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -1.1px;
+  color: var(--heading);
+  overflow-wrap: break-word;
+}
+
+.rl-head .rl-head-main + .rl-meta {
+  margin-top: var(--sp-3);
+}
+
+@media (max-width: 360px) {
+  .rl-head-main h1 {
+    font-size: 26px;
+  }
+}
+
+@media (min-width: 700px) {
+  .rl-head-main .ico {
+    width: 60px;
+    height: 60px;
+    border-radius: var(--r-lg);
+  }
+
+  .rl-head-main h1 {
+    font-size: 44px;
+    letter-spacing: -1.6px;
+  }
+}
+
+/* ============================================================
+   MOTTO PLAQUE
+   Used on Home and on the NAPS page. The association's motto is
+   the one piece of copy on either screen that is not navigation,
+   so it gets a frame of its own rather than sitting as loose text.
+   ============================================================ */
+
+.motto {
+  position: relative;
+  margin-top: var(--sp-4);
+  padding: 13px 15px;
+  border: 1px solid color-mix(in srgb, var(--blue) 20%, transparent);
+  border-radius: var(--r-md);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--blue) 7%, transparent),
+    color-mix(in srgb, var(--green) 6%, transparent)
+  );
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-3);
+  overflow: hidden;
+}
+
+.app.dark .motto {
+  border-color: color-mix(in srgb, var(--blue-ink) 26%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--blue-ink) 11%, transparent),
+    color-mix(in srgb, var(--green-ink) 8%, transparent)
+  );
+}
+
+/* A quiet crest mark, clipped by the frame. */
+.motto::after {
+  content: "";
+  position: absolute;
+  right: -26px;
+  top: -26px;
+  width: 84px;
+  height: 84px;
+  border-radius: var(--r-full);
+  border: 1px solid color-mix(in srgb, var(--blue) 14%, transparent);
+  pointer-events: none;
+}
+
+.app.dark .motto::after {
+  border-color: color-mix(in srgb, var(--blue-ink) 18%, transparent);
+}
+
+.motto-label {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--blue-ink);
+}
+
+.motto-text {
+  margin: 3px 0 0;
+  font-size: 13.5px;
+  line-height: 1.35;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.motto-text span {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+@media (min-width: 700px) {
+  .motto {
+    padding: 18px 20px;
+  }
+
+  .motto-label {
+    font-size: 11px;
+  }
+
+  .motto-text {
+    font-size: 17px;
+  }
+}
+
+/* ============================================================
+   NAPS / ABOUT
+   ============================================================ */
+
+.naps-row {
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: start;
+  padding-block: var(--sp-3);
+}
+
+a.naps-row {
+  grid-template-columns: 38px minmax(0, 1fr) 18px;
+}
+
+a.naps-row .home-chev {
+  color: var(--muted);
+}
+
+.naps-row h3 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.naps-row p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.naps-aims {
+  display: grid;
+  gap: 0;
+  counter-reset: aim;
+}
+
+.naps-aim {
+  counter-increment: aim;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: var(--sp-3);
+  align-items: start;
+  padding: var(--sp-3) 0;
+}
+
+.naps-aim + .naps-aim {
+  border-top: 1px solid var(--rule);
+}
+
+.naps-aim::before {
+  content: counter(aim, decimal-leading-zero);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--blue-ink);
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+
+.naps-aim p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+@media (min-width: 700px) {
+  .naps-row {
+    grid-template-columns: 46px minmax(0, 1fr);
+    padding-block: var(--sp-4);
+  }
+
+  .naps-row h3 {
+    font-size: 16px;
+  }
+
+  .naps-row p {
+    font-size: 13.5px;
+  }
+
+  .naps-aim p {
+    font-size: 14.5px;
   }
 }

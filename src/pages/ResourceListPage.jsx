@@ -396,7 +396,13 @@ function ResourceListPage({ category }) {
           <p className="rl-eyebrow">{pageInfo.eyebrow}</p>
         </div>
 
-        <h1>{pageInfo.title}</h1>
+        <div className="rl-head-main">
+          <span className={`ico ico--tint ${pageInfo.tone}`}>
+            {pageInfo.icon}
+          </span>
+
+          <h1>{pageInfo.title}</h1>
+        </div>
 
         <p className="rl-meta">{summary}</p>
       </header>
