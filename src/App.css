@@ -333,23 +333,15 @@ a:focus-visible {
   margin: 0;
   font-size: 38px;
   line-height: 0.95;
-  color: var(--deep-blue);
+  color: var(--heading);
   letter-spacing: -1.5px;
-}
-
-.dark .hero h1 {
-  color: #dbe9ff;
 }
 
 .hero h2 {
   margin: 8px 0 0;
   font-size: 25px;
-  color: var(--blue);
+  color: var(--blue-ink);
   font-weight: 650;
-}
-
-.dark .hero h2 {
-  color: #7fb2ff;
 }
 
 .motto-card,
@@ -13456,5 +13448,373 @@ a:focus-visible {
 
   .schedule-picker-grid .timezone-field {
     grid-column: span 1;
+  }
+}
+
+/* ============================================================
+   HOME — rebuilt on the primitives.
+   Every card here is .card + a layout class. No card writes its
+   own surface, border, radius or shadow.
+   ============================================================ */
+
+/* Motto: was a shadowed card, now a quiet strip. */
+.home-motto {
+  margin-top: var(--sp-6);
+  border-radius: var(--r-md);
+  padding: 11px 13px;
+  background: color-mix(in srgb, var(--blue) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--blue) 14%, transparent);
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.home-motto p {
+  margin: 0;
+  font-size: 12.6px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.home-motto p span {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* Primary actions. */
+.home-quick {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.home-qcard {
+  padding: var(--sp-4);
+  display: grid;
+  grid-template-columns: 44px 1fr 18px;
+  gap: 13px;
+  align-items: center;
+}
+
+.home-qcard h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.home-qcard p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  opacity: 0.82;
+  line-height: 1.35;
+}
+
+.home-qcard .ico {
+  width: 44px;
+  height: 44px;
+}
+
+.home-qcard .home-chev {
+  opacity: 0.7;
+}
+
+/* Jump strip. */
+.home-mini {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-2);
+}
+
+.home-mcard {
+  padding: 13px 8px;
+  display: grid;
+  place-items: center;
+  gap: var(--sp-2);
+  text-align: center;
+}
+
+.home-mcard span {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+/* Continue reading. */
+.home-continue {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  padding-bottom: var(--sp-1);
+  scrollbar-width: none;
+}
+
+.home-continue::-webkit-scrollbar {
+  display: none;
+}
+
+.home-ccard {
+  flex: none;
+  max-width: 180px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.home-ccard span {
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Announcements — flat rows, no outer panel. */
+.home-list {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.home-arow {
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: start;
+}
+
+.home-arow.is-unread {
+  border-color: color-mix(in srgb, var(--blue-ink) 26%, transparent);
+}
+
+.home-arow-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  flex: none;
+}
+
+.home-arow-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.home-arow h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-arow.is-unread h4 {
+  font-weight: 700;
+}
+
+.home-arow p {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.home-arow-pin {
+  color: var(--muted);
+  flex: none;
+}
+
+.home-arow-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 1px;
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-arow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--blue-ink);
+  flex: none;
+}
+
+/* Skeleton — replaces "Loading announcements...". */
+.home-skel-row {
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+}
+
+.skel {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--muted) 12%, transparent) 25%,
+    color-mix(in srgb, var(--muted) 24%, transparent) 37%,
+    color-mix(in srgb, var(--muted) 12%, transparent) 63%
+  );
+  background-size: 400% 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+.skel-box {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+}
+
+.skel-line {
+  height: 10px;
+}
+
+.skel-line + .skel-line {
+  margin-top: 7px;
+}
+
+@keyframes skel-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skel {
+    animation: none;
+  }
+}
+
+/* About NAPS row. */
+.home-brand {
+  margin-top: var(--sp-3);
+  padding: 13px;
+  display: grid;
+  grid-template-columns: 44px 1fr 18px;
+  gap: var(--sp-3);
+  align-items: center;
+}
+
+.home-brand img {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  object-fit: contain;
+}
+
+.home-brand h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.home-brand p {
+  margin: 2px 0 0;
+  font-size: 11.8px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.home-brand .home-chev {
+  color: var(--muted);
+}
+
+/* Empty state for announcements. */
+.home-empty {
+  padding: 26px 16px;
+  display: grid;
+  place-items: center;
+  gap: var(--sp-2);
+  text-align: center;
+}
+
+.home-empty h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.home-empty p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 30ch;
+}
+
+/* Tablet and up — the phone frame widens to 1120px past 600px. */
+@media (min-width: 700px) {
+  .home-qcard {
+    padding: var(--sp-6);
+    grid-template-columns: 56px 1fr 22px;
+    gap: var(--sp-4);
+  }
+
+  .home-qcard h3 {
+    font-size: 20px;
+  }
+
+  .home-qcard p {
+    font-size: 14px;
+  }
+
+  .home-quick {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-4);
+  }
+
+  .home-mini {
+    gap: var(--sp-3);
+  }
+
+  .home-mcard {
+    padding: 20px 12px;
+  }
+
+  .home-mcard span {
+    font-size: 13px;
+  }
+
+  .home-arow h4 {
+    font-size: 15px;
+  }
+
+  .home-arow p {
+    font-size: 13px;
+  }
+
+  .home-brand h3 {
+    font-size: 16px;
+  }
+
+  .home-brand p {
+    font-size: 13px;
   }
 }

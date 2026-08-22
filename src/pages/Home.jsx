@@ -93,143 +93,153 @@ function HomePage() {
         <h2>Digital Connect</h2>
       </section>
 
-      <section className="home-identity-card">
-        <div className="home-identity-icon">
-          <Building2 size={24} />
+      <section className="home-motto">
+        <div className="ico ico-sm ico--tint tone-blue">
+          <Building2 size={18} />
         </div>
 
-        <div>
-          <h3>Strength in Knowledge,</h3>
-          <p>Service to Humanity.</p>
-        </div>
+        <p>
+          Strength in Knowledge, <span>Service to Humanity.</span>
+        </p>
       </section>
 
-      <section className="home-quick-actions">
-        <Link to="/resources" className="quick-action-card blue-card">
-          <BookOpen size={24} />
+      <div className="sec-head">
+        <h3>Go to</h3>
+      </div>
+
+      <section className="home-quick">
+        <Link to="/resources" className="card card--primary home-qcard">
+          <div className="ico ico--on-brand">
+            <BookOpen size={24} />
+          </div>
+
           <div>
             <h3>Resources</h3>
-            <p>Past questions, materials & timetables</p>
+            <p>Past questions, materials &amp; timetables</p>
           </div>
-          <ChevronRight size={20} className="action-arrow" />
+
+          <ChevronRight size={18} className="home-chev" />
         </Link>
 
-        <Link to="/requests" className="quick-action-card green-card">
-          <MessageCircle size={24} />
+        <Link
+          to="/requests"
+          className="card card--primary is-green home-qcard"
+        >
+          <div className="ico ico--on-brand">
+            <MessageCircle size={24} />
+          </div>
+
           <div>
             <h3>Requests</h3>
-            <p>Complaints, suggestions & feedback</p>
+            <p>Complaints, suggestions &amp; feedback</p>
           </div>
-          <ChevronRight size={20} className="action-arrow" />
+
+          <ChevronRight size={18} className="home-chev" />
         </Link>
       </section>
 
-      <section className="home-mini-grid">
-        <Link to="/past-questions" className="mini-home-card">
-          <FileText size={21} />
+      <div className="sec-head">
+        <h3>Jump straight in</h3>
+      </div>
+
+      <section className="home-mini">
+        <Link to="/past-questions" className="card card--row home-mcard">
+          <div className="ico ico-sm ico--tint tone-blue">
+            <FileText size={18} />
+          </div>
           <span>Past Questions</span>
-          <ChevronRight size={15} className="mini-arrow" />
         </Link>
 
-        <Link to="/materials" className="mini-home-card">
-          <BookOpen size={21} />
+        <Link to="/materials" className="card card--row home-mcard">
+          <div className="ico ico-sm ico--tint tone-green">
+            <BookOpen size={18} />
+          </div>
           <span>Materials</span>
-          <ChevronRight size={15} className="mini-arrow" />
         </Link>
 
-        <Link to="/timetables" className="mini-home-card">
-          <CalendarDays size={21} />
+        <Link to="/timetables" className="card card--row home-mcard">
+          <div className="ico ico-sm ico--tint tone-blue">
+            <CalendarDays size={18} />
+          </div>
           <span>Timetables</span>
-          <ChevronRight size={15} className="mini-arrow" />
         </Link>
       </section>
 
       {recentlyViewed.length > 0 && (
-        <section className="notice-card home-continue-shell">
-          <div className="section-head">
-            <h3>Continue Reading</h3>
+        <>
+          <div className="sec-head">
+            <h3>Continue reading</h3>
           </div>
 
-          <div className="continue-reading-strip">
+          <section className="home-continue">
             {recentlyViewed.map((entry) => (
               <Link
                 key={entry.url}
                 to={`/resource-viewer?url=${encodeURIComponent(
                   entry.url
                 )}&title=${encodeURIComponent(entry.title)}`}
-                className="continue-reading-card"
+                className="card card--row home-ccard"
               >
-                <div className="continue-reading-icon">
-                  <Clock size={16} />
+                <div className="ico ico-sm ico--tint tone-blue">
+                  <Clock size={18} />
                 </div>
                 <span>{entry.title}</span>
               </Link>
             ))}
+          </section>
+        </>
+      )}
+
+      <div className="sec-head">
+        <h3>Announcements</h3>
+
+        <Link to="/notifications">See all</Link>
+      </div>
+
+      {loadingAnnouncements ? (
+        <section className="home-list" aria-busy="true">
+          <AnnouncementSkeleton />
+          <AnnouncementSkeleton />
+          <AnnouncementSkeleton />
+        </section>
+      ) : announcements.length > 0 ? (
+        <section className="home-list">
+          {announcements.map((announcement) => (
+            <AnnouncementRow
+              key={announcement.id}
+              announcement={announcement}
+              isRead={readIds.has(announcement.id)}
+              onOpen={() => {
+                markAsRead(announcement.id);
+                setSelectedAnnouncement(announcement);
+              }}
+            />
+          ))}
+        </section>
+      ) : (
+        <section className="card home-empty">
+          <div className="ico ico-md ico--tint tone-blue">
+            <Bell size={24} />
           </div>
+
+          <h4>No announcements yet</h4>
+
+          <p>
+            Official notices from NAPS LASUCOM will show up here as soon as
+            they go out.
+          </p>
         </section>
       )}
 
-      <section className="notice-card home-announcements-shell">
-        <div className="section-head">
-          <h3>Recent Announcements</h3>
-
-          <Link to="/notifications" className="section-head-link">
-            See all
-          </Link>
-        </div>
-
-        {loadingAnnouncements ? (
-          <div className="home-announcement-loading">
-            Loading announcements...
-          </div>
-        ) : announcements.length > 0 ? (
-          <div className="home-announcement-stack">
-            {announcements.map((announcement) => (
-              <AnnouncementPreview
-                key={announcement.id}
-                announcement={announcement}
-                isRead={readIds.has(announcement.id)}
-                onOpen={() => {
-                  markAsRead(announcement.id);
-                  setSelectedAnnouncement(announcement);
-                }}
-              />
-            ))}
-          </div>
-        ) : (
-          <>
-            <NoticeItem
-              icon={<Bell size={21} />}
-              title="No announcement yet"
-              text="Official notices from NAPS LASUCOM will appear here."
-              time="Now"
-              color="blue"
-            />
-
-            <NoticeItem
-              icon={<BookOpen size={21} />}
-              title="Resources Available"
-              text="Check past questions, materials and timetables from the Resources section."
-              time="New"
-              color="green"
-            />
-          </>
-        )}
-      </section>
-
-      <Link to="/naps" className="brand-card brand-card-link clickable-brand-card">
-        <img
-          src="/images/naps-logo.png"
-          alt="NAPS LASUCOM"
-          className="small-logo-img"
-        />
+      <Link to="/naps" className="card home-brand">
+        <img src="/images/naps-logo.png" alt="" />
 
         <div>
           <h3>About NAPS LASUCOM</h3>
-          <p>View association info, motto, aims and constitution.</p>
+          <p>Association info, motto, aims and constitution.</p>
         </div>
 
-        <ChevronRight size={20} className="brand-arrow" />
+        <ChevronRight size={18} className="home-chev" />
       </Link>
 
       {selectedAnnouncement && (
@@ -242,42 +252,58 @@ function HomePage() {
   );
 }
 
-function AnnouncementPreview({ announcement, isRead, onOpen }) {
+function AnnouncementSkeleton() {
+  return (
+    <div className="card card--row home-skel-row" aria-hidden="true">
+      <div className="skel skel-box" />
+
+      <div>
+        <div className="skel skel-line" style={{ width: "68%" }} />
+        <div className="skel skel-line" style={{ width: "44%" }} />
+      </div>
+    </div>
+  );
+}
+
+function AnnouncementRow({ announcement, isRead, onOpen }) {
   return (
     <button
       type="button"
-      className="home-announcement-row"
+      className={
+        isRead
+          ? "card card--row home-arow"
+          : "card card--row home-arow is-unread"
+      }
       onClick={onOpen}
     >
       {announcement.image_url ? (
         <img
           src={announcement.image_url}
           alt=""
-          className="home-announcement-row-thumb"
+          className="home-arow-thumb"
         />
       ) : (
-        <div className="home-announcement-row-icon">
+        <div className="ico ico-sm ico--tint tone-amber">
           <Megaphone size={18} />
         </div>
       )}
 
-      <section className="home-announcement-row-content">
-        <div className="home-announcement-row-top">
+      <div>
+        <div className="home-arow-top">
           <h4>{announcement.title}</h4>
+
           {announcement.is_pinned && (
-            <Pin size={12} className="home-announcement-row-pin" />
+            <Pin size={14} className="home-arow-pin" />
           )}
         </div>
 
         <p>{announcement.body}</p>
-      </section>
-
-      <div className="home-announcement-row-meta">
-        <span>{formatNoticeTime(announcement.published_at)}</span>
-        {!isRead && <i className="home-announcement-row-dot" />}
       </div>
 
-      <ChevronRight size={16} className="home-announcement-row-arrow" />
+      <div className="home-arow-meta">
+        <span>{formatNoticeTime(announcement.published_at)}</span>
+        {!isRead && <i className="home-arow-dot" />}
+      </div>
     </button>
   );
 }
@@ -307,7 +333,7 @@ function AnnouncementModal({ announcement, onClose }) {
             <span>{announcement.category || "General Notice"}</span>
             {announcement.is_pinned && (
               <span>
-                <Pin size={12} />
+                <Pin size={14} />
                 Pinned
               </span>
             )}
@@ -323,24 +349,6 @@ function AnnouncementModal({ announcement, onClose }) {
           </div>
         </div>
       </section>
-    </div>
-  );
-}
-
-function NoticeItem({ icon, title, text, time, color }) {
-  return (
-    <div className="notice-item">
-      <div className={`notice-icon ${color}`}>{icon}</div>
-
-      <div className="notice-text">
-        <h4>{title}</h4>
-        <p>{text}</p>
-      </div>
-
-      <div className="notice-meta">
-        <span>{time}</span>
-        <i className={color}></i>
-      </div>
     </div>
   );
 }
