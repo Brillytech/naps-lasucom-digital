@@ -9,6 +9,34 @@
   --soft-card: rgba(255, 255, 255, 0.64);
   --border: rgba(255, 255, 255, 0.7);
   --shadow: rgba(20, 49, 95, 0.12);
+
+  /* Brand colours as they should read ON a themed surface.
+     These flip in dark mode; --blue/--green/--deep-blue never do,
+     because those are also used as fills where the value must hold. */
+  --blue-ink: var(--blue);
+  --green-ink: var(--green);
+  --heading: var(--deep-blue);
+
+  /* Radius scale — 4 steps. */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-full: 999px;
+
+  /* Elevation scale — 3 steps. Only primary actions use --sh-3. */
+  --sh-1: 0 1px 2px var(--shadow);
+  --sh-2: 0 2px 6px var(--shadow), 0 10px 22px var(--shadow);
+  --sh-3: 0 10px 30px rgba(7, 82, 184, 0.3);
+
+  /* Spacing scale. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
 * {
@@ -41,10 +69,170 @@ body {
   --soft-card: rgba(255, 255, 255, 0.055);
   --border: rgba(255, 255, 255, 0.1);
   --shadow: rgba(0, 0, 0, 0.3);
+
+  /* Brand-on-dark. These three lines are what the per-element
+     ".dark ... { color: ... }" overrides were doing by hand. */
+  --blue-ink: #7fb2ff;
+  --green-ink: #43cf72;
+  --heading: #dbe9ff;
+
+  --sh-3: 0 10px 30px rgba(0, 0, 0, 0.55);
+
   background:
     radial-gradient(circle at top left, rgba(7, 82, 184, 0.38), transparent 36%),
     radial-gradient(circle at bottom right, rgba(34, 164, 71, 0.24), transparent 35%),
     var(--bg);
+}
+
+/* ============================================================
+   PRIMITIVES
+   One card, one icon container. Compose these instead of writing
+   a new block per card. Every value comes from a scale above.
+   ============================================================ */
+
+.card {
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  color: var(--text);
+  text-decoration: none;
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
+}
+
+.card:active {
+  transform: scale(0.985);
+}
+
+/* Navigation and list items — the common case. */
+.card--row {
+  border-radius: var(--r-md);
+}
+
+/* The one thing to do on a screen. Budget: two per screen. */
+.card--primary {
+  border: 0;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--blue), var(--deep-blue));
+  box-shadow: var(--sh-3);
+}
+
+.card--primary.is-green {
+  background: linear-gradient(135deg, var(--green), #168238);
+  box-shadow: 0 10px 30px rgba(34, 164, 71, 0.3);
+}
+
+.app.dark .card--primary.is-green {
+  box-shadow: var(--sh-3);
+}
+
+/* --- icon container --- */
+.ico {
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: var(--r-md);
+}
+
+.ico-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+}
+
+.ico-md {
+  width: 40px;
+  height: 40px;
+}
+
+.ico-lg {
+  width: 48px;
+  height: 48px;
+}
+
+/* Tinted — the default. One rule serves every tone and both themes. */
+.ico--tint {
+  background: color-mix(in srgb, var(--tone) 13%, transparent);
+  color: var(--tone);
+}
+
+.app.dark .ico--tint {
+  background: color-mix(in srgb, var(--tone) 20%, transparent);
+}
+
+/* Solid — reserved for primary cards, where the surface is already brand. */
+.ico--solid {
+  background: linear-gradient(135deg, var(--tone), var(--tone-2));
+  color: #ffffff;
+}
+
+.ico--on-brand {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.tone-blue {
+  --tone: var(--blue-ink);
+  --tone-2: var(--deep-blue);
+}
+
+.tone-green {
+  --tone: var(--green-ink);
+  --tone-2: #168238;
+}
+
+.tone-amber {
+  --tone: #d97706;
+  --tone-2: #b45309;
+}
+
+.app.dark .tone-amber {
+  --tone: #f0a53c;
+}
+
+/* --- one section header, replacing six --- */
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin: var(--sp-8) 0 var(--sp-3);
+}
+
+.sec-head h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sec-head a {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--blue-ink);
+  text-decoration: none;
+}
+
+/* Keyboard focus — the app had none. */
+.card:focus-visible,
+.sec-head a:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--blue-ink);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+
+  .card:active {
+    transform: none;
+  }
 }
 
 .phone-screen {
