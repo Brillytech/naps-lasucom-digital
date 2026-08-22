@@ -1,5 +1,4 @@
 import {
-  BookOpenCheck,
   CalendarDays,
   ChevronRight,
   FileQuestion,
@@ -17,7 +16,7 @@ const resourceCategories = [
     text: "Lecture slides, notes, handouts and manuals for academic use.",
     link: "/materials",
     icon: <FileText size={24} />,
-    color: "green",
+    tone: "tone-green",
   },
   {
     title: "Past Questions",
@@ -25,7 +24,7 @@ const resourceCategories = [
     text: "Past questions, recalls and compilations for revision.",
     link: "/past-questions",
     icon: <FileQuestion size={24} />,
-    color: "blue",
+    tone: "tone-blue",
   },
   {
     title: "Timetables",
@@ -33,7 +32,7 @@ const resourceCategories = [
     text: "Lecture, examination and posting timetables.",
     link: "/timetables",
     icon: <CalendarDays size={24} />,
-    color: "green",
+    tone: "tone-blue",
   },
   {
     title: "Favorites",
@@ -41,7 +40,7 @@ const resourceCategories = [
     text: "Resources you've starred for quick access later.",
     link: "/favorites",
     icon: <Star size={24} />,
-    color: "blue",
+    tone: "tone-amber",
   },
 ];
 
@@ -57,59 +56,47 @@ function Resources() {
         </span>
       </section>
 
-      <section className="library-hero-card">
-        <div className="library-hero-top">
-          <div className="library-hero-icon">
-            <FolderOpen size={28} />
+      <section className="card card--primary res-hero">
+        <div className="res-hero-top">
+          <div className="ico ico--on-brand">
+            <FolderOpen size={24} />
           </div>
 
-          <div className="library-hero-badge">
+          <span className="res-hero-badge">
             <Sparkles size={14} />
             Available
-          </div>
+          </span>
         </div>
 
         <h2>Your academic resources in one place.</h2>
 
-        <p>
-          Browse available files by level, semester and course to find what you
-          need faster.
-        </p>
-
-        <div className="library-flow">
-          <span>Select Level</span>
+        <div className="res-flow">
+          <span>Level</span>
           <ChevronRight size={14} />
-          <span>Choose Semester</span>
+          <span>Semester</span>
           <ChevronRight size={14} />
-          <span>Pick Course</span>
+          <span>Course</span>
         </div>
       </section>
 
-      <section className="library-section-title">
-        <div>
-          <BookOpenCheck size={18} />
-          <span>Resource Sections</span>
-        </div>
+      <div className="sec-head">
+        <h3>Sections</h3>
+      </div>
 
-        <p>Select a category to continue.</p>
-      </section>
-
-      <section className="library-resource-grid">
+      <section className="list">
         {resourceCategories.map((item) => (
-          <Link to={item.link} className="library-resource-card" key={item.title}>
-            <div className={`library-resource-icon ${item.color}`}>
+          <Link to={item.link} className="row res-row" key={item.title}>
+            <div className={`ico ico-md ico--tint ${item.tone}`}>
               {item.icon}
             </div>
 
-            <div className="library-resource-content">
-              <span>{item.label}</span>
+            <div>
+              <span className="res-row-label">{item.label}</span>
               <h3>{item.title}</h3>
               <p>{item.text}</p>
             </div>
 
-            <div className="library-card-arrow">
-              <ChevronRight size={18} />
-            </div>
+            <ChevronRight size={18} className="home-chev" />
           </Link>
         ))}
       </section>

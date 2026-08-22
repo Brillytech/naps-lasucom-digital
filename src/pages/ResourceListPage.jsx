@@ -23,6 +23,7 @@ const pageData = {
     description: "Browse available materials by level, semester and course.",
     icon: <FileText size={22} />,
     iconClass: "green",
+    tone: "tone-green",
     cardClass: "material-style",
     pillClass: "green-pill",
     empty: "No material found",
@@ -34,6 +35,7 @@ const pageData = {
     description: "Browse past questions and recalls by level, semester and course.",
     icon: <FileQuestion size={22} />,
     iconClass: "blue",
+    tone: "tone-blue",
     cardClass: "pq-style",
     pillClass: "blue-pill",
     empty: "No past question found",
@@ -45,6 +47,7 @@ const pageData = {
     description: "Browse lecture, exam and posting timetables by level and semester.",
     icon: <CalendarDays size={22} />,
     iconClass: "blue",
+    tone: "tone-blue",
     cardClass: "timetable-style",
     pillClass: "blue-pill",
     empty: "No timetable found",
@@ -371,21 +374,26 @@ function ResourceListPage({ category }) {
 
       {!selectedLevel && (
         <section className="resource-picker-section">
-          <h2>Select Level</h2>
+          <div className="sec-head">
+            <h3>Select level</h3>
+          </div>
 
           {loadingInitial ? (
-            <div className="resource-guide-card">
-              <p>Loading {pageInfo.title.toLowerCase()}...</p>
+            <div className="folder-grid">
+              <FolderSkeleton />
+              <FolderSkeleton />
+              <FolderSkeleton />
+              <FolderSkeleton />
             </div>
           ) : (
-            <div className="resource-picker-grid">
+            <div className="folder-grid">
               {levelCards.map((item) => (
-                <PickerCard
+                <PickerFolder
                   key={item.level}
-                  icon={pageInfo.icon}
                   title={item.level}
                   count={item.count}
-                  emptyText="No upload yet"
+                  tone={pageInfo.tone}
+                  emptyText="Empty"
                   onClick={() => chooseLevel(item.level, item.count)}
                 />
               ))}
@@ -396,16 +404,18 @@ function ResourceListPage({ category }) {
 
       {selectedLevel && !selectedSemester && (
         <section className="resource-picker-section">
-          <h2>Select Semester</h2>
+          <div className="sec-head">
+            <h3>Select semester</h3>
+          </div>
 
-          <div className="resource-picker-grid">
+          <div className="folder-grid">
             {semesterCards.map((item) => (
-              <PickerCard
+              <PickerFolder
                 key={item.semester}
-                icon={pageInfo.icon}
                 title={item.semester}
                 count={item.count}
-                emptyText="No upload yet"
+                tone={pageInfo.tone}
+                emptyText="Empty"
                 onClick={() => chooseSemester(item.semester, item.count)}
               />
             ))}
@@ -419,21 +429,26 @@ function ResourceListPage({ category }) {
         !selectedCourse &&
         !searchTerm && (
           <section className="resource-picker-section">
-            <h2>Select Course</h2>
+            <div className="sec-head">
+              <h3>Select course</h3>
+            </div>
 
             {loadingResources ? (
-              <div className="resource-guide-card">
-                <p>Loading courses...</p>
+              <div className="folder-grid">
+                <FolderSkeleton />
+                <FolderSkeleton />
+                <FolderSkeleton />
+                <FolderSkeleton />
               </div>
             ) : courseCards.length > 0 ? (
-              <div className="resource-picker-grid">
+              <div className="folder-grid">
                 {courseCards.map((item) => (
-                  <PickerCard
+                  <PickerFolder
                     key={item.course}
-                    icon={pageInfo.icon}
                     title={item.course}
                     count={item.count}
-                    emptyText="No item yet"
+                    tone={pageInfo.tone}
+                    emptyText="Empty"
                     onClick={() => chooseCourse(item.course, item.count)}
                   />
                 ))}
@@ -495,25 +510,43 @@ function ResourceListPage({ category }) {
   );
 }
 
-function PickerCard({ icon, title, count, emptyText, onClick }) {
+function PickerFolder({ title, count, emptyText, tone, onClick }) {
   const isEmpty = count === 0;
 
   return (
     <button
       type="button"
-      className={isEmpty ? "resource-picker-card disabled" : "resource-picker-card"}
+      className={`folder ${tone}`}
       onClick={onClick}
       disabled={isEmpty}
     >
-      <div className="resource-picker-icon">{icon}</div>
+      <span className="folder-art" aria-hidden="true">
+        <i className="folder-tab" />
+        <i className="folder-sheet folder-sheet-back" />
+        <i className="folder-sheet folder-sheet-front" />
 
-      <section>
-        <strong>{title}</strong>
-        <span>{isEmpty ? emptyText : `${count} available`}</span>
-      </section>
+        <span className="folder-face">
+          <span className="folder-label">{title}</span>
+        </span>
+      </span>
 
-      {!isEmpty && <ChevronRight size={18} />}
+      <span className="folder-meta">
+        {isEmpty ? emptyText : `${count} ${count === 1 ? "item" : "items"}`}
+      </span>
     </button>
+  );
+}
+
+function FolderSkeleton() {
+  return (
+    <div className="folder folder-skel" aria-hidden="true">
+      <span className="folder-art">
+        <i className="folder-tab" />
+        <span className="folder-face" />
+      </span>
+
+      <span className="skel skel-line" style={{ width: "58%" }} />
+    </div>
   );
 }
 
