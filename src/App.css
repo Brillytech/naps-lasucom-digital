@@ -14966,3 +14966,138 @@ a.file-open:active {
     height: 480px;
   }
 }
+
+/* ---- Requests: compact pass ---------------------------------
+   Tighter rhythm, and controls that look like controls: inputs
+   carry a leading icon, level is a chip row rather than a native
+   select, and the message field counts what you have typed.
+   ------------------------------------------------------------ */
+
+.rq-form .sec-head {
+  margin: var(--sp-6) 0 var(--sp-2);
+}
+
+.rq-fields {
+  gap: var(--sp-3);
+}
+
+.rq-field {
+  gap: 5px;
+}
+
+/* Input with a leading glyph. */
+.rq-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.rq-input > svg {
+  position: absolute;
+  left: 11px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.rq-input input {
+  padding-left: 35px;
+}
+
+.rq-field input,
+.rq-field select,
+.rq-field textarea {
+  padding: 10px 12px;
+  font-size: 13.5px;
+}
+
+.rq-field textarea {
+  min-height: 108px;
+}
+
+/* Level as chips -- one tap instead of open, scroll, pick, close. */
+.rq-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rq-chip--sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.rq-chips {
+  gap: 6px;
+}
+
+.rq-chip {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+.rq-count {
+  margin-top: 4px;
+  text-align: right;
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rq-count.is-over {
+  color: #b91c1c;
+}
+
+.app.dark .rq-count.is-over {
+  color: #fca5a5;
+}
+
+.rq-switch {
+  margin-top: var(--sp-4);
+}
+
+.rq-switch button {
+  min-height: 36px;
+  font-size: 12.5px;
+}
+
+.rq-switch-note {
+  margin-top: var(--sp-2);
+  font-size: 12px;
+}
+
+.rq-route {
+  margin-top: var(--sp-4);
+  padding: var(--sp-3) 0;
+}
+
+.rq-submit {
+  margin-top: var(--sp-4);
+  min-height: 48px;
+}
+
+@media (min-width: 700px) {
+  .rq-field input,
+  .rq-field select,
+  .rq-field textarea {
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+
+  .rq-input input {
+    padding-left: 42px;
+  }
+
+  .rq-input > svg {
+    left: 14px;
+  }
+
+  .rq-chip,
+  .rq-chip--sm {
+    font-size: 13.5px;
+    padding: 8px 14px;
+  }
+
+  .rq-field textarea {
+    min-height: 140px;
+  }
+}

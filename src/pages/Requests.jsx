@@ -1,4 +1,6 @@
 import {
+  Hash,
+  Phone,
   AlertCircle,
   CheckCircle2,
   FileText,
@@ -9,6 +11,9 @@ import {
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+
+const levels = ["200L", "300L", "400L", "500L", "600L"];
+const MESSAGE_LIMIT = 1200;
 
 const requestCategories = [
   "Academic",
@@ -203,57 +208,73 @@ function Requests() {
             <div className="rq-fields">
               <div className="rq-field">
                 <label htmlFor="rq-name">Full name</label>
-                <input
-                  id="rq-name"
-                  type="text"
-                  placeholder="Enter your full name"
-                  value={form.full_name}
-                  onChange={(e) => updateField("full_name", e.target.value)}
-                />
-              </div>
-
-              <div className="rq-row">
-                <div className="rq-field">
-                  <label htmlFor="rq-level">Level</label>
-                  <select
-                    id="rq-level"
-                    value={form.level}
-                    onChange={(e) => updateField("level", e.target.value)}
-                  >
-                    <option value="">Select level</option>
-                    <option>200L</option>
-                    <option>300L</option>
-                    <option>400L</option>
-                    <option>500L</option>
-                    <option>600L</option>
-                  </select>
-                </div>
-
-                <div className="rq-field">
-                  <label htmlFor="rq-matric">
-                    Matric no. <em>optional</em>
-                  </label>
+                <div className="rq-input">
+                  <User size={15} />
                   <input
-                    id="rq-matric"
+                    id="rq-name"
                     type="text"
-                    placeholder="Matric number"
-                    value={form.matric_no}
-                    onChange={(e) => updateField("matric_no", e.target.value)}
+                    placeholder="Enter your full name"
+                    value={form.full_name}
+                    onChange={(e) => updateField("full_name", e.target.value)}
                   />
                 </div>
               </div>
 
               <div className="rq-field">
-                <label htmlFor="rq-phone">
-                  Phone or WhatsApp <em>optional</em>
-                </label>
-                <input
-                  id="rq-phone"
-                  type="tel"
-                  placeholder="Phone or WhatsApp number"
-                  value={form.phone}
-                  onChange={(e) => updateField("phone", e.target.value)}
-                />
+                <label>Level</label>
+                <div className="rq-levels" role="group" aria-label="Level">
+                  {levels.map((item) => (
+                    <button
+                      type="button"
+                      key={item}
+                      className={
+                        form.level === item
+                          ? "rq-chip rq-chip--sm is-on"
+                          : "rq-chip rq-chip--sm"
+                      }
+                      aria-pressed={form.level === item}
+                      onClick={() =>
+                        updateField("level", form.level === item ? "" : item)
+                      }
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rq-row">
+                <div className="rq-field">
+                  <label htmlFor="rq-matric">
+                    Matric <em>optional</em>
+                  </label>
+                  <div className="rq-input">
+                    <Hash size={15} />
+                    <input
+                      id="rq-matric"
+                      type="text"
+                      placeholder="Matric number"
+                      value={form.matric_no}
+                      onChange={(e) => updateField("matric_no", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="rq-field">
+                  <label htmlFor="rq-phone">
+                    Phone <em>optional</em>
+                  </label>
+                  <div className="rq-input">
+                    <Phone size={15} />
+                    <input
+                      id="rq-phone"
+                      type="tel"
+                      placeholder="WhatsApp number"
+                      value={form.phone}
+                      onChange={(e) => updateField("phone", e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </>
@@ -285,10 +306,20 @@ function Requests() {
           <label htmlFor="rq-message">Request details</label>
           <textarea
             id="rq-message"
+            maxLength={MESSAGE_LIMIT}
             placeholder="Describe your request. The more detail you give, the faster it can be handled."
             value={form.message}
             onChange={(e) => updateField("message", e.target.value)}
           />
+          <span
+            className={
+              form.message.length > MESSAGE_LIMIT - 100
+                ? "rq-count is-over"
+                : "rq-count"
+            }
+          >
+            {form.message.length} / {MESSAGE_LIMIT}
+          </span>
         </div>
 
         <div className="rq-route">
