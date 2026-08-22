@@ -14454,3 +14454,318 @@ a.file-open:active {
     height: 38px;
   }
 }
+
+/* ============================================================
+   REQUESTS
+   A short form, so it is laid out as one: labelled fields on a
+   page, not three numbered cards. The numbers were decoration --
+   they renumbered themselves when you switched to Anonymous, which
+   gave the game away.
+   ============================================================ */
+
+.rq-switch {
+  position: relative;
+  z-index: 2;
+  margin-top: var(--sp-6);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.rq-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.rq-switch button.is-on {
+  background: linear-gradient(135deg, var(--blue), var(--deep-blue));
+  color: #ffffff;
+}
+
+.rq-switch-note {
+  margin: var(--sp-3) 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.rq-switch-note svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--blue-ink);
+}
+
+/* --- fields --- */
+.rq-form {
+  position: relative;
+  z-index: 2;
+  display: grid;
+}
+
+.rq-fields {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.rq-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.rq-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rq-field label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.rq-field label em {
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.75;
+}
+
+.rq-field input,
+.rq-field select,
+.rq-field textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  padding: 11px 12px;
+  outline: 0;
+  transition: border-color 0.16s var(--ease);
+}
+
+.rq-field textarea {
+  min-height: 130px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.rq-field input::placeholder,
+.rq-field textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.rq-field input:focus,
+.rq-field select:focus,
+.rq-field textarea:focus {
+  border-color: var(--blue-ink);
+}
+
+.rq-field select {
+  appearance: none;
+  cursor: pointer;
+}
+
+/* --- category chips --- */
+.rq-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.rq-chip {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-full);
+  background: transparent;
+  padding: 8px 13px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease),
+    color 0.16s var(--ease);
+}
+
+.rq-chip:active {
+  background: var(--press);
+}
+
+.rq-chip.is-on {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #ffffff;
+}
+
+.app.dark .rq-chip.is-on {
+  background: var(--blue-ink);
+  border-color: var(--blue-ink);
+  color: #06111f;
+}
+
+/* --- where it goes: real information, replacing filler copy --- */
+.rq-route {
+  margin-top: var(--sp-6);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.rq-route-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.rq-route-office {
+  display: block;
+  margin-top: 2px;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+/* --- submit --- */
+.rq-submit {
+  margin-top: var(--sp-6);
+  width: 100%;
+  min-height: 50px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--blue), var(--deep-blue));
+  box-shadow: var(--sh-3);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: pointer;
+  transition: transform 0.18s var(--ease), opacity 0.16s var(--ease);
+}
+
+.rq-submit:active {
+  transform: scale(0.99);
+}
+
+.rq-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* --- inline notices --- */
+.rq-note {
+  margin-bottom: var(--sp-4);
+  padding: 11px 13px;
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.rq-note svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.rq-note.is-ok {
+  background: color-mix(in srgb, var(--green) 13%, transparent);
+  color: var(--green-ink);
+}
+
+.rq-note.is-bad {
+  background: color-mix(in srgb, #dc2626 12%, transparent);
+  color: #b91c1c;
+}
+
+.app.dark .rq-note.is-bad {
+  color: #fca5a5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rq-submit,
+  .rq-chip,
+  .rq-switch button {
+    transition: none;
+  }
+
+  .rq-submit:active {
+    transform: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .rq-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 700px) {
+  .rq-switch button {
+    min-height: 44px;
+    font-size: 14.5px;
+  }
+
+  .rq-field label {
+    font-size: 11.5px;
+  }
+
+  .rq-field input,
+  .rq-field select,
+  .rq-field textarea {
+    font-size: 15.5px;
+    padding: 13px 14px;
+  }
+
+  .rq-chip {
+    font-size: 14px;
+    padding: 9px 15px;
+  }
+
+  .rq-route-office {
+    font-size: 15px;
+  }
+
+  .rq-submit {
+    min-height: 56px;
+    font-size: 16px;
+  }
+}

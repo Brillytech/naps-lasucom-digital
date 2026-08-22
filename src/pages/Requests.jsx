@@ -2,7 +2,6 @@ import {
   AlertCircle,
   CheckCircle2,
   FileText,
-  MessageCircle,
   Send,
   ShieldCheck,
   User,
@@ -123,185 +122,191 @@ function Requests() {
 
   return (
     <>
-      <section className="page-header requests-header">
-        <p>NAPSITES Support</p>
-        <h1>Requests</h1>
-        <span>
-          Submit academic, welfare, complaint, event, sports or finance-related
-          requests.
-        </span>
-      </section>
+      <header className="rl-head tone-green">
+        <div className="rl-head-top">
+          <p className="rl-eyebrow">NAPSITES support</p>
+        </div>
 
-      <section className="request-type-switch">
+        <h1>Requests</h1>
+
+        <p className="rl-meta">
+          Academic, welfare, complaints, events, sports and finance.
+        </p>
+      </header>
+
+      <div className="rq-switch" role="group" aria-label="Request type">
         <button
           type="button"
-          className={requestType === "normal" ? "active" : ""}
+          className={requestType === "normal" ? "is-on" : ""}
+          aria-pressed={requestType === "normal"}
           onClick={() => {
             setRequestType("normal");
             setSuccessMessage("");
             setErrorMessage("");
           }}
         >
-          <User size={17} />
+          <User size={16} />
           Normal
         </button>
 
         <button
           type="button"
-          className={requestType === "anonymous" ? "active" : ""}
+          className={requestType === "anonymous" ? "is-on" : ""}
+          aria-pressed={requestType === "anonymous"}
           onClick={() => {
             setRequestType("anonymous");
             setSuccessMessage("");
             setErrorMessage("");
           }}
         >
-          <ShieldCheck size={17} />
+          <ShieldCheck size={16} />
           Anonymous
         </button>
-      </section>
+      </div>
 
-      <section className="request-info-card">
-        <div>
-          <MessageCircle size={22} />
-        </div>
+      <p className="rq-switch-note">
+        {requestType === "anonymous" ? (
+          <>
+            <ShieldCheck size={15} />
+            Your name and contact details are not submitted. Nobody can reply
+            to you directly.
+          </>
+        ) : (
+          <>
+            <User size={15} />
+            Your details are attached so an executive can follow up with you.
+          </>
+        )}
+      </p>
 
-        <section>
-          <h3>
-            {requestType === "anonymous"
-              ? "Anonymous Request"
-              : "Normal Request"}
-          </h3>
-
-          <p>
-            {requestType === "anonymous"
-              ? "Your name and contact details will not be submitted."
-              : "Add your details so you can be contacted if follow-up is needed."}
-          </p>
-        </section>
-      </section>
-
-      <form className="request-form" onSubmit={handleSubmit}>
+      <form className="rq-form" onSubmit={handleSubmit}>
         {successMessage && (
-          <div className="request-success">
-            <CheckCircle2 size={18} />
+          <div className="rq-note is-ok" role="status">
+            <CheckCircle2 size={17} />
             {successMessage}
           </div>
         )}
 
         {errorMessage && (
-          <div className="request-error">
-            <AlertCircle size={18} />
+          <div className="rq-note is-bad" role="alert">
+            <AlertCircle size={17} />
             {errorMessage}
           </div>
         )}
 
         {requestType === "normal" && (
-          <section className="request-form-block">
-            <div className="request-form-title">
-              <span>1</span>
+          <>
+            <div className="sec-head">
               <h3>Your details</h3>
             </div>
 
-            <div className="request-form-group">
-              <label>Full name</label>
-              <input
-                type="text"
-                placeholder="Enter your full name"
-                value={form.full_name}
-                onChange={(e) => updateField("full_name", e.target.value)}
-              />
-            </div>
-
-            <div className="request-form-row">
-              <div className="request-form-group">
-                <label>Level</label>
-                <select
-                  value={form.level}
-                  onChange={(e) => updateField("level", e.target.value)}
-                >
-                  <option value="">Select level</option>
-                  <option>200L</option>
-                  <option>300L</option>
-                  <option>400L</option>
-                  <option>500L</option>
-                  <option>600L</option>
-                </select>
+            <div className="rq-fields">
+              <div className="rq-field">
+                <label htmlFor="rq-name">Full name</label>
+                <input
+                  id="rq-name"
+                  type="text"
+                  placeholder="Enter your full name"
+                  value={form.full_name}
+                  onChange={(e) => updateField("full_name", e.target.value)}
+                />
               </div>
 
-              <div className="request-form-group">
-                <label>Matric No. optional</label>
+              <div className="rq-row">
+                <div className="rq-field">
+                  <label htmlFor="rq-level">Level</label>
+                  <select
+                    id="rq-level"
+                    value={form.level}
+                    onChange={(e) => updateField("level", e.target.value)}
+                  >
+                    <option value="">Select level</option>
+                    <option>200L</option>
+                    <option>300L</option>
+                    <option>400L</option>
+                    <option>500L</option>
+                    <option>600L</option>
+                  </select>
+                </div>
+
+                <div className="rq-field">
+                  <label htmlFor="rq-matric">
+                    Matric no. <em>optional</em>
+                  </label>
+                  <input
+                    id="rq-matric"
+                    type="text"
+                    placeholder="Matric number"
+                    value={form.matric_no}
+                    onChange={(e) => updateField("matric_no", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="rq-field">
+                <label htmlFor="rq-phone">
+                  Phone or WhatsApp <em>optional</em>
+                </label>
                 <input
-                  type="text"
-                  placeholder="Matric number"
-                  value={form.matric_no}
-                  onChange={(e) => updateField("matric_no", e.target.value)}
+                  id="rq-phone"
+                  type="tel"
+                  placeholder="Phone or WhatsApp number"
+                  value={form.phone}
+                  onChange={(e) => updateField("phone", e.target.value)}
                 />
               </div>
             </div>
-
-            <div className="request-form-group">
-              <label>Phone / WhatsApp optional</label>
-              <input
-                type="tel"
-                placeholder="Phone or WhatsApp number"
-                value={form.phone}
-                onChange={(e) => updateField("phone", e.target.value)}
-              />
-            </div>
-          </section>
+          </>
         )}
 
-        <section className="request-form-block">
-          <div className="request-form-title">
-            <span>{requestType === "normal" ? "2" : "1"}</span>
-            <h3>Request category</h3>
-          </div>
+        <div className="sec-head">
+          <h3>Category</h3>
+        </div>
 
-          <div className="request-category-grid">
-            {requestCategories.map((item) => (
-              <button
-                type="button"
-                key={item}
-                className={form.category === item ? "active" : ""}
-                onClick={() => updateField("category", item)}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </section>
+        <div className="rq-chips">
+          {requestCategories.map((item) => (
+            <button
+              type="button"
+              key={item}
+              className={form.category === item ? "rq-chip is-on" : "rq-chip"}
+              aria-pressed={form.category === item}
+              onClick={() => updateField("category", item)}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
 
-        <section className="request-form-block">
-          <div className="request-form-title">
-            <span>{requestType === "normal" ? "3" : "2"}</span>
-            <h3>Your message</h3>
-          </div>
+        <div className="sec-head">
+          <h3>Your message</h3>
+        </div>
 
-          <div className="request-form-group">
-            <label>Request details</label>
-            <textarea
-              placeholder="Type your request here..."
-              value={form.message}
-              onChange={(e) => updateField("message", e.target.value)}
-            />
-          </div>
-        </section>
+        <div className="rq-field">
+          <label htmlFor="rq-message">Request details</label>
+          <textarea
+            id="rq-message"
+            placeholder="Describe your request. The more detail you give, the faster it can be handled."
+            value={form.message}
+            onChange={(e) => updateField("message", e.target.value)}
+          />
+        </div>
 
-        <section className="request-preview-card">
-          <FileText size={20} />
-          <div>
-            <h3>{form.category}</h3>
-            <p>Your request will be reviewed by the appropriate NAPS executive.</p>
-          </div>
-        </section>
+        <div className="rq-route">
+          <span className="ico ico-sm ico--tint tone-blue">
+            <FileText size={18} />
+          </span>
 
-        <button
-          className="request-submit-btn"
-          type="submit"
-          disabled={submitting}
-        >
-          <Send size={18} />
-          {submitting ? "Submitting..." : "Submit Request"}
+          <span>
+            <span className="rq-route-label">Goes to</span>
+            <span className="rq-route-office">
+              {getAssignedOffice(form.category)}
+            </span>
+          </span>
+        </div>
+
+        <button className="rq-submit" type="submit" disabled={submitting}>
+          <Send size={17} />
+          {submitting ? "Submitting..." : "Submit request"}
         </button>
       </form>
     </>
