@@ -312,6 +312,29 @@ function ResourceListPage({ category }) {
     }
   }
 
+  /* Jump straight back to an earlier crumb, unwinding the history
+     entries that the skipped steps pushed. */
+  function jumpToStep(target) {
+    const targetDepth = target === "level" ? 1 : 2;
+    const back = Math.max(0, historyDepthRef.current - targetDepth);
+
+    if (target === "level") {
+      setSelectedSemester("");
+      setSelectedCourse("");
+      setSearchTerm("");
+      setResources([]);
+    } else {
+      setSelectedCourse("");
+      setSearchTerm("");
+    }
+
+    if (back > 0) {
+      historyDepthRef.current -= back;
+      suppressPopCountRef.current += back;
+      window.history.go(-back);
+    }
+  }
+
   if (!pageInfo) {
     return (
       <section className="empty-state">
