@@ -17,6 +17,11 @@
   --green-ink: var(--green);
   --heading: var(--deep-blue);
 
+  /* Hairline used to separate rows. Distinct from --border, which is
+     the light edge on a glass card, not a divider. */
+  --rule: rgba(16, 32, 63, 0.11);
+  --press: rgba(16, 32, 63, 0.05);
+
   /* Radius scale — 4 steps. */
   --r-sm: 10px;
   --r-md: 14px;
@@ -76,6 +81,9 @@ body {
   --green-ink: #43cf72;
   --heading: #dbe9ff;
 
+  --rule: rgba(255, 255, 255, 0.1);
+  --press: rgba(255, 255, 255, 0.06);
+
   --sh-3: 0 10px 30px rgba(0, 0, 0, 0.55);
 
   background:
@@ -125,6 +133,61 @@ body {
 
 .app.dark .card--primary.is-green {
   box-shadow: var(--sh-3);
+}
+
+/* ------------------------------------------------------------
+   LIST + ROW
+   The default way to group things. A run of rows separated by
+   hairlines, with no box around them: whitespace and the rule do
+   the grouping that a card used to do. Prefer this over .card --
+   .card is for something that genuinely sits above the page.
+   ------------------------------------------------------------ */
+
+.list {
+  display: grid;
+}
+
+.list > * + * {
+  border-top: 1px solid var(--rule);
+}
+
+.row {
+  width: 100%;
+  font-family: inherit;
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  padding: 13px 8px;
+  margin-inline: -8px;
+  display: grid;
+  align-items: center;
+  gap: var(--sp-3);
+  transition: background 0.16s var(--ease);
+}
+
+a.row,
+button.row {
+  cursor: pointer;
+}
+
+a.row:active,
+button.row:active {
+  background: var(--press);
+}
+
+/* A rule above a standalone row, so it reads as part of the page
+   rather than floating loose at the end of a section. */
+.row--capped {
+  border-top: 1px solid var(--rule);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    transition: none;
+  }
 }
 
 /* --- icon container --- */
@@ -13451,38 +13514,30 @@ a:focus-visible {
   }
 }
 
+
 /* ============================================================
-   HOME — rebuilt on the primitives.
-   Every card here is .card + a layout class. No card writes its
-   own surface, border, radius or shadow.
+   HOME
+   Two cards on the whole screen -- the primary actions. Everything
+   else is a row on a hairline. Grouping comes from the section
+   label and the whitespace above it, not from a box.
    ============================================================ */
 
-/* Motto: was a shadowed card, now a quiet strip. */
+/* Motto: a quiet line under the hero, set off by a rule. */
 .home-motto {
-  margin-top: var(--sp-6);
-  border-radius: var(--r-md);
-  padding: 11px 13px;
-  background: color-mix(in srgb, var(--blue) 7%, transparent);
-  border: 1px solid color-mix(in srgb, var(--blue) 14%, transparent);
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-.home-motto p {
-  margin: 0;
-  font-size: 12.6px;
-  line-height: 1.35;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.home-motto p span {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--rule);
+  font-size: 13px;
+  line-height: 1.45;
   color: var(--muted);
-  font-weight: 500;
 }
 
-/* Primary actions. */
+.home-motto strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* The only elevated things on the page. */
 .home-quick {
   display: grid;
   gap: var(--sp-3);
@@ -13494,6 +13549,11 @@ a:focus-visible {
   grid-template-columns: 44px 1fr 18px;
   gap: 13px;
   align-items: center;
+}
+
+.home-qcard .ico {
+  width: 44px;
+  height: 44px;
 }
 
 .home-qcard h3 {
@@ -13510,24 +13570,20 @@ a:focus-visible {
   line-height: 1.35;
 }
 
-.home-qcard .ico {
-  width: 44px;
-  height: 44px;
-}
-
 .home-qcard .home-chev {
   opacity: 0.7;
 }
 
-/* Jump strip. */
+/* Quick access: three plain targets, no boxes. */
 .home-mini {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-2);
+  gap: var(--sp-1);
 }
 
 .home-mcard {
-  padding: 13px 8px;
+  padding: var(--sp-3) var(--sp-2);
+  margin: 0;
   display: grid;
   place-items: center;
   gap: var(--sp-2);
@@ -13535,9 +13591,9 @@ a:focus-visible {
 }
 
 .home-mcard span {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.25;
   color: var(--text);
 }
 
@@ -13556,8 +13612,11 @@ a:focus-visible {
 
 .home-ccard {
   flex: none;
-  max-width: 180px;
-  padding: 10px 12px;
+  max-width: 190px;
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-full);
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -13573,31 +13632,16 @@ a:focus-visible {
   white-space: nowrap;
 }
 
-/* Announcements — flat rows, no outer panel. */
-.home-list {
-  display: grid;
-  gap: var(--sp-2);
-}
-
+/* Announcements: rows on rules. */
 .home-arow {
-  width: 100%;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  padding: 11px 12px;
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
-  gap: 11px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: start;
-}
-
-.home-arow.is-unread {
-  border-color: color-mix(in srgb, var(--blue-ink) 26%, transparent);
+  padding-block: var(--sp-3);
 }
 
 .home-arow-thumb {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--r-sm);
   object-fit: cover;
   flex: none;
@@ -13612,7 +13656,7 @@ a:focus-visible {
 
 .home-arow h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   line-height: 1.3;
   color: var(--text);
@@ -13629,9 +13673,10 @@ a:focus-visible {
   margin: 3px 0 0;
   font-size: 11.5px;
   color: var(--muted);
-  line-height: 1.4;
+  line-height: 1.45;
   overflow: hidden;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
@@ -13645,7 +13690,7 @@ a:focus-visible {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-top: 1px;
+  padding-top: 2px;
   font-size: 10.5px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -13659,13 +13704,10 @@ a:focus-visible {
   flex: none;
 }
 
-/* Skeleton — replaces "Loading announcements...". */
+/* Skeleton, shaped like the row it replaces. */
 .home-skel-row {
-  padding: 11px 12px;
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  gap: 11px;
-  align-items: center;
+  grid-template-columns: 34px minmax(0, 1fr);
+  padding-block: var(--sp-3);
 }
 
 .skel {
@@ -13681,8 +13723,8 @@ a:focus-visible {
 }
 
 .skel-box {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--r-sm);
 }
 
@@ -13710,20 +13752,16 @@ a:focus-visible {
   }
 }
 
-/* About NAPS row. */
+/* About NAPS. */
 .home-brand {
-  margin-top: var(--sp-3);
-  padding: 13px;
-  display: grid;
-  grid-template-columns: 44px 1fr 18px;
-  gap: var(--sp-3);
-  align-items: center;
+  margin-top: var(--sp-6);
+  grid-template-columns: 40px 1fr 18px;
+  padding-block: var(--sp-4);
 }
 
 .home-brand img {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--r-md);
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 
@@ -13745,13 +13783,14 @@ a:focus-visible {
   color: var(--muted);
 }
 
-/* Empty state for announcements. */
+/* Empty state -- no box either. */
 .home-empty {
-  padding: 26px 16px;
+  padding: var(--sp-8) var(--sp-4);
   display: grid;
   place-items: center;
   gap: var(--sp-2);
   text-align: center;
+  border-top: 1px solid var(--rule);
 }
 
 .home-empty h4 {
@@ -13766,15 +13805,25 @@ a:focus-visible {
   font-size: 12px;
   color: var(--muted);
   line-height: 1.45;
-  max-width: 30ch;
+  max-width: 32ch;
 }
 
-/* Tablet and up — the phone frame widens to 1120px past 600px. */
+/* Tablet and up -- the frame widens past 600px. */
 @media (min-width: 700px) {
+  .home-quick {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-4);
+  }
+
   .home-qcard {
     padding: var(--sp-6);
     grid-template-columns: 56px 1fr 22px;
     gap: var(--sp-4);
+  }
+
+  .home-qcard .ico {
+    width: 56px;
+    height: 56px;
   }
 
   .home-qcard h3 {
@@ -13785,21 +13834,16 @@ a:focus-visible {
     font-size: 14px;
   }
 
-  .home-quick {
-    grid-template-columns: 1fr 1fr;
-    gap: var(--sp-4);
-  }
-
-  .home-mini {
-    gap: var(--sp-3);
-  }
-
   .home-mcard {
-    padding: 20px 12px;
+    padding: var(--sp-4) var(--sp-3);
   }
 
   .home-mcard span {
     font-size: 13px;
+  }
+
+  .home-arow {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
   }
 
   .home-arow h4 {

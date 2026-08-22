@@ -1,7 +1,6 @@
 import {
   Bell,
   BookOpen,
-  Building2,
   CalendarDays,
   ChevronRight,
   Clock,
@@ -93,15 +92,9 @@ function HomePage() {
         <h2>Digital Connect</h2>
       </section>
 
-      <section className="home-motto">
-        <div className="ico ico-sm ico--tint tone-blue">
-          <Building2 size={18} />
-        </div>
-
-        <p>
-          Strength in Knowledge, <span>Service to Humanity.</span>
-        </p>
-      </section>
+      <p className="home-motto">
+        <strong>Strength in Knowledge,</strong> Service to Humanity.
+      </p>
 
       <div className="sec-head">
         <h3>Go to</h3>
@@ -143,23 +136,23 @@ function HomePage() {
       </div>
 
       <section className="home-mini">
-        <Link to="/past-questions" className="card card--row home-mcard">
-          <div className="ico ico-sm ico--tint tone-blue">
-            <FileText size={18} />
+        <Link to="/past-questions" className="row home-mcard">
+          <div className="ico ico-md ico--tint tone-blue">
+            <FileText size={24} />
           </div>
           <span>Past Questions</span>
         </Link>
 
-        <Link to="/materials" className="card card--row home-mcard">
-          <div className="ico ico-sm ico--tint tone-green">
-            <BookOpen size={18} />
+        <Link to="/materials" className="row home-mcard">
+          <div className="ico ico-md ico--tint tone-green">
+            <BookOpen size={24} />
           </div>
           <span>Materials</span>
         </Link>
 
-        <Link to="/timetables" className="card card--row home-mcard">
-          <div className="ico ico-sm ico--tint tone-blue">
-            <CalendarDays size={18} />
+        <Link to="/timetables" className="row home-mcard">
+          <div className="ico ico-md ico--tint tone-blue">
+            <CalendarDays size={24} />
           </div>
           <span>Timetables</span>
         </Link>
@@ -178,7 +171,7 @@ function HomePage() {
                 to={`/resource-viewer?url=${encodeURIComponent(
                   entry.url
                 )}&title=${encodeURIComponent(entry.title)}`}
-                className="card card--row home-ccard"
+                className="row home-ccard"
               >
                 <div className="ico ico-sm ico--tint tone-blue">
                   <Clock size={18} />
@@ -197,13 +190,13 @@ function HomePage() {
       </div>
 
       {loadingAnnouncements ? (
-        <section className="home-list" aria-busy="true">
+        <section className="list home-list" aria-busy="true">
           <AnnouncementSkeleton />
           <AnnouncementSkeleton />
           <AnnouncementSkeleton />
         </section>
       ) : announcements.length > 0 ? (
-        <section className="home-list">
+        <section className="list home-list">
           {announcements.map((announcement) => (
             <AnnouncementRow
               key={announcement.id}
@@ -217,7 +210,7 @@ function HomePage() {
           ))}
         </section>
       ) : (
-        <section className="card home-empty">
+        <section className="home-empty">
           <div className="ico ico-md ico--tint tone-blue">
             <Bell size={24} />
           </div>
@@ -231,7 +224,7 @@ function HomePage() {
         </section>
       )}
 
-      <Link to="/naps" className="card home-brand">
+      <Link to="/naps" className="row row--capped home-brand">
         <img src="/images/naps-logo.png" alt="" />
 
         <div>
@@ -254,7 +247,7 @@ function HomePage() {
 
 function AnnouncementSkeleton() {
   return (
-    <div className="card card--row home-skel-row" aria-hidden="true">
+    <div className="row home-skel-row" aria-hidden="true">
       <div className="skel skel-box" />
 
       <div>
@@ -271,8 +264,8 @@ function AnnouncementRow({ announcement, isRead, onOpen }) {
       type="button"
       className={
         isRead
-          ? "card card--row home-arow"
-          : "card card--row home-arow is-unread"
+          ? "row home-arow"
+          : "row home-arow is-unread"
       }
       onClick={onOpen}
     >
