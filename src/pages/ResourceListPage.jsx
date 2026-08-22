@@ -703,12 +703,25 @@ function ResourceRow({ item, pageInfo }) {
 
   return (
     <article className="row file-row">
-      <div className="file-ico">{pageInfo.icon}</div>
+      {mainLink ? (
+        <Link to={viewerPath} className="file-open" aria-label={item.title}>
+          <span className="file-ico">{pageInfo.icon}</span>
 
-      <div>
-        <h3>{item.title}</h3>
-        <p>{meta}</p>
-      </div>
+          <span className="file-text">
+            <h3>{item.title}</h3>
+            <p>{meta}</p>
+          </span>
+        </Link>
+      ) : (
+        <span className="file-open is-dead">
+          <span className="file-ico">{pageInfo.icon}</span>
+
+          <span className="file-text">
+            <h3>{item.title}</h3>
+            <p>{meta}</p>
+          </span>
+        </span>
+      )}
 
       <div className="file-actions">
         <button

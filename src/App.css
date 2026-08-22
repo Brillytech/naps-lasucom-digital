@@ -147,10 +147,6 @@ body {
   display: grid;
 }
 
-.list > * + * {
-  border-top: 1px solid var(--rule);
-}
-
 .row {
   width: 100%;
   font-family: inherit;
@@ -166,6 +162,18 @@ body {
   align-items: center;
   gap: var(--sp-3);
   transition: background 0.16s var(--ease);
+}
+
+/* Must come after .row, which zeroes borders at the same
+   specificity -- otherwise the dividers never render. */
+.list > * + * {
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+}
+
+.list > *:first-child {
+  border-start-start-radius: var(--r-sm);
+  border-start-end-radius: var(--r-sm);
 }
 
 a.row,
@@ -14270,9 +14278,32 @@ button.crumb:active {
 
 /* --- file rows: the end of the folder metaphor --- */
 .file-row {
-  grid-template-columns: 38px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   padding-block: var(--sp-3);
+  gap: var(--sp-2);
+}
+
+/* The whole title block opens the file, not just the eye icon. */
+.file-open {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
   gap: var(--sp-3);
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--r-sm);
+  padding: 2px;
+  margin: -2px;
+  transition: opacity 0.16s var(--ease);
+}
+
+a.file-open:active {
+  opacity: 0.6;
+}
+
+.file-text {
+  min-width: 0;
 }
 
 .file-ico {
