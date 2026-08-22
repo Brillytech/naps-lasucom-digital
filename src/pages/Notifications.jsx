@@ -2,9 +2,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bell,
-  BookOpen,
-  CalendarDays,
-  ChevronRight,
   Megaphone,
   Pin,
   Trash2,
@@ -153,43 +150,39 @@ function Notifications() {
 
   return (
     <>
-      <section className="page-header notifications-header">
-        <Link to="/" className="back-link">
-          <ArrowLeft size={18} />
-          Home
-        </Link>
+      <header className="rl-head tone-blue">
+        <div className="rl-head-top">
+          <Link to="/" className="rl-back" aria-label="Back to home">
+            <ArrowLeft size={18} />
+          </Link>
 
-        <p>NAPS LASUCOM</p>
-        <h1>Notifications</h1>
-        <span>
-          Official announcements, notices and updates from the association.
-        </span>
-      </section>
-
-      <section className="notifications-summary-card">
-        <div>
-          <Bell size={24} />
+          <p className="rl-eyebrow">NAPS LASUCOM</p>
         </div>
 
-        <section>
-          <h3>Latest Updates</h3>
-          <p>
-            Showing the latest 10 published announcements. Pinned notices appear
-            first.
-          </p>
-        </section>
-      </section>
+        <h1>Notifications</h1>
 
-      <section className="push-enable-card">
+        <p className="rl-meta">
+          Official announcements and notices. Pinned first.
+        </p>
+      </header>
+
+      <section className="nt-push">
+        <span className="ico ico-sm ico--tint tone-blue">
+          <Bell size={18} />
+        </span>
+
         <div>
-          <h3>Phone Notifications</h3>
-          <p>
-            Allow NAPS LASUCOM to notify you when important announcements are
-            posted.
-          </p>
+          <h3>Phone notifications</h3>
+          <p>Get alerted when an important notice is posted.</p>
 
           {pushStatus && (
-            <span className={pushStatusType === "error" ? "push-status-error" : ""}>
+            <span
+              className={
+                pushStatusType === "error"
+                  ? "nt-push-status is-bad"
+                  : "nt-push-status"
+              }
+            >
               {pushStatus}
             </span>
           )}
@@ -197,62 +190,66 @@ function Notifications() {
 
         <button
           type="button"
+          className={notificationsEnabled ? "nt-push-btn is-on" : "nt-push-btn"}
           onClick={handleEnablePush}
           disabled={enablingPush || notificationsEnabled}
-          className={notificationsEnabled ? "notifications-enabled-btn" : ""}
         >
           {notificationsEnabled
-            ? "✓ Notifications Enabled"
+            ? "On"
             : enablingPush
             ? "Enabling..."
-            : "Enable Notifications"}
+            : "Turn on"}
         </button>
       </section>
 
-      <section className="notifications-list-section">
-        <div className="section-head">
-          <h3>Recent Notices</h3>
+      <div className="sec-head">
+        <h3>Recent notices</h3>
 
-          <div className="notifications-head-actions">
-            <span>{announcements.length} shown</span>
+        <span className="sec-head-actions">
+          <span>{announcements.length} shown</span>
 
-            {announcements.length > 0 && (
-              <button
-                type="button"
-                className="notifications-clear-all-btn"
-                onClick={requestClearAll}
-              >
-                Clear all
-              </button>
-            )}
+          {announcements.length > 0 && (
+            <button type="button" className="nt-clear" onClick={requestClearAll}>
+              Clear all
+            </button>
+          )}
+        </span>
+      </div>
+
+      {loading ? (
+        <section className="list" aria-busy="true">
+          <NotificationSkeleton />
+          <NotificationSkeleton />
+          <NotificationSkeleton />
+          <NotificationSkeleton />
+        </section>
+      ) : announcements.length > 0 ? (
+        <section className="list">
+          {announcements.map((announcement) => (
+            <SwipeableNotification
+              key={announcement.id}
+              announcement={announcement}
+              isRead={readIds.has(announcement.id)}
+              onOpen={() => {
+                markAsRead(announcement.id);
+                setSelectedAnnouncement(announcement);
+              }}
+              onDismiss={() => dismissAnnouncement(announcement.id)}
+            />
+          ))}
+        </section>
+      ) : (
+        <section className="rl-empty">
+          <div className="ico ico-md ico--tint tone-amber">
+            <Megaphone size={24} />
           </div>
-        </div>
-
-        {loading ? (
-          <div className="notifications-loading">Loading notifications...</div>
-        ) : announcements.length > 0 ? (
-          <div className="notifications-list">
-            {announcements.map((announcement) => (
-              <SwipeableNotification
-                key={announcement.id}
-                announcement={announcement}
-                isRead={readIds.has(announcement.id)}
-                onOpen={() => {
-                  markAsRead(announcement.id);
-                  setSelectedAnnouncement(announcement);
-                }}
-                onDismiss={() => dismissAnnouncement(announcement.id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <section className="notifications-empty">
-            <Megaphone size={34} />
-            <h3>No notification yet</h3>
-            <p>Official announcements will appear here once published.</p>
-          </section>
-        )}
-      </section>
+          <h3>Nothing yet</h3>
+          <p>
+            Official announcements from the association will show up here once
+            they are published.
+          </p>
+        </section>
+      )}
 
       {selectedAnnouncement && (
         <NotificationModal
@@ -360,10 +357,10 @@ function SwipeableNotification({ announcement, isRead, onOpen, onDismiss }) {
   }
 
   return (
-    <div className="notification-swipe-wrap">
+    <div className="nt-swipe">
       <button
         type="button"
-        className="notification-swipe-delete"
+        className="nt-swipe-delete"
         onClick={onDismiss}
         aria-label="Delete notification"
       >
@@ -372,7 +369,7 @@ function SwipeableNotification({ announcement, isRead, onOpen, onDismiss }) {
       </button>
 
       <div
-        className="notification-swipe-surface"
+        className="nt-swipe-surface"
         style={{
           transform: `translateX(${dragX}px)`,
           transition: dragging ? "none" : "transform 0.22s ease",
@@ -391,38 +388,47 @@ function SwipeableNotification({ announcement, isRead, onOpen, onDismiss }) {
   );
 }
 
+function NotificationSkeleton() {
+  return (
+    <div className="row nt-row" aria-hidden="true">
+      <span className="skel skel-box" style={{ width: 36, height: 36 }} />
+
+      <span>
+        <span className="skel skel-line" style={{ width: "66%" }} />
+        <span className="skel skel-line" style={{ width: "40%" }} />
+      </span>
+    </div>
+  );
+}
+
 function NotificationCard({ announcement, isRead, onOpen }) {
   return (
-    <button type="button" className="notification-row" onClick={onOpen}>
+    <button
+      type="button"
+      className={isRead ? "row nt-row" : "row nt-row is-unread"}
+      onClick={onOpen}
+    >
       {announcement.image_url ? (
-        <img
-          src={announcement.image_url}
-          alt=""
-          className="notification-row-thumb"
-        />
+        <img src={announcement.image_url} alt="" className="nt-thumb" />
       ) : (
-        <div className="notification-row-icon">
+        <span className="ico ico-sm ico--tint tone-amber">
           <Megaphone size={18} />
-        </div>
+        </span>
       )}
 
-      <section className="notification-row-content">
-        <div className="notification-row-top">
+      <span>
+        <span className="nt-row-top">
           <h3>{announcement.title}</h3>
-          {announcement.is_pinned && (
-            <Pin size={12} className="notification-row-pin" />
-          )}
-        </div>
+          {announcement.is_pinned && <Pin size={13} className="nt-pin" />}
+        </span>
 
         <p>{announcement.body}</p>
-      </section>
+      </span>
 
-      <div className="notification-row-meta">
+      <span className="nt-meta">
         <span>{formatNoticeTime(announcement.published_at)}</span>
-        {!isRead && <i className="notification-row-dot" />}
-      </div>
-
-      <ChevronRight size={16} className="notification-row-arrow" />
+        {!isRead && <i className="nt-dot" />}
+      </span>
     </button>
   );
 }

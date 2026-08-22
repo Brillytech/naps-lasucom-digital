@@ -15235,3 +15235,242 @@ a.file-open:active {
     height: 44px;
   }
 }
+
+/* ============================================================
+   NOTIFICATIONS + FAVORITES
+   ============================================================ */
+
+/* --- push permission: a row, not a card --- */
+.nt-push {
+  margin-top: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.nt-push h3 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.nt-push p {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.nt-push-status {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green-ink);
+}
+
+.nt-push-status.is-bad {
+  color: #b91c1c;
+}
+
+.app.dark .nt-push-status.is-bad {
+  color: #fca5a5;
+}
+
+.nt-push-btn {
+  flex: none;
+  min-height: 34px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--blue-ink);
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--blue-ink);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.16s var(--ease);
+}
+
+.nt-push-btn:active {
+  background: var(--press);
+}
+
+.nt-push-btn:disabled {
+  border-color: var(--rule);
+  color: var(--muted);
+  cursor: default;
+}
+
+.nt-push-btn.is-on {
+  border-color: color-mix(in srgb, var(--green) 45%, transparent);
+  color: var(--green-ink);
+}
+
+/* --- swipe to delete --- */
+.nt-swipe {
+  position: relative;
+  overflow: hidden;
+}
+
+.nt-swipe-delete {
+  position: absolute;
+  inset: 0;
+  left: auto;
+  width: 84px;
+  border: 0;
+  background: #dc2626;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Opaque so the delete action stays hidden until you swipe.
+   Was hardcoded #ffffff, which showed white in dark mode. */
+.nt-swipe-surface {
+  position: relative;
+  z-index: 1;
+  background: var(--bg);
+  touch-action: pan-y;
+}
+
+/* --- notice rows --- */
+.nt-row {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: start;
+  padding-block: var(--sp-3);
+  margin-inline: 0;
+  border-radius: 0;
+}
+
+.nt-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  flex: none;
+}
+
+.nt-row-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nt-row h3 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-row.is-unread h3 {
+  font-weight: 700;
+}
+
+.nt-row p {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.nt-pin {
+  color: var(--muted);
+  flex: none;
+}
+
+.nt-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 2px;
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.nt-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--blue-ink);
+  flex: none;
+}
+
+.nt-clear {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.nt-clear:active {
+  color: #b91c1c;
+}
+
+.sec-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 700px) {
+  .nt-row {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    padding-block: var(--sp-4);
+  }
+
+  .nt-thumb {
+    width: 44px;
+    height: 44px;
+  }
+
+  .nt-row h3 {
+    font-size: 15.5px;
+  }
+
+  .nt-row p {
+    font-size: 13px;
+  }
+
+  .nt-push h3 {
+    font-size: 15px;
+  }
+
+  .nt-push p {
+    font-size: 13px;
+  }
+}

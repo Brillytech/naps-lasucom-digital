@@ -1,4 +1,4 @@
-import { ArrowLeft, Eye, FileText, Star, StarOff } from "lucide-react";
+import { ArrowLeft, Download, Eye, FileText, Star, StarOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getDriveDownloadLink } from "../utils/driveLinks";
@@ -18,85 +18,137 @@ function Favorites() {
 
   return (
     <>
-      <section className="page-header materials-header">
-        <Link to="/resources" className="back-link">
-          <ArrowLeft size={18} />
-          Resources
-        </Link>
+      <header className="rl-head tone-amber">
+        <div className="rl-head-top">
+          <Link to="/resources" className="rl-back" aria-label="Back">
+            <ArrowLeft size={18} />
+          </Link>
 
-        <p>Saved for quick access</p>
+          <p className="rl-eyebrow">Saved on this device</p>
+        </div>
+
         <h1>Favorites</h1>
-        <span>Resources you've starred, saved on this device.</span>
-      </section>
+
+        <p className="rl-meta">
+          {favorites.length === 0
+            ? "Nothing saved yet"
+            : `${favorites.length} ${
+                favorites.length === 1 ? "item" : "items"
+              } saved`}
+        </p>
+      </header>
 
       {favorites.length > 0 ? (
-        <section className="organized-resource-list">
-          <div className="result-count">
-            <span>{favorites.length} item(s) saved</span>
-          </div>
-
-          <div className="compact-list">
-            {favorites.map((item) => {
-              const viewerPath = item.external_link
-                ? `/resource-viewer?url=${encodeURIComponent(
-                    item.external_link
-                  )}&title=${encodeURIComponent(item.title || "Resource")}`
-                : "";
-
-              const downloadLink = getDriveDownloadLink(item.external_link);
-
-              return (
-                <article className="compact-resource-card" key={item.id}>
-                  <div className="compact-resource-icon blue">
-                    <FileText size={20} />
-                  </div>
-
-                  <div className="compact-resource-content">
-                    <h3>{item.title}</h3>
-                    <p>
-                      {item.course_code || item.category || "General"} •{" "}
-                      {item.level || "No level"}
-                    </p>
-
-                    <span className="resource-type-pill blue-pill">
-                      {item.semester || item.category || ""}
-                    </span>
-                  </div>
-
-                  <div className="compact-actions">
-                    <button
-                      type="button"
-                      className="favorite-toggle active"
-                      onClick={() => handleRemove(item.id)}
-                      title="Remove from favorites"
-                      aria-label="Remove from favorites"
-                    >
-                      <StarOff size={14} />
-                    </button>
-
-                    {viewerPath ? (
-                      <Link to={viewerPath} title="View" aria-label="View resource">
-                        <Eye size={14} />
-                      </Link>
-                    ) : (
-                      <button disabled>
-                        <Eye size={14} />
-                      </button>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+        <section className="list tone-amber">
+          {favorites.map((item) => (
+            <FavoriteRow
+              key={item.id}
+              item={item}
+              onRemove={() => handleRemove(item.id)}
+            />
+          ))}
         </section>
       ) : (
-        <div className="empty-state">
-          <Star size={30} />
+        <section className="rl-empty">
+          <div className="ico ico-md ico--tint tone-amber">
+            <Star size={24} />
+          </div>
+
           <h3>No favorites yet</h3>
-          <p>Tap the star on any resource to save it here for quick access.</p>
-        </div>
+
+          <p>
+            Tap the star on any resource and it will be saved here for quick
+            access, even offline.
+          </p>
+        </section>
       )}
     </>
+  );
+}
+
+function FavoriteRow({ item, onRemove }) {
+  const viewerPath = item.external_link
+    ? `/resource-viewer?url=${encodeURIComponent(
+        item.external_link
+      )}&title=${encodeURIComponent(item.title || "Resource")}`
+    : "";
+
+  const downloadLink = getDriveDownloadLink(item.external_link);
+
+  const meta = [item.course_code || item.category, item.semester, item.level]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <article className="row file-row">
+      {viewerPath ? (
+        <Link to={viewerPath} className="file-open" aria-label={item.title}>
+          <span className="file-ico">
+            <FileText size={20} />
+          </span>
+
+          <span className="file-text">
+            <h3>{item.title}</h3>
+            <p>{meta || "Saved resource"}</p>
+          </span>
+        </Link>
+      ) : (
+        <span className="file-open is-dead">
+          <span className="file-ico">
+            <FileText size={20} />
+          </span>
+
+          <span className="file-text">
+            <h3>{item.title}</h3>
+            <p>{meta || "Saved resource"}</p>
+          </span>
+        </span>
+      )}
+
+      <div className="file-actions">
+        <button
+          type="button"
+          className="is-fav"
+          onClick={onRemove}
+          title="Remove from favorites"
+          aria-label="Remove from favorites"
+        >
+          <StarOff size={16} />
+        </button>
+
+        {viewerPath ? (
+          <Link
+            to={viewerPath}
+            className="act-view"
+            title="View"
+            aria-label="View resource"
+          >
+            <Eye size={16} />
+          </Link>
+        ) : (
+          <button type="button" disabled aria-label="View unavailable">
+            <Eye size={16} />
+          </button>
+        )}
+
+        {downloadLink ? (
+          <a
+            className="act-open"
+            href={downloadLink}
+            target="_blank"
+            rel="noreferrer"
+            title="Download"
+            aria-label="Download resource"
+          >
+            <Download size={16} />
+          </a>
+        ) : (
+          <button type="button" disabled aria-label="Download unavailable">
+            <Download size={16} />
+          </button>
+        )}
+      </div>
+    </article>
   );
 }
 
