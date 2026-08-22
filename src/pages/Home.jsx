@@ -93,18 +93,10 @@ function HomePage() {
         <h2>Digital Connect</h2>
       </section>
 
-      <section className="motto">
-        <span className="ico ico-md ico--tint tone-blue">
-          <Building2 size={22} />
-        </span>
-
-        <div>
-          <span className="motto-label">Our motto</span>
-          <p className="motto-text">
-            Strength in Knowledge, <span>Service to Humanity.</span>
-          </p>
-        </div>
-      </section>
+      <p className="motto-line">
+        <Building2 size={14} />
+        Strength in Knowledge, <span>Service to Humanity.</span>
+      </p>
 
       <div className="sec-head">
         <h3>Go to</h3>

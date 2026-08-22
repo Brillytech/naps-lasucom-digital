@@ -82,222 +82,294 @@
     </script>
 
     <style>
-
-#app-splash{
-
-position:fixed;
-inset:0;
-z-index:99999;
-
-display:grid;
-place-items:center;
-
-background:
-radial-gradient(circle at top right,#0b5cff33,transparent 35%),
-radial-gradient(circle at bottom left,#22a44722,transparent 35%),
-linear-gradient(160deg,#020617,#062b63,#03152f);
-
-transition:opacity .7s ease;
-
-}
-
-.glass{
-
-display:flex;
-flex-direction:column;
-align-items:center;
-justify-content:center;
-
-width:100%;
-height:100%;
-
-}
-
-#splash-logo{
-
-width:120px;
-height:120px;
-object-fit:contain;
-
-filter:
-drop-shadow(0 0 15px rgba(90,170,255,.25))
-drop-shadow(0 0 35px rgba(90,170,255,.18));
-
-}
-
-#app-splash.show #splash-logo{
-
-transform:scale(1.02);
-
-filter:
-
-drop-shadow(0 0 20px rgba(82,156,255,.45))
-
-drop-shadow(0 18px 35px rgba(0,0,0,.35));
-
-}
-
-#splash-extra{
-
-opacity:0;
-
-transform:translateY(8px);
-
-transition:
-
-opacity .45s ease,
-
-transform .45s ease;
-
-display:flex;
-
-flex-direction:column;
-
-align-items:center;
-
-margin-top:22px;
-
-}
-
-#app-splash.show #splash-extra{
-
-opacity:1;
-
-transform:none;
-
-}
-
-#splash-extra h1{
-
-margin:0;
-
-font-size:28px;
-
-font-weight:900;
-
-letter-spacing:-.6px;
-
-color:white;
-
-}
-
-#splash-extra p{
-
-margin-top:5px;
-
-color:#9fd0ff;
-
-font-size:16px;
-
-font-weight:700;
-
-}
-
-.loader{
-
-margin-top:18px;
-
-width:88px;
-
-height:5px;
-
-background:rgba(255,255,255,.12);
-
-border-radius:999px;
-
-overflow:hidden;
-
-}
-
-.loader span{
-
-display:block;
-
-width:42%;
-
-height:100%;
-
-background:
-
-linear-gradient(
-
-90deg,
-
-#4da3ff,
-
-#22a447
-
-);
-
-animation:loader 1s infinite;
-
-}
-
-#splash-extra small{
-
-margin-top:18px;
-
-font-size:10px;
-
-font-weight:600;
-
-letter-spacing:.5px;
-
-text-transform:uppercase;
-
-color:rgba(255,255,255,.45);
-
-}
-
-@keyframes loader{
-
-0%{
-
-transform:translateX(-100%);
-
-}
-
-100%{
-
-transform:translateX(250%);
-
-}
-
-}
-
-</style>
+      /* ----------------------------------------------------------
+         Splash. Shown until React mounts, then faded and removed
+         by main.jsx. Deliberately quiet: a mark, a wordmark, a
+         thin progress line, and the build credit anchored at the
+         foot rather than crowded under the loader.
+         ---------------------------------------------------------- */
+
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        padding: 32px 24px calc(28px + env(safe-area-inset-bottom, 0px));
+
+        background:
+          radial-gradient(circle at 22% 18%, rgba(77, 163, 255, 0.16), transparent 42%),
+          radial-gradient(circle at 82% 84%, rgba(34, 164, 71, 0.13), transparent 44%),
+          linear-gradient(168deg, #020a16 0%, #062b63 58%, #03152f 100%);
+
+        color: #ffffff;
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+        transition: opacity 0.7s ease;
+      }
+
+      .splash-stage {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 26px;
+      }
+
+      /* --- mark --- */
+      .splash-mark {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 168px;
+        height: 168px;
+      }
+
+      /* Two hairline rings and a soft bloom, instead of a stack of
+         coloured drop-shadows on the logo itself. */
+      .splash-mark::before,
+      .splash-mark::after {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        opacity: 0;
+        transform: scale(0.94);
+        transition: opacity 0.8s ease, transform 0.8s ease;
+      }
+
+      .splash-mark::before {
+        width: 128px;
+        height: 128px;
+      }
+
+      .splash-mark::after {
+        width: 168px;
+        height: 168px;
+        border-color: rgba(255, 255, 255, 0.05);
+        transition-delay: 0.1s;
+      }
+
+      #app-splash.show .splash-mark::before,
+      #app-splash.show .splash-mark::after {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .splash-glow {
+        position: absolute;
+        width: 190px;
+        height: 190px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(77, 163, 255, 0.22),
+          transparent 68%
+        );
+        opacity: 0;
+        transition: opacity 1s ease;
+      }
+
+      #app-splash.show .splash-glow {
+        opacity: 1;
+      }
+
+      #splash-logo {
+        position: relative;
+        width: 96px;
+        height: 96px;
+        object-fit: contain;
+
+        opacity: 0;
+        transform: scale(0.92);
+        transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.8, 0.3, 1);
+      }
+
+      #app-splash.show #splash-logo {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      /* --- wordmark --- */
+      #splash-extra {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 0.6s ease 0.18s, transform 0.6s ease 0.18s;
+      }
+
+      #app-splash.show #splash-extra {
+        opacity: 1;
+        transform: none;
+      }
+
+      #splash-extra h1 {
+        margin: 0;
+        font-size: 25px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        line-height: 1.1;
+        color: #ffffff;
+      }
+
+      #splash-extra p {
+        margin: 9px 0 0;
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: rgba(159, 208, 255, 0.85);
+      }
+
+      /* --- progress --- */
+      .loader {
+        width: 104px;
+        height: 2px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+
+        opacity: 0;
+        transition: opacity 0.5s ease 0.4s;
+      }
+
+      #app-splash.show .loader {
+        opacity: 1;
+      }
+
+      .loader span {
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, transparent, #4da3ff 42%, #22a447);
+        animation: splash-sweep 1.15s cubic-bezier(0.5, 0, 0.4, 1) infinite;
+      }
+
+      @keyframes splash-sweep {
+        0% {
+          transform: translateX(-110%);
+        }
+        100% {
+          transform: translateX(370%);
+        }
+      }
+
+      /* --- build credit, anchored at the foot --- */
+      .splash-foot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+
+        opacity: 0;
+        transition: opacity 0.6s ease 0.6s;
+      }
+
+      #app-splash.show .splash-foot {
+        opacity: 1;
+      }
+
+      .splash-foot-rule {
+        width: 26px;
+        height: 1px;
+        background: rgba(255, 255, 255, 0.18);
+        margin-bottom: 5px;
+      }
+
+      .splash-foot-label {
+        font-size: 8.5px;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.38);
+      }
+
+      .splash-foot-name {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: rgba(255, 255, 255, 0.72);
+      }
+
+      @media (min-width: 700px) {
+        #splash-logo {
+          width: 116px;
+          height: 116px;
+        }
+
+        .splash-mark {
+          width: 200px;
+          height: 200px;
+        }
+
+        .splash-mark::before {
+          width: 152px;
+          height: 152px;
+        }
+
+        .splash-mark::after {
+          width: 200px;
+          height: 200px;
+        }
+
+        #splash-extra h1 {
+          font-size: 30px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #app-splash *,
+        #app-splash *::before,
+        #app-splash *::after {
+          transition-duration: 0.01ms !important;
+          animation: none !important;
+        }
+
+        .loader span {
+          width: 100%;
+        }
+      }
+    </style>
   </head>
 
  <body>
 
 <div id="app-splash">
+  <div class="splash-stage">
+    <div class="splash-mark">
+      <div class="splash-glow"></div>
 
-    <div class="glass">
-
-        <img
-    id="splash-logo"
-    src="/images/naps-logo-transparent.png"
-    alt="NAPS LASUCOM"
-/>
-
-        <div id="splash-extra">
-
-            <h1>NAPS LASUCOM</h1>
-
-            <p>Digital Connect</p>
-
-            <div class="loader">
-                <span></span>
-            </div>
-
-            <small>
-                Powered by BrillyTech Networks
-            </small>
-
-        </div>
-
+      <img
+        id="splash-logo"
+        src="/images/naps-logo-transparent.png"
+        alt="NAPS LASUCOM"
+      />
     </div>
 
+    <div id="splash-extra">
+      <h1>NAPS LASUCOM</h1>
+      <p>Digital Connect</p>
+    </div>
+
+    <div class="loader">
+      <span></span>
+    </div>
+  </div>
+
+  <div class="splash-foot">
+    <div class="splash-foot-rule"></div>
+    <span class="splash-foot-label">Powered by</span>
+    <span class="splash-foot-name">BrillyTech Networks</span>
+  </div>
 </div>
 
 <div id="root"></div>

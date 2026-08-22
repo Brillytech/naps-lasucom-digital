@@ -15003,16 +15003,19 @@ a.file-open:active {
   pointer-events: none;
 }
 
-.rq-input input {
-  padding-left: 32px;
-  text-overflow: ellipsis;
-}
-
 .rq-field input,
 .rq-field select,
 .rq-field textarea {
   padding: 10px 12px;
   font-size: 13.5px;
+}
+
+/* MUST stay after the shorthand above. That rule sets `padding`,
+   which resets padding-left at equal specificity, and the icon
+   ends up sitting on top of the text. */
+.rq-field .rq-input input {
+  padding-left: 36px;
+  text-overflow: ellipsis;
 }
 
 .rq-field textarea {
@@ -15088,8 +15091,8 @@ a.file-open:active {
     font-size: 15px;
   }
 
-  .rq-input input {
-    padding-left: 42px;
+  .rq-field .rq-input input {
+    padding-left: 44px;
   }
 
   .rq-input > svg {
@@ -15539,6 +15542,51 @@ a.file-open:active {
    the one piece of copy on either screen that is not navigation,
    so it gets a frame of its own rather than sitting as loose text.
    ============================================================ */
+
+/* Home: one line, a thin border, nothing else. No fill, no label. */
+.motto-line {
+  margin: var(--sp-4) 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text);
+}
+
+.motto-line > svg {
+  flex: none;
+  color: var(--blue-ink);
+}
+
+.motto-line span {
+  color: var(--muted);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 360px) {
+  .motto-line {
+    font-size: 11px;
+    gap: 6px;
+    padding: 7px 10px;
+  }
+}
+
+@media (min-width: 700px) {
+  .motto-line {
+    padding: 11px 15px;
+    font-size: 14.5px;
+    border-radius: var(--r-md);
+  }
+}
 
 .motto {
   position: relative;
