@@ -7,7 +7,6 @@ import {
   FileQuestion,
   FileText,
   Search,
-  SlidersHorizontal,
   Star,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -205,6 +204,26 @@ function ResourceListPage({ category }) {
       }));
   }, [resources, selectedLevel, selectedSemester, isTimetable]);
 
+  /* What this section actually holds -- more use than a fixed
+     sentence of description. */
+  const summary = useMemo(() => {
+    const total = allCategoryResources.length;
+
+    if (!total) return "Nothing uploaded yet";
+
+    const levelCount = new Set(
+      allCategoryResources.map((item) => item.level).filter(Boolean)
+    ).size;
+
+    const items = `${total} ${total === 1 ? "item" : "items"}`;
+
+    if (!levelCount) return items;
+
+    return `${items} across ${levelCount} ${
+      levelCount === 1 ? "level" : "levels"
+    }`;
+  }, [allCategoryResources]);
+
   const visibleResources = useMemo(() => {
     if (!selectedLevel || !selectedSemester) return [];
 
@@ -312,6 +331,22 @@ function ResourceListPage({ category }) {
     }
   }
 
+  /* done = chosen, and you can still go back to it.
+     current = the step you are standing on.
+     pending = not chosen yet. */
+  function crumbState(index) {
+    const chosen = [selectedLevel, selectedSemester, selectedCourse];
+
+    if (!chosen[index]) return "pending";
+
+    const deepest = chosen.reduce(
+      (last, value, i) => (value ? i : last),
+      -1
+    );
+
+    return index === deepest ? "current" : "done";
+  }
+
   /* Jump straight back to an earlier crumb, unwinding the history
      entries that the skipped steps pushed. */
   function jumpToStep(target) {
@@ -347,53 +382,68 @@ function ResourceListPage({ category }) {
 
   return (
     <>
-      <section className="page-header materials-header">
-        <button
-          type="button"
-          className="back-icon-btn"
-          onClick={handleTopBack}
-          aria-label="Back"
-        >
-          <ArrowLeft size={20} />
-        </button>
+      <header className={`rl-head ${pageInfo.tone}`}>
+        <div className="rl-head-top">
+          <button
+            type="button"
+            className="rl-back"
+            onClick={handleTopBack}
+            aria-label="Back"
+          >
+            <ArrowLeft size={18} />
+          </button>
 
-        <p>{pageInfo.eyebrow}</p>
+          <p className="rl-eyebrow">{pageInfo.eyebrow}</p>
+        </div>
+
         <h1>{pageInfo.title}</h1>
-        <span>{pageInfo.description}</span>
-      </section>
 
-      <section className="resource-library-panel">
-        <div className="library-panel-header">
-          <div>
-            <SlidersHorizontal size={18} />
-            <span>Select Resource</span>
-          </div>
+        <p className="rl-meta">{summary}</p>
+      </header>
 
-          {(selectedLevel || selectedSemester || selectedCourse || searchTerm) && (
-            <button type="button" onClick={resetAll}>
-              Reset
-            </button>
+      <nav className={`crumbs-bar ${pageInfo.tone}`} aria-label="Selection">
+        <div className="crumbs">
+          <Crumb
+            label={selectedLevel || "Level"}
+            state={crumbState(0)}
+            onJump={
+              selectedLevel && (selectedSemester || selectedCourse)
+                ? () => jumpToStep("level")
+                : null
+            }
+          />
+
+          <ChevronRight size={13} className="crumb-sep" />
+
+          <Crumb
+            label={selectedSemester || "Semester"}
+            state={crumbState(1)}
+            onJump={
+              selectedSemester && selectedCourse
+                ? () => jumpToStep("semester")
+                : null
+            }
+          />
+
+          {!isTimetable && (
+            <>
+              <ChevronRight size={13} className="crumb-sep" />
+
+              <Crumb
+                label={selectedCourse || "Course"}
+                state={crumbState(2)}
+                onJump={null}
+              />
+            </>
           )}
         </div>
 
-        <div className="library-current-path">
-          <span className={selectedLevel ? "active" : ""}>
-            {selectedLevel || "Level"}
-          </span>
-
-          <ChevronRight size={14} />
-
-          <span className={selectedSemester ? "active" : ""}>
-            {selectedSemester || "Semester"}
-          </span>
-
-          <ChevronRight size={14} />
-
-          <span className={selectedCourse ? "active" : ""}>
-            {isTimetable ? "Timetable" : selectedCourse || "Course"}
-          </span>
-        </div>
-      </section>
+        {(selectedLevel || selectedSemester || selectedCourse || searchTerm) && (
+          <button type="button" className="crumb-reset" onClick={resetAll}>
+            Reset
+          </button>
+        )}
+      </nav>
 
       {!selectedLevel && (
         <section className="resource-picker-section">
@@ -477,8 +527,10 @@ function ResourceListPage({ category }) {
                 ))}
               </div>
             ) : (
-              <div className="empty-state">
-                {pageInfo.icon}
+              <div className="rl-empty">
+                <div className={`ico ico-md ico--tint ${pageInfo.tone}`}>
+                  {pageInfo.icon}
+                </div>
                 <h3>No course found</h3>
                 <p>No resource is available for this semester yet.</p>
               </div>
@@ -490,8 +542,8 @@ function ResourceListPage({ category }) {
         selectedSemester &&
         (selectedCourse || isTimetable) &&
         visibleResources.length > 0 && (
-          <section className="search-box">
-            <Search size={19} />
+          <div className="rl-search">
+            <Search size={18} />
             <input
               placeholder={
                 isTimetable
@@ -501,28 +553,38 @@ function ResourceListPage({ category }) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-          </section>
+          </div>
         )}
 
       {(selectedCourse || (isTimetable && selectedLevel && selectedSemester)) && (
-        <section className="organized-resource-list">
-          <div className="result-count">
-            <span>{loadingResources ? "Loading..." : `${visibleResources.length} item(s) found`}</span>
+        <section className={pageInfo.tone}>
+          <div className="sec-head">
+            <h3>
+              {loadingResources
+                ? "Loading"
+                : `${visibleResources.length} ${
+                    visibleResources.length === 1 ? "item" : "items"
+                  }`}
+            </h3>
           </div>
 
           {loadingResources ? (
-            <div className="resource-guide-card">
-              <p>Loading resources...</p>
+            <div className="list">
+              <FileSkeleton />
+              <FileSkeleton />
+              <FileSkeleton />
             </div>
           ) : visibleResources.length > 0 ? (
-            <div className="compact-list">
+            <div className="list">
               {visibleResources.map((item) => (
-                <ResourceCard key={item.id} item={item} pageInfo={pageInfo} />
+                <ResourceRow key={item.id} item={item} pageInfo={pageInfo} />
               ))}
             </div>
           ) : (
-            <div className="empty-state">
-              {pageInfo.icon}
+            <div className="rl-empty">
+              <div className={`ico ico-md ico--tint ${pageInfo.tone}`}>
+                {pageInfo.icon}
+              </div>
               <h3>{pageInfo.empty}</h3>
               <p>Try another selection.</p>
             </div>
@@ -531,6 +593,18 @@ function ResourceListPage({ category }) {
       )}
     </>
   );
+}
+
+function Crumb({ label, state, onJump }) {
+  if (state === "done" && onJump) {
+    return (
+      <button type="button" className="crumb is-done" onClick={onJump}>
+        {label}
+      </button>
+    );
+  }
+
+  return <span className={`crumb is-${state}`}>{label}</span>;
 }
 
 /* Two-tone folder: a back panel with the tab, and a lighter front
@@ -597,7 +671,20 @@ function PickerSkeleton() {
   );
 }
 
-function ResourceCard({ item, pageInfo }) {
+function FileSkeleton() {
+  return (
+    <div className="row file-row" aria-hidden="true">
+      <span className="skel picker-skel-ico" />
+
+      <span>
+        <span className="skel skel-line" style={{ width: "74%" }} />
+        <span className="skel skel-line" style={{ width: "38%" }} />
+      </span>
+    </div>
+  );
+}
+
+function ResourceRow({ item, pageInfo }) {
   const mainLink = item.external_link || item.file_url;
   const downloadLink = getDriveDownloadLink(mainLink);
 
@@ -610,47 +697,49 @@ function ResourceCard({ item, pageInfo }) {
     setFavorited((prev) => !prev);
   }
 
+  const meta = [item.course_code || "General", item.semester, item.level]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <article className={`compact-resource-card ${pageInfo.cardClass}`}>
-      <div className={`compact-resource-icon ${pageInfo.iconClass}`}>
-        {pageInfo.icon}
-      </div>
+    <article className="row file-row">
+      <div className="file-ico">{pageInfo.icon}</div>
 
-      <div className="compact-resource-content">
+      <div>
         <h3>{item.title}</h3>
-        <p>
-          {item.course_code || "General"} • {item.level || "No level"}
-        </p>
-
-        <span className={`resource-type-pill ${pageInfo.pillClass}`}>
-          {item.semester || "No semester"}
-        </span>
+        <p>{meta}</p>
       </div>
 
-      <div className="compact-actions">
+      <div className="file-actions">
         <button
           type="button"
-          className={favorited ? "favorite-toggle active" : "favorite-toggle"}
+          className={favorited ? "is-fav" : ""}
           onClick={handleToggleFavorite}
           title={favorited ? "Remove from favorites" : "Save to favorites"}
           aria-label={favorited ? "Remove from favorites" : "Save to favorites"}
         >
-          <Star size={14} fill={favorited ? "currentColor" : "none"} />
+          <Star size={16} fill={favorited ? "currentColor" : "none"} />
         </button>
 
         {mainLink ? (
-          <Link to={viewerPath} title="View" aria-label="View resource">
-            <Eye size={14} />
+          <Link
+            to={viewerPath}
+            className="act-view"
+            title="View"
+            aria-label="View resource"
+          >
+            <Eye size={16} />
           </Link>
         ) : (
-          <button disabled>
-            <Eye size={14} />
+          <button type="button" disabled aria-label="View unavailable">
+            <Eye size={16} />
           </button>
         )}
 
         {mainLink ? (
           <a
             href={downloadLink}
+            className="act-open"
             title="Download"
             aria-label="Download resource"
             target="_blank"
@@ -663,11 +752,11 @@ function ResourceCard({ item, pageInfo }) {
               }
             }}
           >
-            <Download size={14} />
+            <Download size={16} />
           </a>
         ) : (
-          <button disabled>
-            <Download size={14} />
+          <button type="button" disabled aria-label="Download unavailable">
+            <Download size={16} />
           </button>
         )}
       </div>
