@@ -1,0 +1,394 @@
+#!/usr/bin/env node
+/**
+ * Generates study explanations for lecture materials.
+ *
+ * Run from a laptop, not from Vercel -- serverless functions cap out at 10-60
+ * seconds and this is a multi-hour job.
+ *
+ * Uses the Batch API: half the cost, no rate-limit juggling, and the batch id
+ * doubles as a resume point. Rows are marked `processing` with their batch id
+ * before submission, so a crash leaves a trail rather than a mystery.
+ *
+ *   node scripts/generate-explanations.js --limit=5
+ *   node scripts/generate-explanations.js --dry-run --limit=1
+ *   node scripts/generate-explanations.js --retry-failed
+ *   node scripts/generate-explanations.js --reset-stuck
+ *
+ * Scope: category = 'Materials' only. Past questions and timetables share this
+ * table and are never touched.
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import Anthropic from "@anthropic-ai/sdk";
+import { createClient } from "@supabase/supabase-js";
+
+import { prepareSource } from "./fetchSource.js";
+import { SYSTEM_PROMPT, buildUserPrompt } from "./prompt.js";
+import {
+  EXPLANATION_JSON_SCHEMA,
+  STATUS,
+  buildStoredExplanation,
+  findSemanticProblem,
+} from "./explanationSchema.js";
+
+const MODEL = "claude-opus-5";
+const MAX_TOKENS = 32000;
+const CATEGORY = "Materials";
+const POLL_INTERVAL_MS = 30_000;
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+/* ------------------------------------------------------------------ *
+ * Setup
+ * ------------------------------------------------------------------ */
+
+function loadEnv() {
+  const envPath = path.join(here, "..", ".env");
+  if (!fs.existsSync(envPath)) return;
+
+  for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
+    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/i);
+    if (!match) continue;
+
+    const value = match[2].trim().replace(/^["']|["']$/g, "");
+    if (!process.env[match[1]]) process.env[match[1]] = value;
+  }
+}
+
+function parseArgs(argv) {
+  const args = {
+    limit: null,
+    retryFailed: false,
+    resetStuck: false,
+    dryRun: false,
+  };
+
+  for (const arg of argv.slice(2)) {
+    if (arg.startsWith("--limit=")) args.limit = Number(arg.split("=")[1]);
+    else if (arg === "--retry-failed") args.retryFailed = true;
+    else if (arg === "--reset-stuck") args.resetStuck = true;
+    else if (arg === "--dry-run") args.dryRun = true;
+    else {
+      console.error(`Unknown flag: ${arg}`);
+      process.exit(1);
+    }
+  }
+
+  if (args.limit !== null && (!Number.isFinite(args.limit) || args.limit < 1)) {
+    console.error("--limit must be a positive number.");
+    process.exit(1);
+  }
+
+  return args;
+}
+
+const log = (...parts) =>
+  console.log(`[${new Date().toISOString().slice(11, 19)}]`, ...parts);
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/* ------------------------------------------------------------------ *
+ * Steps
+ * ------------------------------------------------------------------ */
+
+async function resetStuck(supabase) {
+  const { data, error } = await supabase
+    .from("resources")
+    .update({ processing_status: STATUS.PENDING, explanation_batch_id: null })
+    .eq("category", CATEGORY)
+    .eq("processing_status", STATUS.PROCESSING)
+    .select("id");
+
+  if (error) throw new Error(`Could not reset stuck rows: ${error.message}`);
+
+  log(`Reset ${data?.length ?? 0} stuck row(s) back to pending.`);
+}
+
+async function loadQueue(supabase, args) {
+  const wanted = args.retryFailed
+    ? [STATUS.PENDING, STATUS.FAILED]
+    : [STATUS.PENDING];
+
+  let query = supabase
+    .from("resources")
+    .select("id, title, course_code, level, semester, external_link, file_url")
+    .eq("category", CATEGORY)
+    .in("processing_status", wanted)
+    .order("created_at", { ascending: true });
+
+  if (args.limit) query = query.limit(args.limit);
+
+  const { data, error } = await query;
+  if (error) throw new Error(`Could not load queue: ${error.message}`);
+
+  return data ?? [];
+}
+
+async function markRow(supabase, id, fields) {
+  const { error } = await supabase.from("resources").update(fields).eq("id", id);
+  if (error) log(`  ! could not update ${id}: ${error.message}`);
+}
+
+/**
+ * Fetch every source and build the batch requests. Sources that cannot be
+ * used are recorded immediately -- they never reach the model.
+ */
+async function prepareAll(supabase, queue, args) {
+  const requests = [];
+  const prepared = new Map();
+  let skipped = 0;
+
+  for (const [index, resource] of queue.entries()) {
+    const label = `${index + 1}/${queue.length}`;
+    const title = (resource.title || "untitled").slice(0, 58);
+
+    const source = await prepareSource(resource);
+
+    if (!source.ok) {
+      skipped += 1;
+      const status = source.unsupported ? STATUS.UNSUPPORTED : STATUS.FAILED;
+      log(`${label} SKIP  ${title} -- ${source.reason}`);
+
+      if (!args.dryRun) {
+        await markRow(supabase, resource.id, {
+          processing_status: status,
+          error_message: source.reason,
+          generated_date: new Date().toISOString(),
+        });
+      }
+      continue;
+    }
+
+    log(
+      `${label} ready ${title} (${source.sourceKind}, ${(source.bytes / 1024).toFixed(0)} KB)`
+    );
+
+    prepared.set(resource.id, { resource, source });
+
+    requests.push({
+      custom_id: resource.id,
+      params: {
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: SYSTEM_PROMPT,
+        thinking: { type: "adaptive" },
+        output_config: {
+          format: { type: "json_schema", schema: EXPLANATION_JSON_SCHEMA },
+        },
+        messages: [
+          {
+            role: "user",
+            content: [
+              source.contentBlock,
+              { type: "text", text: buildUserPrompt(resource) },
+            ],
+          },
+        ],
+      },
+    });
+  }
+
+  return { requests, prepared, skipped };
+}
+
+function extractJson(message) {
+  const block = message?.content?.find((part) => part.type === "text");
+  if (!block?.text) return null;
+
+  try {
+    return JSON.parse(block.text);
+  } catch {
+    return null;
+  }
+}
+
+async function writeResults(supabase, anthropic, batchId, prepared) {
+  let completed = 0;
+  let failed = 0;
+  const seen = new Set();
+
+  for await (const entry of await anthropic.messages.batches.results(batchId)) {
+    seen.add(entry.custom_id);
+
+    const context = prepared.get(entry.custom_id);
+    const title = (context?.resource.title || entry.custom_id).slice(0, 58);
+
+    if (entry.result.type !== "succeeded") {
+      failed += 1;
+      const reason =
+        entry.result.error?.message ||
+        entry.result.error?.type ||
+        entry.result.type;
+
+      log(`  FAIL ${title} -- ${reason}`);
+      await markRow(supabase, entry.custom_id, {
+        processing_status: STATUS.FAILED,
+        error_message: `Batch result: ${reason}`,
+        generated_date: new Date().toISOString(),
+      });
+      continue;
+    }
+
+    const message = entry.result.message;
+
+    if (message.stop_reason === "refusal") {
+      failed += 1;
+      const reason = `Model declined: ${message.stop_details?.category ?? "unknown"}`;
+      log(`  FAIL ${title} -- ${reason}`);
+      await markRow(supabase, entry.custom_id, {
+        processing_status: STATUS.FAILED,
+        error_message: reason,
+        generated_date: new Date().toISOString(),
+      });
+      continue;
+    }
+
+    const parsed = extractJson(message);
+    const problem = parsed
+      ? findSemanticProblem(parsed)
+      : "Response contained no parsable JSON.";
+
+    if (problem) {
+      failed += 1;
+      log(`  FAIL ${title} -- ${problem}`);
+      await markRow(supabase, entry.custom_id, {
+        processing_status: STATUS.FAILED,
+        error_message: problem,
+        generated_date: new Date().toISOString(),
+      });
+      continue;
+    }
+
+    const explanation = buildStoredExplanation(parsed, {
+      sourceUrl:
+        context.resource.external_link || context.resource.file_url || "",
+      extractionMethod: context.source.extractionMethod,
+      sourceKind: context.source.sourceKind,
+      model: MODEL,
+    });
+
+    await markRow(supabase, entry.custom_id, {
+      generated_explanation: explanation,
+      processing_status: STATUS.COMPLETED,
+      generated_date: new Date().toISOString(),
+      error_message: null,
+    });
+
+    completed += 1;
+    log(`  ok   ${title} (${parsed.sections.length} sections)`);
+  }
+
+  // Anything the batch never reported stays `processing` on purpose, so
+  // --reset-stuck can find it rather than it being silently lost.
+  const missing = [...prepared.keys()].filter((id) => !seen.has(id));
+  if (missing.length) {
+    log(
+      `! ${missing.length} row(s) had no batch result and remain 'processing'. Run --reset-stuck to requeue.`
+    );
+  }
+
+  return { completed, failed };
+}
+
+/* ------------------------------------------------------------------ *
+ * Main
+ * ------------------------------------------------------------------ */
+
+async function main() {
+  loadEnv();
+  const args = parseArgs(process.argv);
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+
+  if (!supabaseUrl || !serviceKey) {
+    console.error("VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env");
+    process.exit(1);
+  }
+
+  if (!anthropicKey && !args.dryRun) {
+    console.error("ANTHROPIC_API_KEY must be set in .env (not needed for --dry-run)");
+    process.exit(1);
+  }
+
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false },
+  });
+
+  if (args.resetStuck) {
+    await resetStuck(supabase);
+    if (!args.limit && !args.retryFailed) return;
+  }
+
+  const queue = await loadQueue(supabase, args);
+
+  if (queue.length === 0) {
+    log("Nothing to do -- no pending materials.");
+    return;
+  }
+
+  log(`Queue: ${queue.length} material(s).${args.dryRun ? "  [DRY RUN]" : ""}`);
+
+  const { requests, prepared, skipped } = await prepareAll(supabase, queue, args);
+
+  log(`Prepared ${requests.length}, skipped ${skipped}.`);
+
+  if (requests.length === 0) {
+    log("No usable sources in this batch.");
+    return;
+  }
+
+  if (args.dryRun) {
+    const sample = requests[0];
+    log("Dry run -- nothing submitted, nothing written.");
+    log(`First request: custom_id=${sample.custom_id}`);
+    log(`  content blocks: ${sample.params.messages[0].content.map((c) => c.type).join(", ")}`);
+    return;
+  }
+
+  const anthropic = new Anthropic({ apiKey: anthropicKey });
+
+  const batch = await anthropic.messages.batches.create({ requests });
+  log(`Submitted batch ${batch.id} with ${requests.length} request(s).`);
+
+  // Claim the rows only after submission succeeds, so a failed submit leaves
+  // them pending rather than stranded.
+  for (const id of prepared.keys()) {
+    await markRow(supabase, id, {
+      processing_status: STATUS.PROCESSING,
+      explanation_batch_id: batch.id,
+      error_message: null,
+    });
+  }
+
+  let status = batch;
+  while (status.processing_status !== "ended") {
+    await sleep(POLL_INTERVAL_MS);
+    status = await anthropic.messages.batches.retrieve(batch.id);
+    const counts = status.request_counts;
+    log(
+      `  ${status.processing_status} -- succeeded ${counts.succeeded}, errored ${counts.errored}, processing ${counts.processing}`
+    );
+  }
+
+  log("Batch ended. Writing results...");
+  const { completed, failed } = await writeResults(
+    supabase,
+    anthropic,
+    batch.id,
+    prepared
+  );
+
+  log(
+    `Done. ${completed} completed, ${failed} failed, ${skipped} skipped, of ${queue.length} queued.`
+  );
+}
+
+main().catch((error) => {
+  console.error("\nFatal:", error.message);
+  process.exit(1);
+});

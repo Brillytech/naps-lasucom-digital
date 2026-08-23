@@ -27,3 +27,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Local helper, not part of the app
+set-supabase-token.ps1
+.mcp.json
