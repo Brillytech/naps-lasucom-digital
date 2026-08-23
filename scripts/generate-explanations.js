@@ -38,6 +38,7 @@ const MODEL = "claude-opus-5";
 const MAX_TOKENS = 32000;
 const CATEGORY = "Materials";
 const POLL_INTERVAL_MS = 30_000;
+const FILES_BETA = "files-api-2025-04-14";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -49,7 +50,10 @@ function loadEnv() {
   const envPath = path.join(here, "..", ".env");
   if (!fs.existsSync(envPath)) return;
 
-  for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
+  // Split on /\r?\n/, not "\n". This file is CRLF, and in JS `.` does not
+  // match \r -- so `(.*)$` would fail on every line except the last one,
+  // which has no trailing carriage return.
+  for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
     const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/i);
     if (!match) continue;
 
@@ -61,6 +65,7 @@ function loadEnv() {
 function parseArgs(argv) {
   const args = {
     limit: null,
+    ids: null,
     retryFailed: false,
     resetStuck: false,
     dryRun: false,
@@ -68,6 +73,14 @@ function parseArgs(argv) {
 
   for (const arg of argv.slice(2)) {
     if (arg.startsWith("--limit=")) args.limit = Number(arg.split("=")[1]);
+    // Explicit row ids, for the quality gate: --limit alone takes whatever is
+    // oldest, which is not a representative sample.
+    else if (arg.startsWith("--ids="))
+      args.ids = arg
+        .slice("--ids=".length)
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
     else if (arg === "--retry-failed") args.retryFailed = true;
     else if (arg === "--reset-stuck") args.resetStuck = true;
     else if (arg === "--dry-run") args.dryRun = true;
@@ -116,8 +129,12 @@ async function loadQueue(supabase, args) {
     .from("resources")
     .select("id, title, course_code, level, semester, external_link, file_url")
     .eq("category", CATEGORY)
-    .in("processing_status", wanted)
     .order("created_at", { ascending: true });
+
+  // Explicit ids bypass the status filter so a completed row can be
+  // regenerated deliberately; otherwise take whatever is queued.
+  if (args.ids?.length) query = query.in("id", args.ids);
+  else query = query.in("processing_status", wanted);
 
   if (args.limit) query = query.limit(args.limit);
 
@@ -136,10 +153,11 @@ async function markRow(supabase, id, fields) {
  * Fetch every source and build the batch requests. Sources that cannot be
  * used are recorded immediately -- they never reach the model.
  */
-async function prepareAll(supabase, queue, args) {
+async function prepareAll(supabase, queue, args, anthropic) {
   const requests = [];
   const prepared = new Map();
   let skipped = 0;
+  let uploaded = 0;
 
   for (const [index, resource] of queue.entries()) {
     const label = `${index + 1}/${queue.length}`;
@@ -162,9 +180,55 @@ async function prepareAll(supabase, queue, args) {
       continue;
     }
 
-    log(
-      `${label} ready ${title} (${source.sourceKind}, ${(source.bytes / 1024).toFixed(0)} KB)`
-    );
+    // Oversized PDFs go up through the Files API and are referenced by id,
+    // which sidesteps the 32 MB request cap. Scans land here most often.
+    if (source.needsUpload) {
+      if (args.dryRun) {
+        log(
+          `${label} ready ${title} (${source.sourceKind}, ${(
+            source.bytes / 1024 / 1024
+          ).toFixed(1)} MB -- would upload via Files API)`
+        );
+        continue;
+      }
+
+      try {
+        const file = await anthropic.beta.files.upload(
+          {
+            file: new File([source.buffer], `${resource.id}.pdf`, {
+              type: "application/pdf",
+            }),
+          },
+          { betas: [FILES_BETA] }
+        );
+
+        source.contentBlock = {
+          type: "document",
+          source: { type: "file", file_id: file.id },
+        };
+        uploaded += 1;
+
+        log(
+          `${label} ready ${title} (${source.sourceKind}, ${(
+            source.bytes / 1024 / 1024
+          ).toFixed(1)} MB -> file ${file.id})`
+        );
+      } catch (error) {
+        skipped += 1;
+        const reason = `Files API upload failed: ${error.message}`;
+        log(`${label} SKIP  ${title} -- ${reason}`);
+        await markRow(supabase, resource.id, {
+          processing_status: STATUS.FAILED,
+          error_message: reason,
+          generated_date: new Date().toISOString(),
+        });
+        continue;
+      }
+    } else {
+      log(
+        `${label} ready ${title} (${source.sourceKind}, ${(source.bytes / 1024).toFixed(0)} KB)`
+      );
+    }
 
     prepared.set(resource.id, { resource, source });
 
@@ -191,7 +255,7 @@ async function prepareAll(supabase, queue, args) {
     });
   }
 
-  return { requests, prepared, skipped };
+  return { requests, prepared, skipped, uploaded };
 }
 
 function extractJson(message) {
@@ -210,7 +274,7 @@ async function writeResults(supabase, anthropic, batchId, prepared) {
   let failed = 0;
   const seen = new Set();
 
-  for await (const entry of await anthropic.messages.batches.results(batchId)) {
+  for await (const entry of await anthropic.beta.messages.batches.results(batchId, { betas: [FILES_BETA] })) {
     seen.add(entry.custom_id);
 
     const context = prepared.get(entry.custom_id);
@@ -310,10 +374,10 @@ async function main() {
     process.exit(1);
   }
 
-  if (!anthropicKey && !args.dryRun) {
-    console.error("ANTHROPIC_API_KEY must be set in .env (not needed for --dry-run)");
-    process.exit(1);
-  }
+  // No hard check on the Anthropic key: the SDK resolves credentials itself
+  // (ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN, or an `ant auth login` profile),
+  // so an unset env var does not mean there are none. Let it raise its own
+  // error if nothing resolves.
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false },
@@ -333,9 +397,25 @@ async function main() {
 
   log(`Queue: ${queue.length} material(s).${args.dryRun ? "  [DRY RUN]" : ""}`);
 
-  const { requests, prepared, skipped } = await prepareAll(supabase, queue, args);
+  // Built before preparation because oversized PDFs are uploaded during it.
+  const anthropic = args.dryRun
+    ? null
+    : anthropicKey
+      ? new Anthropic({ apiKey: anthropicKey })
+      : new Anthropic();
 
-  log(`Prepared ${requests.length}, skipped ${skipped}.`);
+  const { requests, prepared, skipped, uploaded } = await prepareAll(
+    supabase,
+    queue,
+    args,
+    anthropic
+  );
+
+  log(
+    `Prepared ${requests.length}, skipped ${skipped}${
+      uploaded ? `, uploaded ${uploaded} oversized PDF(s)` : ""
+    }.`
+  );
 
   if (requests.length === 0) {
     log("No usable sources in this batch.");
@@ -350,9 +430,12 @@ async function main() {
     return;
   }
 
-  const anthropic = new Anthropic({ apiKey: anthropicKey });
-
-  const batch = await anthropic.messages.batches.create({ requests });
+  // Beta namespace throughout: a request may reference an uploaded file, and
+  // mixing namespaces between create and results would drop the header.
+  const batch = await anthropic.beta.messages.batches.create({
+    requests,
+    betas: [FILES_BETA],
+  });
   log(`Submitted batch ${batch.id} with ${requests.length} request(s).`);
 
   // Claim the rows only after submission succeeds, so a failed submit leaves
@@ -368,7 +451,7 @@ async function main() {
   let status = batch;
   while (status.processing_status !== "ended") {
     await sleep(POLL_INTERVAL_MS);
-    status = await anthropic.messages.batches.retrieve(batch.id);
+    status = await anthropic.beta.messages.batches.retrieve(batch.id, { betas: [FILES_BETA] });
     const counts = status.request_counts;
     log(
       `  ${status.processing_status} -- succeeded ${counts.succeeded}, errored ${counts.errored}, processing ${counts.processing}`

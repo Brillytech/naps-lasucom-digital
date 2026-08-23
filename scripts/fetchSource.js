@@ -16,12 +16,21 @@ import {
 import { EXTRACTION, SOURCE_KIND } from "./explanationSchema.js";
 
 /**
- * Anthropic caps a request at 32 MB, and base64 inflates by 4/3. Stay well
- * under: 20 MB raw is ~27 MB encoded.
+ * Anthropic caps a request at 32 MB and base64 inflates by 4/3, so anything
+ * over ~20 MB raw cannot be inlined. It is not skipped, though: it goes up
+ * through the Files API and is referenced by id instead.
+ *
+ * This path matters more than it looks. Image-only PDFs are large *because*
+ * they are scans, so the documents that most need native PDF reading are
+ * exactly the ones that overflow an inline request.
  */
-const MAX_RAW_BYTES = 20 * 1024 * 1024;
+const MAX_INLINE_BYTES = 20 * 1024 * 1024;
+
+/** Beyond this, something has gone wrong -- a lecture is not 150 MB. */
+const MAX_ANY_BYTES = 150 * 1024 * 1024;
 
 const FETCH_TIMEOUT_MS = 120_000;
+const FETCH_ATTEMPTS = 3;
 
 /** Detect real file type from magic bytes -- never trust the extension. */
 export function sniffFileType(buffer) {
@@ -81,7 +90,9 @@ function classifyLink(url) {
   };
 }
 
-async function download(url) {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function downloadOnce(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
@@ -92,13 +103,33 @@ async function download(url) {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status} fetching source`);
+      const error = new Error(`HTTP ${response.status} fetching source`);
+      // Google throttles its export endpoints (429, and a non-standard 432)
+      // when hit repeatedly. Those are worth waiting out; a 404 is not.
+      error.retryable = response.status >= 500 || [408, 429, 432].includes(response.status);
+      throw error;
     }
 
     return Buffer.from(await response.arrayBuffer());
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function download(url) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt += 1) {
+    try {
+      return await downloadOnce(url);
+    } catch (error) {
+      lastError = error;
+      if (!error.retryable || attempt === FETCH_ATTEMPTS) break;
+      await sleep(attempt * 5000);
+    }
+  }
+
+  throw lastError;
 }
 
 /**
@@ -203,13 +234,26 @@ export async function prepareSource(resource) {
     };
   }
 
-  if (buffer.length > MAX_RAW_BYTES) {
+  if (buffer.length > MAX_ANY_BYTES) {
     return {
       ok: false,
       unsupported: true,
-      reason: `PDF is ${(buffer.length / 1024 / 1024).toFixed(1)} MB, over the ${
-        MAX_RAW_BYTES / 1024 / 1024
-      } MB request limit.`,
+      reason: `PDF is ${(buffer.length / 1024 / 1024).toFixed(
+        1
+      )} MB, which is too large to be a lecture document.`,
+    };
+  }
+
+  // Too big to inline -- hand the buffer back so the caller can put it
+  // through the Files API and reference it by id.
+  if (buffer.length > MAX_INLINE_BYTES) {
+    return {
+      ok: true,
+      needsUpload: true,
+      buffer,
+      extractionMethod: EXTRACTION.PDF_NATIVE,
+      sourceKind: target.kind,
+      bytes: buffer.length,
     };
   }
 
