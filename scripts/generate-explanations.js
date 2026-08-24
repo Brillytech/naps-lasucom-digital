@@ -163,9 +163,31 @@ async function loadQueue(supabase, args) {
   return data ?? [];
 }
 
-async function markRow(supabase, id, fields) {
-  const { error } = await supabase.from("resources").update(fields).eq("id", id);
-  if (error) log(`  ! could not update ${id}: ${error.message}`);
+/**
+ * Persist a status change, retrying on transport failure.
+ *
+ * Worth the retry: a dropped connection here is how a row ends up stranded in
+ * `processing` after its work actually succeeded, which then needs
+ * --reset-stuck and a full regeneration to recover.
+ */
+async function markRow(supabase, id, fields, attempts = 3) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const { error } = await supabase
+      .from("resources")
+      .update(fields)
+      .eq("id", id);
+
+    if (!error) return true;
+
+    if (attempt === attempts) {
+      log(`  ! could not update ${id} after ${attempts} tries: ${error.message}`);
+      return false;
+    }
+
+    await sleep(attempt * 3000);
+  }
+
+  return false;
 }
 
 /**

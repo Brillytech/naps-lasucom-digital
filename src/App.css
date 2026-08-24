@@ -15753,3 +15753,357 @@ a.naps-row .home-chev {
     font-size: 14.5px;
   }
 }
+
+/* ============================================================
+   MATERIAL EXPLANATION
+   A reading page, so it breaks the row/list rhythm used for
+   navigation elsewhere: longer measure, more air between blocks,
+   and body copy sized to actually be read rather than scanned.
+   ============================================================ */
+
+.ex-page {
+  position: relative;
+  z-index: 2;
+  padding-bottom: var(--sp-8);
+}
+
+.ex-original {
+  margin-top: var(--sp-4);
+  grid-template-columns: 32px minmax(0, 1fr);
+  padding-block: var(--sp-3);
+}
+
+.ex-original-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ex-original-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.ex-open-original {
+  margin-top: var(--sp-4);
+  max-width: 260px;
+}
+
+.ex-intro {
+  margin: var(--sp-6) 0 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.ex-objectives {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.ex-objectives li {
+  position: relative;
+  padding-left: 24px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.ex-objectives li::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--blue-ink);
+}
+
+.ex-search {
+  margin-top: var(--sp-6);
+}
+
+.ex-search-clear {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.ex-search-clear:active {
+  background: var(--press);
+}
+
+/* --- table of contents --- */
+.ex-toc {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+}
+
+.ex-toc li + li {
+  border-top: 1px solid var(--rule);
+}
+
+.ex-toc button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: var(--sp-2);
+  align-items: baseline;
+  padding: 11px 8px;
+  margin-inline: -8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.16s var(--ease);
+}
+
+.ex-toc button:active {
+  background: var(--press);
+}
+
+.ex-toc-num,
+.ex-section-num {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--blue-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- sections --- */
+.ex-sections {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.ex-section {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  transition: border-color 0.16s var(--ease);
+}
+
+.ex-section.is-open {
+  border-color: color-mix(in srgb, var(--blue-ink) 24%, transparent);
+}
+
+.ex-section-head {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 18px;
+  gap: var(--sp-2);
+  align-items: center;
+  padding: 13px 12px;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.16s var(--ease);
+}
+
+.ex-section-head:active {
+  background: var(--press);
+}
+
+.ex-section-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.ex-chevron {
+  color: var(--muted);
+  transition: transform 0.2s var(--ease);
+}
+
+.ex-section.is-open .ex-chevron {
+  transform: rotate(180deg);
+}
+
+.ex-section-body {
+  padding: 0 12px 14px;
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.ex-content {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+/* --- definitions --- */
+.ex-terms {
+  margin: 0;
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.ex-term dt {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ex-term dd {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* --- highlight blocks --- */
+.ex-block {
+  --tone: var(--blue-ink);
+
+  padding: var(--sp-3);
+  border-radius: var(--r-sm);
+  border-left: 3px solid var(--tone);
+  background: color-mix(in srgb, var(--tone) 8%, transparent);
+}
+
+.app.dark .ex-block {
+  background: color-mix(in srgb, var(--tone) 13%, transparent);
+}
+
+.ex-block-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: var(--sp-2);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+
+.ex-block p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.ex-block ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.ex-block li {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.ex-final {
+  margin-top: 0;
+}
+
+.ex-footnote {
+  margin: var(--sp-8) 0 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--rule);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* --- loading --- */
+.ex-skeleton {
+  margin-top: var(--sp-6);
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.ex-skel-block {
+  display: grid;
+  gap: 9px;
+  padding: 13px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ex-chevron,
+  .ex-section,
+  .ex-section-head,
+  .ex-toc button {
+    transition: none;
+  }
+}
+
+@media (min-width: 700px) {
+  .ex-intro {
+    font-size: 17px;
+  }
+
+  .ex-objectives li,
+  .ex-toc button {
+    font-size: 15px;
+  }
+
+  .ex-section-head h2 {
+    font-size: 17px;
+  }
+
+  .ex-content {
+    font-size: 16px;
+    max-width: 68ch;
+  }
+
+  .ex-block li,
+  .ex-block p,
+  .ex-term dt,
+  .ex-term dd {
+    font-size: 14.5px;
+  }
+
+  .ex-section-body {
+    padding: 0 16px 18px;
+  }
+}
+
+/* Explanation entry point on a file row. Tinted rather than ghost, so it
+   reads as an extra thing this file has, not just another icon button. */
+.file-actions .act-explain {
+  background: color-mix(in srgb, var(--blue-ink) 13%, transparent);
+  color: var(--blue-ink);
+}
+
+.app.dark .file-actions .act-explain {
+  background: color-mix(in srgb, var(--blue-ink) 20%, transparent);
+}

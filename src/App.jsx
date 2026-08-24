@@ -27,6 +27,7 @@ import ResourceViewer from "./pages/ResourceViewer";
 import Constitution from "./pages/constitution";
 import Notifications from "./pages/Notifications";
 import Favorites from "./pages/Favorites";
+import MaterialExplanation from "./pages/MaterialExplanation";
 import InstallPrompt from "./components/InstallPrompt";
 
 /* ADMIN PAGES - ACTIVE */
@@ -139,6 +140,10 @@ useEffect(() => {
           <Route path="/constitution" element={<Constitution />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/favorites" element={<Favorites />} />
+          <Route
+            path="/material-explanation"
+            element={<MaterialExplanation />}
+          />
 
           {/* ADMIN ROUTES */}
           <Route path="/naps-admin/login" element={<AdminLogin />} />

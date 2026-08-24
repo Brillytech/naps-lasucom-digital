@@ -6,6 +6,7 @@ import {
   Eye,
   FileQuestion,
   FileText,
+  GraduationCap,
   Search,
   Star,
 } from "lucide-react";
@@ -730,6 +731,19 @@ function ResourceRow({ item, pageInfo }) {
       )}
 
       <div className="file-actions">
+        {/* Only where an explanation actually exists. Everything else goes
+            straight to the document, with no "coming soon" dead end. */}
+        {item.processing_status === "completed" && item.generated_explanation && (
+          <Link
+            to={`/material-explanation?id=${item.id}`}
+            className="act-explain"
+            title="Read the explanation"
+            aria-label="Read the explanation"
+          >
+            <GraduationCap size={16} />
+          </Link>
+        )}
+
         <button
           type="button"
           className={favorited ? "is-fav" : ""}
