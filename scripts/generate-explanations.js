@@ -75,6 +75,7 @@ function parseArgs(argv) {
     delayMs: DEFAULT_DELAY_MS,
     limit: null,
     ids: null,
+    course: null,
     retryFailed: false,
     resetStuck: false,
     dryRun: false,
@@ -84,6 +85,7 @@ function parseArgs(argv) {
     if (arg.startsWith("--provider=")) args.provider = arg.split("=")[1];
     else if (arg.startsWith("--gemini-model=")) args.geminiModel = arg.split("=")[1];
     else if (arg.startsWith("--delay=")) args.delayMs = Number(arg.split("=")[1]);
+    else if (arg.startsWith("--course=")) args.course = arg.slice("--course=".length).trim();
     else if (arg.startsWith("--limit=")) args.limit = Number(arg.split("=")[1]);
     // Explicit row ids, for the quality gate: --limit alone takes whatever is
     // oldest, which is not a representative sample.
@@ -154,6 +156,10 @@ async function loadQueue(supabase, args) {
   // regenerated deliberately; otherwise take whatever is queued.
   if (args.ids?.length) query = query.in("id", args.ids);
   else query = query.in("processing_status", wanted);
+
+  // Course scoping is additive: it narrows whatever the status filter or
+  // explicit ids already selected, rather than replacing them.
+  if (args.course) query = query.eq("course_code", args.course);
 
   if (args.limit) query = query.limit(args.limit);
 

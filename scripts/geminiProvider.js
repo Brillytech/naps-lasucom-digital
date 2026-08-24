@@ -25,14 +25,24 @@ export const GEMINI_MODELS = {
   FALLBACKS: ["gemini-3.5-flash", "gemini-2.5-flash"],
 };
 
-/** Free tier is roughly 10 requests/minute; 6s between calls stays under it. */
-export const DEFAULT_DELAY_MS = 6000;
+/**
+ * Pacing between calls. Generation itself dominates the wall clock, so this
+ * is a small share of total time -- it exists to stay clear of the free
+ * tier's per-minute cap, not to speed anything up.
+ */
+export const DEFAULT_DELAY_MS = 3000;
 
 /** Gemini's inline limit is well under its 50 MB file cap. */
 const MAX_INLINE_BYTES = 18 * 1024 * 1024;
 
-/** A hung call otherwise blocks for ~5 minutes before failing. */
-const REQUEST_TIMEOUT_MS = 120_000;
+/**
+ * Fail fast. On a lossy connection a long ladder burns minutes per file for
+ * nothing: 45s x 2 attempts caps a bad file near a minute instead of seven,
+ * and --retry-failed sweeps the casualties up later on a better line.
+ */
+const REQUEST_TIMEOUT_MS = 45_000;
+const DEFAULT_ATTEMPTS = 2;
+const RETRY_BACKOFF_MS = 4000;
 
 const FILE_ACTIVE_TIMEOUT_MS = 180_000;
 const FILE_POLL_MS = 3000;
@@ -164,7 +174,7 @@ export async function generateWithGemini({
   userPrompt,
   schema,
   source,
-  attempts = 3,
+  attempts = DEFAULT_ATTEMPTS,
 }) {
   let parts;
 
@@ -203,7 +213,7 @@ export async function generateWithGemini({
         );
 
       if (!retryable || attempt === attempts) break;
-      await sleep(attempt * 15000);
+      await sleep(attempt * RETRY_BACKOFF_MS);
       continue;
     }
 
@@ -214,7 +224,7 @@ export async function generateWithGemini({
         response.candidates?.[0]?.finishReason ?? "unknown"
       }).`;
       if (attempt === attempts) break;
-      await sleep(2000);
+      await sleep(RETRY_BACKOFF_MS);
       continue;
     }
 
@@ -225,7 +235,7 @@ export async function generateWithGemini({
     } catch {
       lastReason = `Gemini returned malformed JSON (${text.length} chars).`;
       if (attempt === attempts) break;
-      await sleep(2000);
+      await sleep(RETRY_BACKOFF_MS);
     }
   }
 

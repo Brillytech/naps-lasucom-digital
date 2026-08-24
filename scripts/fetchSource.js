@@ -29,8 +29,8 @@ const MAX_INLINE_BYTES = 20 * 1024 * 1024;
 /** Beyond this, something has gone wrong -- a lecture is not 150 MB. */
 const MAX_ANY_BYTES = 150 * 1024 * 1024;
 
-const FETCH_TIMEOUT_MS = 120_000;
-const FETCH_ATTEMPTS = 3;
+const FETCH_TIMEOUT_MS = 60_000;
+const FETCH_ATTEMPTS = 2;
 
 /** Detect real file type from magic bytes -- never trust the extension. */
 export function sniffFileType(buffer) {
@@ -125,7 +125,7 @@ async function download(url) {
     } catch (error) {
       lastError = error;
       if (!error.retryable || attempt === FETCH_ATTEMPTS) break;
-      await sleep(attempt * 5000);
+      await sleep(attempt * 4000);
     }
   }
 
