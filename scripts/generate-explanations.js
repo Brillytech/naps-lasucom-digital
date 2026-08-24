@@ -28,6 +28,12 @@ import { createClient } from "@supabase/supabase-js";
 import { prepareSource } from "./fetchSource.js";
 import { SYSTEM_PROMPT, buildUserPrompt } from "./prompt.js";
 import {
+  GEMINI_MODELS,
+  DEFAULT_DELAY_MS,
+  createGeminiClient,
+  generateWithGemini,
+} from "./geminiProvider.js";
+import {
   EXPLANATION_JSON_SCHEMA,
   STATUS,
   buildStoredExplanation,
@@ -64,6 +70,9 @@ function loadEnv() {
 
 function parseArgs(argv) {
   const args = {
+    provider: "claude",
+    geminiModel: GEMINI_MODELS.DEFAULT,
+    delayMs: DEFAULT_DELAY_MS,
     limit: null,
     ids: null,
     retryFailed: false,
@@ -72,7 +81,10 @@ function parseArgs(argv) {
   };
 
   for (const arg of argv.slice(2)) {
-    if (arg.startsWith("--limit=")) args.limit = Number(arg.split("=")[1]);
+    if (arg.startsWith("--provider=")) args.provider = arg.split("=")[1];
+    else if (arg.startsWith("--gemini-model=")) args.geminiModel = arg.split("=")[1];
+    else if (arg.startsWith("--delay=")) args.delayMs = Number(arg.split("=")[1]);
+    else if (arg.startsWith("--limit=")) args.limit = Number(arg.split("=")[1]);
     // Explicit row ids, for the quality gate: --limit alone takes whatever is
     // oldest, which is not a representative sample.
     else if (arg.startsWith("--ids="))
@@ -88,6 +100,13 @@ function parseArgs(argv) {
       console.error(`Unknown flag: ${arg}`);
       process.exit(1);
     }
+  }
+
+  if (!["claude", "gemini"].includes(args.provider)) {
+    console.error(
+      `--provider must be "claude" or "gemini" (got "${args.provider}").`
+    );
+    process.exit(1);
   }
 
   if (args.limit !== null && (!Number.isFinite(args.limit) || args.limit < 1)) {
@@ -182,7 +201,7 @@ async function prepareAll(supabase, queue, args, anthropic) {
 
     // Oversized PDFs go up through the Files API and are referenced by id,
     // which sidesteps the 32 MB request cap. Scans land here most often.
-    if (source.needsUpload) {
+    if (source.needsUpload && args.provider === "claude") {
       if (args.dryRun) {
         log(
           `${label} ready ${title} (${source.sourceKind}, ${(
@@ -358,6 +377,84 @@ async function writeResults(supabase, anthropic, batchId, prepared) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Gemini path
+ *
+ * Sequential rather than batched: the free tier is bound by requests per
+ * minute, not by cost, so there is nothing for a batch to save. Validation
+ * and persistence go through the same findSemanticProblem() and
+ * buildStoredExplanation() the Claude path uses, so a row written by either
+ * provider is indistinguishable in shape.
+ * ------------------------------------------------------------------ */
+
+async function runGemini(supabase, prepared, args) {
+  const ai = createGeminiClient(process.env.GEMINI_API_KEY);
+
+  let completed = 0;
+  let failed = 0;
+  let index = 0;
+
+  const total = prepared.size;
+
+  for (const [id, { resource, source }] of prepared) {
+    index += 1;
+    const label = `${index}/${total}`;
+    const title = (resource.title || id).slice(0, 52);
+
+    await markRow(supabase, id, {
+      processing_status: STATUS.PROCESSING,
+      explanation_batch_id: `gemini:${args.geminiModel}`,
+      error_message: null,
+    });
+
+    const result = await generateWithGemini({
+      ai,
+      model: args.geminiModel,
+      systemPrompt: SYSTEM_PROMPT,
+      userPrompt: buildUserPrompt(resource),
+      schema: EXPLANATION_JSON_SCHEMA,
+      source,
+    });
+
+    const problem = result.ok
+      ? findSemanticProblem(result.parsed)
+      : result.reason;
+
+    if (problem) {
+      failed += 1;
+      log(`${label} FAIL ${title} -- ${problem}`);
+      await markRow(supabase, id, {
+        processing_status: STATUS.FAILED,
+        error_message: problem,
+        generated_date: new Date().toISOString(),
+      });
+    } else {
+      const explanation = buildStoredExplanation(result.parsed, {
+        sourceUrl: resource.external_link || resource.file_url || "",
+        extractionMethod: source.extractionMethod,
+        sourceKind: source.sourceKind,
+        model: result.model,
+      });
+
+      await markRow(supabase, id, {
+        generated_explanation: explanation,
+        processing_status: STATUS.COMPLETED,
+        generated_date: new Date().toISOString(),
+        error_message: null,
+      });
+
+      completed += 1;
+      log(`${label} ok   ${title} (${result.parsed.sections.length} sections)`);
+    }
+
+    // Free-tier pacing. Skipped after the last item so a short run does not
+    // sit idle for no reason.
+    if (index < total) await sleep(args.delayMs);
+  }
+
+  return { completed, failed };
+}
+
+/* ------------------------------------------------------------------ *
  * Main
  * ------------------------------------------------------------------ */
 
@@ -398,11 +495,14 @@ async function main() {
   log(`Queue: ${queue.length} material(s).${args.dryRun ? "  [DRY RUN]" : ""}`);
 
   // Built before preparation because oversized PDFs are uploaded during it.
-  const anthropic = args.dryRun
-    ? null
-    : anthropicKey
-      ? new Anthropic({ apiKey: anthropicKey })
-      : new Anthropic();
+  // Only for the Claude path -- constructing it under --provider=gemini would
+  // demand Anthropic credentials that a Gemini run has no use for.
+  const anthropic =
+    args.dryRun || args.provider !== "claude"
+      ? null
+      : anthropicKey
+        ? new Anthropic({ apiKey: anthropicKey })
+        : new Anthropic();
 
   const { requests, prepared, skipped, uploaded } = await prepareAll(
     supabase,
@@ -417,16 +517,34 @@ async function main() {
     }.`
   );
 
-  if (requests.length === 0) {
+  if (prepared.size === 0) {
     log("No usable sources in this batch.");
     return;
   }
 
   if (args.dryRun) {
-    const sample = requests[0];
     log("Dry run -- nothing submitted, nothing written.");
-    log(`First request: custom_id=${sample.custom_id}`);
-    log(`  content blocks: ${sample.params.messages[0].content.map((c) => c.type).join(", ")}`);
+    log(`Provider would be: ${args.provider}`);
+    if (requests.length) {
+      const sample = requests[0];
+      log(`First request: custom_id=${sample.custom_id}`);
+      log(
+        `  content blocks: ${sample.params.messages[0].content
+          .map((c) => c?.type ?? "pending-upload")
+          .join(", ")}`
+      );
+    }
+    return;
+  }
+
+  if (args.provider === "gemini") {
+    log(`Running ${prepared.size} through ${args.geminiModel}, ${args.delayMs}ms apart.`);
+
+    const { completed, failed } = await runGemini(supabase, prepared, args);
+
+    log(
+      `Done. ${completed} completed, ${failed} failed, ${skipped} skipped, of ${queue.length} queued.`
+    );
     return;
   }
 

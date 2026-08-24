@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
+    "@google/genai": "^2.18.0",
     "@supabase/supabase-js": "^2.110.0",
     "docx": "^9.7.1",
     "jspdf": "^4.2.1",
