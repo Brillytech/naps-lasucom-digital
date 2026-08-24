@@ -14430,9 +14430,16 @@ a.file-open:active {
     font-size: 15px;
   }
 
+  /* Two columns, matching the two children: the title block and the
+     actions. The icon column belongs to .file-open, which owns the icon
+     since the whole title block became the link. */
   .file-row {
-    grid-template-columns: 46px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     padding-block: var(--sp-4);
+  }
+
+  .file-open {
+    grid-template-columns: 46px minmax(0, 1fr);
   }
 
   .file-ico {
