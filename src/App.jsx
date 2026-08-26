@@ -61,6 +61,10 @@ function App() {
   const isAdminLogin = location.pathname === "/naps-admin/login";
   const isAdminSetPassword = location.pathname === "/naps-admin/set-password";
 
+  // Login and set-password render without the rail, so the shell must not
+  // reserve space for it.
+  const showAdminNav = isAdminRoute && !isAdminLogin && !isAdminSetPassword;
+
  const [darkMode, setDarkMode] = useState(() => {
   const savedTheme = localStorage.getItem("theme");
 
@@ -86,7 +90,13 @@ useEffect(() => {
   return (
     <div
       className={
-        isAdminRoute ? "app admin-shell" : darkMode ? "app dark" : "app"
+        isAdminRoute
+          ? showAdminNav
+            ? "app admin-shell"
+            : "app admin-shell admin-shell--bare"
+          : darkMode
+            ? "app dark"
+            : "app"
       }
     >
       <div className={isAdminRoute ? "admin-screen" : "phone-screen"}>
@@ -204,9 +214,7 @@ useEffect(() => {
           </nav>
         )}
 
-        {isAdminRoute && !isAdminLogin && !isAdminSetPassword && (
-          <AdminConsoleNav />
-        )}
+        {showAdminNav && <AdminConsoleNav />}
 
         {!isAdminRoute && <InstallPrompt />}
       </div>

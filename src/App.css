@@ -16203,9 +16203,22 @@ a.naps-row .home-chev {
 
 /* ---------------- desktop: sidebar console ---------------- */
 
+/* Login and set-password render without the rail. They must not reserve
+   space for it, or the card sits shoved to the right against nothing. */
+.app.admin-shell--bare {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--sp-6);
+}
+
 @media (min-width: 900px) {
   .app.admin-shell {
     padding-left: var(--anav-width);
+  }
+
+  .app.admin-shell--bare {
+    padding-left: var(--sp-6);
   }
 
   .anav {
