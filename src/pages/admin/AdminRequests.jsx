@@ -1,18 +1,14 @@
 import {
   AlertCircle,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
   Clock3,
   EyeOff,
-  FileText,
   Inbox,
   MessageCircle,
-  Phone,
+  RefreshCw,
   Search,
-  ShieldCheck,
   Trash2,
-  User,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
@@ -43,7 +39,7 @@ function AdminRequests() {
   const [status, setStatus] = useState("all");
   const [hideResolved, setHideResolved] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [expandedId, setExpandedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
 
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -123,14 +119,10 @@ function AdminRequests() {
       return;
     }
 
-    if (expandedId === requestId) setExpandedId(null);
+    if (selectedId === requestId) setSelectedId(null);
 
     await fetchRequests();
     setActionLoading(false);
-  }
-
-  function toggleExpand(requestId) {
-    setExpandedId((prev) => (prev === requestId ? null : requestId));
   }
 
   const stats = useMemo(() => {
@@ -145,33 +137,17 @@ function AdminRequests() {
     };
   }, [requests]);
 
-  const categoryCards = useMemo(() => {
-    return categories.map((category) => {
-      const items = requests.filter((item) => getCategory(item) === category);
-
-      const newCount = items.filter(
-        (item) => (item.status || "pending") === "pending"
-      ).length;
-
-      return {
-        category,
-        total: items.length,
-        newCount,
-        assignedOffice: getAssignedOffice(category),
-      };
-    });
-  }, [requests]);
-
   const filteredRequests = useMemo(() => {
-    if (!selectedCategory) return [];
-
     const term = searchTerm.trim().toLowerCase();
 
     return requests.filter((item) => {
       const itemCategory = getCategory(item);
       const itemStatus = item.status || "pending";
 
-      const matchesCategory = itemCategory === selectedCategory;
+      // No category chosen now means "all", not "none". The old board
+      // required picking one before anything was listed.
+      const matchesCategory =
+        !selectedCategory || itemCategory === selectedCategory;
       const matchesStatus = status === "all" || itemStatus === status;
 
       // "Hide resolved" only applies while browsing the "All" tab —
@@ -206,363 +182,345 @@ function AdminRequests() {
     });
   }, [requests, selectedCategory, status, hideResolved, searchTerm]);
 
-  const hiddenResolvedCount = useMemo(() => {
-    if (!selectedCategory || status !== "all" || !hideResolved) return 0;
+  const selected = useMemo(
+    () => requests.find((item) => item.id === selectedId) || null,
+    [requests, selectedId]
+  );
 
-    return requests.filter(
-      (item) =>
-        getCategory(item) === selectedCategory && item.status === "resolved"
-    ).length;
-  }, [requests, selectedCategory, status, hideResolved]);
-
-  function openCategory(category) {
-    setSelectedCategory(category);
-    setStatus("all");
-    setSearchTerm("");
-    setExpandedId(null);
-  }
-
-  function backToCategories() {
-    setSelectedCategory("");
-    setStatus("all");
-    setSearchTerm("");
-    setExpandedId(null);
-  }
+  const statusCounts = {
+    all: stats.total,
+    pending: stats.newRequests,
+    in_progress: stats.inProgress,
+    resolved: stats.resolved,
+  };
 
   return (
-    <main className="admin-dashboard-page">
-      <header className="admin-dashboard-header">
+    <main className="admin-page">
+      <header className="apage-head">
         <div>
-          <p>Admin Requests</p>
+          <p className="apage-eyebrow">Secretariat</p>
           <h1>Requests</h1>
-          <span>Review and manage requests from NAPSITES.</span>
+          <p>
+            {stats.newRequests > 0
+              ? `${stats.newRequests} waiting · ${stats.inProgress} in review`
+              : `Nothing waiting · ${stats.inProgress} in review`}
+          </p>
+        </div>
+
+        <div className="apage-actions">
+          <button type="button" className="abtn" onClick={fetchRequests}>
+            <RefreshCw size={14} />
+            Refresh
+          </button>
         </div>
       </header>
 
-      <section className="request-alert-card">
-        <div>
-          <MessageCircle size={22} />
+      {errorMessage && (
+        <div className="rq-note is-bad" style={{ marginTop: 16 }}>
+          <AlertCircle size={16} />
+          {errorMessage}
         </div>
+      )}
 
-        <section>
-          <h3>{stats.newRequests} new request(s)</h3>
-          <p>
-            {stats.newRequests > 0
-              ? "Some requests still need attention."
-              : "No new request at the moment."}
-          </p>
-        </section>
-      </section>
+      {/* Counts double as filters, so the number and the action are the
+          same control rather than two competing ones. */}
+      <div className="ametrics">
+        {[
+          ["all", "Total", stats.total, null],
+          ["pending", "New", stats.newRequests, "Needs attention"],
+          ["in_progress", "In review", stats.inProgress, null],
+          ["resolved", "Resolved", stats.resolved, null],
+        ].map(([value, label, count, note]) => (
+          <button
+            type="button"
+            key={value}
+            className="ametric"
+            onClick={() => {
+              setStatus(value);
+              setSelectedId(null);
+            }}
+            style={{ textAlign: "left", border: 0, cursor: "pointer", font: "inherit" }}
+          >
+            <span className="ametric-label">{label}</span>
+            <strong className="ametric-value">{count}</strong>
+            <span
+              className={
+                note && count > 0 ? "ametric-note is-alert" : "ametric-note"
+              }
+            >
+              {note && count > 0 ? note : status === value ? "Filtering by this" : " "}
+            </span>
+          </button>
+        ))}
+      </div>
 
-      <section className="admin-request-summary-grid">
-        <SummaryCard label="Total" value={stats.total} />
-        <SummaryCard label="New" value={stats.newRequests} active />
-        <SummaryCard label="In Review" value={stats.inProgress} />
-        <SummaryCard label="Resolved" value={stats.resolved} />
-      </section>
-
-      {errorMessage && <div className="admin-error">{errorMessage}</div>}
-
-      {!selectedCategory && (
-        <section className="request-category-board">
-          <div className="admin-section-title">
-            <h2>Request Categories</h2>
-            <p>Select a category to view related requests.</p>
+      <section className={selectedId ? "ainbox is-reading" : "ainbox"}>
+        <div className="ainbox-bar">
+          <div className="ainbox-search">
+            <Search size={15} />
+            <input
+              placeholder="Search name, level, matric or message..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
 
-          {loading ? (
-            <div className="admin-loading-card">Loading requests...</div>
-          ) : (
-            <div className="request-category-board-grid">
-              {categoryCards.map((item) => (
-                <CategoryCard
-                  key={item.category}
-                  item={item}
-                  onClick={() => openCategory(item.category)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+          <div className="ainbox-filters">
+            {statuses.map((item) => (
+              <button
+                type="button"
+                key={item.value}
+                className={status === item.value ? "active" : ""}
+                onClick={() => {
+                  setStatus(item.value);
+                  setSelectedId(null);
+                }}
+              >
+                {item.label}
+                <span className="count">{statusCounts[item.value] ?? 0}</span>
+              </button>
+            ))}
+          </div>
 
-      {selectedCategory && (
-        <>
-          <section className="selected-request-category-card">
-            <button type="button" onClick={backToCategories}>
-              Back
-            </button>
+          <select
+            className="ainbox-select"
+            value={selectedCategory}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value);
+              setSelectedId(null);
+            }}
+          >
+            <option value="">All categories</option>
+            {categories.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
 
-            <div>
-              <h2>{selectedCategory}</h2>
-              <p>{getAssignedOffice(selectedCategory)}</p>
-            </div>
+          <label className="hide-resolved-toggle">
+            <input
+              type="checkbox"
+              checked={hideResolved}
+              onChange={(e) => setHideResolved(e.target.checked)}
+            />
+            <EyeOff size={13} />
+            Hide resolved
+          </label>
+        </div>
 
-            <span>
-              {
-                requests.filter((item) => getCategory(item) === selectedCategory)
-                  .length
-              }
-            </span>
-          </section>
+        <div className="ainbox-split">
+          <div className="ainbox-list">
+            {loading ? (
+              [0, 1, 2, 3, 4].map((n) => (
+                <div className="ainbox-row" key={n}>
+                  <span />
+                  <span>
+                    <span className="askel" style={{ width: "58%", height: 12 }} />
+                    <span
+                      className="askel"
+                      style={{ width: "88%", height: 10, marginTop: 8 }}
+                    />
+                  </span>
+                </div>
+              ))
+            ) : filteredRequests.length === 0 ? (
+              <div className="aempty">
+                <span className="ico ico-md ico--tint tone-blue">
+                  <Inbox size={22} />
+                </span>
+                <h3>Nothing here</h3>
+                <p>
+                  {searchTerm || selectedCategory || status !== "all"
+                    ? "No request matches these filters."
+                    : "No requests have been submitted yet."}
+                </p>
+              </div>
+            ) : (
+              filteredRequests.map((item) => {
+                const itemStatus = item.status || "pending";
+                const isAnon = item.is_anonymous || item.request_type === "anonymous";
 
-          <section className="admin-request-control-card">
-            <div className="admin-recent-search">
-              <Search size={17} />
-              <input
-                placeholder="Search inside this category..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={[
+                      "ainbox-row",
+                      itemStatus === "pending" && "is-unread",
+                      selectedId === item.id && "is-active",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() => setSelectedId(item.id)}
+                  >
+                    <span className="ainbox-dot" />
 
-            <div className="admin-request-filter-chips">
-              {statuses.map((item) => (
+                    <span>
+                      <span className="ainbox-row-top">
+                        <strong>
+                          {isAnon
+                            ? "Anonymous"
+                            : item.full_name || item.name || "No name"}
+                        </strong>
+                        <span className="ainbox-row-time">
+                          {formatWhen(item.created_at)}
+                        </span>
+                      </span>
+
+                      <p>{getMessage(item)}</p>
+
+                      <span className="ainbox-row-meta">
+                        <span className={`apill apill--${pillFor(itemStatus)}`}>
+                          {formatStatus(itemStatus)}
+                        </span>
+                        <span className="ainbox-tag">{getCategory(item)}</span>
+                        {item.level && <span className="ainbox-tag">{item.level}</span>}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="ainbox-detail">
+            {!selected ? (
+              <div className="aempty">
+                <span className="ico ico-md ico--tint tone-blue">
+                  <MessageCircle size={22} />
+                </span>
+                <h3>Select a request</h3>
+                <p>Pick one from the list to read it in full and act on it.</p>
+              </div>
+            ) : (
+              <div className="ainbox-detail-inner">
                 <button
                   type="button"
-                  key={item.value}
-                  className={status === item.value ? "active" : ""}
-                  onClick={() => setStatus(item.value)}
+                  className="ainbox-back"
+                  onClick={() => setSelectedId(null)}
                 >
-                  {item.label}
+                  <ChevronRight size={14} style={{ transform: "rotate(180deg)" }} />
+                  Back to list
                 </button>
-              ))}
-            </div>
 
-            <label className="hide-resolved-toggle">
-              <input
-                type="checkbox"
-                checked={hideResolved}
-                onChange={(e) => setHideResolved(e.target.checked)}
-              />
-              <EyeOff size={14} />
-              Hide resolved from "All"
-            </label>
-          </section>
+                <h2>
+                  {selected.is_anonymous || selected.request_type === "anonymous"
+                    ? "Anonymous request"
+                    : selected.full_name || selected.name || "No name provided"}
+                </h2>
 
-          {hiddenResolvedCount > 0 && (
-            <button
-              type="button"
-              className="hidden-resolved-banner"
-              onClick={() => setStatus("resolved")}
-            >
-              {hiddenResolvedCount} resolved request(s) hidden — tap to view
-            </button>
-          )}
+                <div className="ainbox-detail-sub">
+                  <span
+                    className={`apill apill--${pillFor(selected.status || "pending")}`}
+                  >
+                    {formatStatus(selected.status || "pending")}
+                  </span>
+                  <span className="ainbox-tag">{getCategory(selected)}</span>
+                  <span className="ainbox-row-time">
+                    {formatWhen(selected.created_at)}
+                  </span>
+                </div>
 
-          {loading ? (
-            <div className="admin-loading-card">Loading requests...</div>
-          ) : filteredRequests.length > 0 ? (
-            <section className="request-inbox-list">
-              <div className="request-inbox-rows">
-                {filteredRequests.map((item) => (
-                  <RequestItem
-                    key={item.id}
-                    request={item}
-                    isExpanded={expandedId === item.id}
-                    onToggle={() => toggleExpand(item.id)}
-                    onUpdateStatus={updateStatus}
-                    onDelete={deleteRequest}
-                    actionLoading={actionLoading}
-                  />
-                ))}
+                <div className="ainbox-facts">
+                  <div className="ainbox-fact">
+                    <span>Level</span>
+                    <strong>{selected.level || "Not given"}</strong>
+                  </div>
+                  <div className="ainbox-fact">
+                    <span>Matric</span>
+                    <strong>{selected.matric_no || "Not given"}</strong>
+                  </div>
+                  <div className="ainbox-fact">
+                    <span>Contact</span>
+                    <strong>{selected.phone || selected.whatsapp || "Not given"}</strong>
+                  </div>
+                  <div className="ainbox-fact">
+                    <span>Assigned to</span>
+                    <strong>{getAssignedOffice(getCategory(selected))}</strong>
+                  </div>
+                </div>
+
+                <div className="ainbox-message">{getMessage(selected)}</div>
+
+                <div className="ainbox-actions">
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    className={
+                      (selected.status || "pending") === "pending"
+                        ? "abtn is-on"
+                        : "abtn"
+                    }
+                    onClick={() => updateStatus(selected.id, "pending")}
+                  >
+                    <Clock3 size={14} />
+                    New
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    className={
+                      selected.status === "in_progress" ? "abtn is-on" : "abtn"
+                    }
+                    onClick={() => updateStatus(selected.id, "in_progress")}
+                  >
+                    <AlertCircle size={14} />
+                    In review
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    className={
+                      selected.status === "resolved"
+                        ? "abtn abtn--done is-on"
+                        : "abtn"
+                    }
+                    onClick={() => updateStatus(selected.id, "resolved")}
+                  >
+                    <CheckCircle2 size={14} />
+                    Resolved
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    className="abtn abtn--danger spacer"
+                    onClick={() => deleteRequest(selected.id)}
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
+                </div>
               </div>
-            </section>
-          ) : (
-            <section className="admin-empty-panel">
-              <Inbox size={32} />
-              <h3>No request found</h3>
-              <p>No request matches this selection.</p>
-            </section>
-          )}
-        </>
-      )}
+            )}
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
 
-function SummaryCard({ label, value, active }) {
-  return (
-    <article className={active ? "summary-card active" : "summary-card"}>
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </article>
-  );
+function pillFor(status) {
+  if (status === "resolved") return "done";
+  if (status === "in_progress") return "active";
+  return "pending";
 }
 
-function CategoryCard({ item, onClick }) {
-  const isEmpty = item.total === 0;
+function formatWhen(value) {
+  if (!value) return "";
 
-  return (
-    <button
-      type="button"
-      className={isEmpty ? "request-category-card empty" : "request-category-card"}
-      onClick={onClick}
-      disabled={isEmpty}
-    >
-      {item.newCount > 0 && (
-        <span className="new-request-tag">{item.newCount} New</span>
-      )}
+  const then = new Date(value);
+  const mins = Math.floor((Date.now() - then.getTime()) / 60000);
 
-      <div className="request-category-icon">
-        <MessageCircle size={21} />
-      </div>
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  if (mins < 1440) return `${Math.floor(mins / 60)}h`;
+  if (mins < 10080) return `${Math.floor(mins / 1440)}d`;
 
-      <section>
-        <h3>{item.category}</h3>
-        <p>{item.assignedOffice}</p>
-        <small>
-          {item.total === 0 ? "No request yet" : `${item.total} request(s)`}
-        </small>
-      </section>
-
-      {!isEmpty && <ChevronRight size={18} />}
-    </button>
-  );
-}
-
-function RequestItem({
-  request,
-  isExpanded,
-  onToggle,
-  onUpdateStatus,
-  onDelete,
-  actionLoading,
-}) {
-  const category = getCategory(request);
-  const status = request.status || "pending";
-  const isAnonymous = request.is_anonymous || request.anonymous;
-
-  return (
-    <article
-      className={
-        isExpanded
-          ? `request-row new expanded ${status}`
-          : status === "pending"
-          ? "request-row new"
-          : "request-row"
-      }
-    >
-      <button type="button" className="request-row-header" onClick={onToggle}>
-        <div className="request-row-dot" />
-
-        <section>
-          <div className="request-row-top">
-            <h3>{trimText(getMessage(request), 44)}</h3>
-            <span className={`request-status ${status}`}>
-              {formatStatus(status)}
-            </span>
-          </div>
-
-          <p>
-            {isAnonymous
-              ? "Anonymous"
-              : request.full_name || request.name || "No name"}{" "}
-            • {request.level || "No level"}
-          </p>
-        </section>
-
-        <ChevronDown
-          size={16}
-          className={isExpanded ? "chevron-flip" : ""}
-        />
-      </button>
-
-      {isExpanded && (
-        <div className="request-row-details">
-          <div className="admin-request-detail-info">
-            <InfoRow
-              icon={<User size={15} />}
-              label="Student"
-              value={
-                isAnonymous
-                  ? "Anonymous"
-                  : request.full_name || request.name || "No name provided"
-              }
-            />
-
-            <InfoRow
-              icon={<FileText size={15} />}
-              label="Level"
-              value={request.level || "Not provided"}
-            />
-
-            <InfoRow
-              icon={<Phone size={15} />}
-              label="Contact"
-              value={request.phone || request.whatsapp || "Not provided"}
-            />
-
-            <InfoRow
-              icon={<ShieldCheck size={15} />}
-              label="Assigned to"
-              value={getAssignedOffice(category)}
-            />
-          </div>
-
-          <div className="admin-request-message-box">
-            <h3>Message</h3>
-            <p>{getMessage(request)}</p>
-          </div>
-
-          <div className="admin-request-actions">
-            <button
-              type="button"
-              disabled={actionLoading}
-              className={status === "pending" ? "active" : ""}
-              onClick={() => onUpdateStatus(request.id, "pending")}
-            >
-              <Clock3 size={15} />
-              New
-            </button>
-
-            <button
-              type="button"
-              disabled={actionLoading}
-              className={status === "in_progress" ? "active" : ""}
-              onClick={() => onUpdateStatus(request.id, "in_progress")}
-            >
-              <AlertCircle size={15} />
-              In Review
-            </button>
-
-            <button
-              type="button"
-              disabled={actionLoading}
-              className={status === "resolved" ? "resolved-btn active" : "resolved-btn"}
-              onClick={() => onUpdateStatus(request.id, "resolved")}
-            >
-              <CheckCircle2 size={15} />
-              Resolved
-            </button>
-
-            <button
-              type="button"
-              disabled={actionLoading}
-              className="request-delete-btn"
-              onClick={() => onDelete(request.id)}
-              aria-label="Delete request"
-            >
-              <Trash2 size={15} />
-            </button>
-          </div>
-        </div>
-      )}
-    </article>
-  );
-}
-
-function InfoRow({ icon, label, value }) {
-  return (
-    <div className="admin-request-info-row">
-      <div>{icon}</div>
-
-      <section>
-        <span>{label}</span>
-        <p>{value}</p>
-      </section>
-    </div>
-  );
+  return then.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 function getCategory(item) {
@@ -596,12 +554,6 @@ function formatStatus(status) {
   };
 
   return map[status] || "New";
-}
-
-function trimText(text, maxLength) {
-  if (!text) return "No message provided.";
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength)}...`;
 }
 
 export default AdminRequests;
