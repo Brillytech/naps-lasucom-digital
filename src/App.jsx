@@ -1,6 +1,8 @@
 import { Routes, Route, NavLink, useLocation } from "react-router-dom";
 import {
   BookOpen,
+  LogOut,
+  ShieldCheck,
   FileArchive,
   FolderUp,
   Home,
@@ -13,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { supabase } from "./lib/supabase";
 
 /* STUDENT / PUBLIC PAGES */
 import HomePage from "./pages/Home";
@@ -202,7 +205,7 @@ useEffect(() => {
         )}
 
         {isAdminRoute && !isAdminLogin && !isAdminSetPassword && (
-          <AdminBottomNav />
+          <AdminConsoleNav />
         )}
 
         {!isAdminRoute && <InstallPrompt />}
@@ -223,50 +226,132 @@ function StudentNavItem({ to, icon, label }) {
   );
 }
 
-function AdminBottomNav() {
+/**
+ * One nav element for both form factors: a left rail on desktop, a bar across
+ * the foot on small screens. The secondary destinations and the identity block
+ * only appear on the rail, where there is room for them -- on mobile they stay
+ * behind "More", which is why that entry is desktop-hidden.
+ */
+function AdminConsoleNav() {
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (cancelled || !data?.user) return;
+
+      supabase
+        .from("admin_profiles")
+        .select("full_name, office")
+        .eq("user_id", data.user.id)
+        .single()
+        .then(({ data: row }) => {
+          if (!cancelled) setProfile(row || null);
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    navigate("/naps-admin/login");
+  }
+
+  const initials = (profile?.full_name || "NA")
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
   return (
-    <nav className="admin-bottom-nav">
-      <AdminNavItem
-        to="/naps-admin"
-        icon={<LayoutDashboard size={21} />}
-        label="Home"
-        end
-      />
+    <nav className="anav">
+      <div className="anav-brand">
+        <img src="/images/naps-logo.png" alt="" />
+        <div>
+          <span>NAPS LASUCOM</span>
+          <small>Secretariat</small>
+        </div>
+      </div>
+
+      <AdminNavItem to="/naps-admin" icon={<LayoutDashboard size={19} />} label="Overview" end />
+      <AdminNavItem to="/naps-admin/requests" icon={<MessageCircle size={19} />} label="Requests" />
+      <AdminNavItem to="/naps-admin/uploads" icon={<FolderUp size={19} />} label="Uploads" />
+      <AdminNavItem to="/naps-admin/records" icon={<FileArchive size={19} />} label="Records" />
+
+      <span className="anav-group">Secretariat</span>
 
       <AdminNavItem
-        to="/naps-admin/requests"
-        icon={<MessageCircle size={21} />}
-        label="Requests"
+        to="/naps-admin/announcements"
+        icon={<Megaphone size={19} />}
+        label="Announcements"
+        secondary
       />
-
       <AdminNavItem
-        to="/naps-admin/uploads"
-        icon={<FolderUp size={21} />}
-        label="Uploads"
+        to="/naps-admin/executives"
+        icon={<Users size={19} />}
+        label="Executives"
+        secondary
       />
-
       <AdminNavItem
-        to="/naps-admin/records"
-        icon={<FileArchive size={21} />}
-        label="Records"
+        to="/naps-admin/admins"
+        icon={<ShieldCheck size={19} />}
+        label="Admin access"
+        secondary
+      />
+      <AdminNavItem
+        to="/naps-admin/resources"
+        icon={<BookOpen size={19} />}
+        label="Resource list"
+        secondary
       />
 
+      {/* Small screens only: the rail shows these destinations directly. */}
       <AdminNavItem
         to="/naps-admin/more"
-        icon={<MoreHorizontal size={21} />}
+        icon={<MoreHorizontal size={19} />}
         label="More"
+        mobileOnly
       />
+
+      <div className="anav-user">
+        <span className="anav-avatar">{initials}</span>
+
+        <span>
+          <strong>{profile?.full_name || "Executive"}</strong>
+          <small>{profile?.office || "Secretariat"}</small>
+        </span>
+
+        <button
+          type="button"
+          className="anav-signout"
+          onClick={handleSignOut}
+          title="Sign out"
+          aria-label="Sign out"
+        >
+          <LogOut size={15} />
+        </button>
+      </div>
     </nav>
   );
 }
 
-function AdminNavItem({ to, icon, label, end }) {
+function AdminNavItem({ to, icon, label, end, secondary, mobileOnly }) {
+  const extra = [secondary && "is-secondary", mobileOnly && "is-mobile-only"]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <NavLink
       to={to}
       end={end}
       className={({ isActive }) =>
-        isActive ? "admin-nav-item active" : "admin-nav-item"
+        `anav-item ${extra}${isActive ? " active" : ""}`.trim()
       }
     >
       {icon}
