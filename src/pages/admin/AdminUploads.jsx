@@ -5,6 +5,8 @@ import {
   ExternalLink,
   FileQuestion,
   FileText,
+  Eye,
+  EyeOff,
   Link2,
   Loader2,
   Pencil,
@@ -310,235 +312,245 @@ function AdminUploads() {
     });
   }, [resources, searchTerm, filterCategory]);
 
+
   if (loadingProfile) {
     return (
-      <main className="admin-dashboard-page">
-        <div className="admin-loading-card">Loading uploads...</div>
+      <main className="admin-page">
+        <header className="apage-head">
+          <div>
+            <p className="apage-eyebrow">Library</p>
+            <span className="askel" style={{ width: 180, height: 26, marginTop: 8 }} />
+          </div>
+        </header>
+
+        <div className="aworkspace">
+          <aside className="aform">
+            <div className="aform-body">
+              {[0, 1, 2].map((n) => (
+                <span key={n} className="askel" style={{ height: 36 }} />
+              ))}
+            </div>
+          </aside>
+
+          <div className="apanel" style={{ marginTop: 0 }}>
+            {[0, 1, 2, 3].map((n) => (
+              <div className="alib-row" key={n}>
+                <span className="askel" style={{ width: 34, height: 34, borderRadius: 8 }} />
+                <span>
+                  <span className="askel" style={{ width: "62%", height: 12 }} />
+                  <span className="askel" style={{ width: "38%", height: 10, marginTop: 7 }} />
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </main>
     );
   }
 
+  const canPost = profile && canUpload(profile.role);
+
   return (
-    <main className="admin-dashboard-page">
-      <header className="admin-dashboard-header">
+    <main className="admin-page">
+      <header className="apage-head">
         <div>
-          <p>Admin Uploads</p>
-          <h1>{editingId ? "Edit Resource" : "Add Resource"}</h1>
-          <span>Google Drive link only.</span>
+          <p className="apage-eyebrow">Library</p>
+          <h1>{editingId ? "Edit resource" : "Uploads"}</h1>
+          <p>
+            {editingId
+              ? "Changing an existing entry."
+              : "Add a Google Drive link and it appears for students."}
+          </p>
+        </div>
+
+        <div className="apage-actions">
+          <Link to="/naps-admin/resources" className="abtn">
+            <FileText size={14} />
+            Full library
+          </Link>
         </div>
       </header>
 
-      {!profile || !canUpload(profile.role) ? (
-        <section className="admin-empty-panel">
-          <FileText size={32} />
-          <h3>Restricted Access</h3>
-          <p>Your office does not currently have upload permission.</p>
-        </section>
+      {!canPost ? (
+        <div className="apanel">
+          <div className="aempty">
+            <span className="ico ico-md ico--tint tone-blue">
+              <FileText size={22} />
+            </span>
+            <h3>No upload permission</h3>
+            <p>
+              This office cannot publish resources. Speak to the President if
+              that looks wrong.
+            </p>
+          </div>
+        </div>
       ) : (
-        <>
-          <section className="admin-upload-info-card">
-            <div>
-              <Link2 size={22} />
-            </div>
-
-            <section>
-              <h3>Before adding a resource</h3>
-              <p>
-                Upload the file to Google Drive, set access to anyone with the
-                link, then paste the link here.
-              </p>
-            </section>
-          </section>
-
-          <form className="admin-resource-form" onSubmit={handleSubmit}>
-            {successMessage && (
-              <div className="admin-success">
-                <CheckCircle2 size={18} />
-                {successMessage}
-              </div>
-            )}
-
-            {errorMessage && <div className="admin-error">{errorMessage}</div>}
-
-            <section className="admin-form-block">
-              <div className="admin-form-block-title">
-                <span>1</span>
-                <h3>Select section</h3>
+        <div className="aworkspace">
+          {/* Compose on the left, library on the right, both in view. */}
+          <aside>
+            <form className="aform" onSubmit={handleSubmit}>
+              <div className="apanel-head">
+                <h2>{editingId ? "Edit resource" : "Add resource"}</h2>
+                {editingId && <span className="apill apill--active">Editing</span>}
               </div>
 
-              <div className="admin-category-grid">
-                {categories.map((item) => (
-                  <button
-                    type="button"
-                    key={item.label}
-                    className={
-                      form.category === item.label
-                        ? `admin-category-card ${item.color} active`
-                        : `admin-category-card ${item.color}`
-                    }
-                    onClick={() => updateField("category", item.label)}
-                  >
-                    <div>{item.icon}</div>
-                    <section>
-                      <strong>{item.label}</strong>
-                      <small>{item.subtitle}</small>
-                    </section>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="admin-form-block">
-              <div className="admin-form-block-title">
-                <span>2</span>
-                <h3>Choose level and semester</h3>
-              </div>
-
-              <div className="admin-chip-group">
-                <label>Level</label>
-
-                <div className="admin-chip-row">
-                  {levels.map((item) => (
-                    <button
-                      type="button"
-                      key={item}
-                      className={
-                        form.level === item ? "admin-chip active" : "admin-chip"
-                      }
-                      onClick={() => updateField("level", item)}
-                    >
-                      {item}
-                    </button>
-                  ))}
+              {successMessage && (
+                <div className="anote is-ok" style={{ marginTop: 12 }}>
+                  <CheckCircle2 size={15} />
+                  {successMessage}
                 </div>
-              </div>
-
-              <div className="admin-chip-group">
-                <label>Semester</label>
-
-                <div className="admin-chip-row">
-                  {semesters.map((item) => (
-                    <button
-                      type="button"
-                      key={item}
-                      className={
-                        form.semester === item
-                          ? "admin-chip semester active"
-                          : "admin-chip semester"
-                      }
-                      onClick={() => updateField("semester", item)}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <section className="admin-form-block">
-              <div className="admin-form-block-title">
-                <span>3</span>
-                <h3>Add details</h3>
-              </div>
-
-              <div className="admin-form-group">
-                <label>Course code</label>
-                <input
-                  type="text"
-                  placeholder="Example: PST 201"
-                  value={form.course_code}
-                  onChange={(e) => updateField("course_code", e.target.value)}
-                />
-              </div>
-
-              <div className="admin-form-group">
-                <label>Resource title</label>
-                <input
-                  type="text"
-                  placeholder="Example: PST 201 Material Slides"
-                  value={form.title}
-                  onChange={(e) => updateField("title", e.target.value)}
-                />
-              </div>
-
-              <div className="admin-form-group">
-                <label>Google Drive link</label>
-                <div className="admin-drive-input">
-                  <Link2 size={18} />
-                  <input
-                    type="url"
-                    placeholder="Paste Google Drive link"
-                    value={form.external_link}
-                    onChange={(e) =>
-                      updateField("external_link", e.target.value)
-                    }
-                  />
-                </div>
-              </div>
-            </section>
-
-            <section className="admin-resource-preview">
-              <p>Preview</p>
-              <h3>{form.title || "Resource title"}</h3>
-              <span>
-                {form.category} • {form.level} • {form.semester}
-              </span>
-              <strong>{form.course_code || "COURSE CODE"}</strong>
-            </section>
-
-            <div className="admin-resource-submit-row">
-              {editingId && (
-                <button
-                  type="button"
-                  className="admin-cancel-btn"
-                  onClick={resetForm}
-                >
-                  Cancel Edit
-                </button>
               )}
 
-              <button
-                className="admin-submit-btn"
-                type="submit"
-                disabled={saving}
-              >
-                {saving ? (
-                  <Loader2 size={18} className="spin" />
-                ) : (
-                  <CheckCircle2 size={18} />
-                )}
-                {saving
-                  ? "Saving..."
-                  : editingId
-                  ? "Save Changes"
-                  : "Add Resource"}
-              </button>
-            </div>
-          </form>
+              {errorMessage && (
+                <div className="anote is-bad" style={{ marginTop: 12 }}>
+                  {errorMessage}
+                </div>
+              )}
 
-          <section className="admin-recent-panel">
-            <div className="admin-section-title admin-section-title-row">
-              <div>
-                <h2>Recent Resources</h2>
-                <p>Latest added resources. Edit mistakes or hide wrong uploads.</p>
+              <div className="aform-body">
+                <div className="afield">
+                  <label>Section</label>
+                  <div className="aoptions">
+                    {categories.map((item) => (
+                      <button
+                        type="button"
+                        key={item.label}
+                        className={
+                          form.category === item.label ? "aoption is-on" : "aoption"
+                        }
+                        onClick={() => updateField("category", item.label)}
+                      >
+                        <span
+                          className={`ico ico-sm ico--tint tone-${
+                            item.color === "green" ? "green" : "blue"
+                          }`}
+                        >
+                          {item.icon}
+                        </span>
+
+                        <span>
+                          <strong>{item.label}</strong>
+                          <small>{item.subtitle}</small>
+                        </span>
+
+                        <CheckCircle2 size={15} className="aoption-tick" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="afield">
+                  <label>Level</label>
+                  <div className="achips">
+                    {levels.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        className={form.level === item ? "achip is-on" : "achip"}
+                        onClick={() => updateField("level", item)}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="afield">
+                  <label>Semester</label>
+                  <div className="achips">
+                    {semesters.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        className={form.semester === item ? "achip is-on" : "achip"}
+                        onClick={() => updateField("semester", item)}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="afield">
+                  <label htmlFor="up-course">Course code</label>
+                  <input
+                    id="up-course"
+                    type="text"
+                    placeholder="PST 201"
+                    value={form.course_code}
+                    onChange={(e) => updateField("course_code", e.target.value)}
+                  />
+                </div>
+
+                <div className="afield">
+                  <label htmlFor="up-title">Title</label>
+                  <input
+                    id="up-title"
+                    type="text"
+                    placeholder="PST 201 Material Slides"
+                    value={form.title}
+                    onChange={(e) => updateField("title", e.target.value)}
+                  />
+                </div>
+
+                <div className="afield">
+                  <label htmlFor="up-link">Google Drive link</label>
+                  <div className="afield-icon">
+                    <Link2 size={14} />
+                    <input
+                      id="up-link"
+                      type="url"
+                      placeholder="Paste the share link"
+                      value={form.external_link}
+                      onChange={(e) => updateField("external_link", e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <Link to="/naps-admin/resources" className="admin-view-all-link">
-                View all
-              </Link>
+              <div className="apreview">
+                <span>How students will see it</span>
+                <strong>{form.title || "Resource title"}</strong>
+                <p>
+                  {[form.course_code || "No course code", form.category, form.level, form.semester]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+
+              <div className="aform-foot">
+                {editingId && (
+                  <button type="button" className="abtn" onClick={resetForm}>
+                    Cancel
+                  </button>
+                )}
+
+                <button className="abtn abtn--primary" type="submit" disabled={saving}>
+                  {saving ? <Loader2 size={14} className="spin" /> : <CheckCircle2 size={14} />}
+                  {saving ? "Saving..." : editingId ? "Save changes" : "Add resource"}
+                </button>
+              </div>
+            </form>
+          </aside>
+
+          <section className="apanel" style={{ marginTop: 0 }}>
+            <div className="apanel-head">
+              <h2>Recent uploads</h2>
+              <Link to="/naps-admin/resources">View all</Link>
             </div>
 
-            <div className="admin-recent-tools">
-              <div className="admin-recent-search">
-                <Search size={17} />
+            <div className="ainbox-bar">
+              <div className="ainbox-search">
+                <Search size={15} />
                 <input
-                  placeholder="Search recent..."
+                  placeholder="Search title, course, level..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
 
               <select
+                className="ainbox-select"
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
               >
@@ -550,69 +562,97 @@ function AdminUploads() {
             </div>
 
             {loadingResources ? (
-              <div className="admin-loading-card">Loading recent resources...</div>
-            ) : filteredResources.length > 0 ? (
-              <div className="admin-recent-list">
-                {filteredResources.map((item) => (
-                  <article className="admin-recent-item" key={item.id}>
-                    <section>
-                      <div className="admin-recent-topline">
-                        <span
-                          className={
-                            item.is_published
-                              ? "resource-status published"
-                              : "resource-status hidden"
-                          }
-                        >
-                          {item.is_published ? "Published" : "Hidden"}
-                        </span>
-
-                        <a
-                          href={item.external_link || item.file_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label="Open link"
-                        >
-                          <ExternalLink size={14} />
-                        </a>
-                      </div>
-
-                      <h3>{item.title}</h3>
-
-                      <p>
-                        {item.category} • {item.level || "No level"} •{" "}
-                        {item.semester || "No semester"}
-                      </p>
-
-                      <strong>{item.course_code || "No course code"}</strong>
-                    </section>
-
-                    <div className="admin-recent-actions">
-                      <button type="button" onClick={() => startEdit(item)}>
-                        <Pencil size={15} />
-                        Edit
-                      </button>
-
-                      <button type="button" onClick={() => togglePublish(item)}>
-                        {item.is_published ? "Hide" : "Show"}
-                      </button>
-
-                      <button type="button" onClick={() => deleteResource(item)}>
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </article>
-                ))}
+              [0, 1, 2, 3].map((n) => (
+                <div className="alib-row" key={n}>
+                  <span className="askel" style={{ width: 34, height: 34, borderRadius: 8 }} />
+                  <span>
+                    <span className="askel" style={{ width: "62%", height: 12 }} />
+                    <span className="askel" style={{ width: "38%", height: 10, marginTop: 7 }} />
+                  </span>
+                </div>
+              ))
+            ) : filteredResources.length === 0 ? (
+              <div className="aempty">
+                <span className="ico ico-md ico--tint tone-blue">
+                  <FileText size={22} />
+                </span>
+                <h3>Nothing here</h3>
+                <p>
+                  {searchTerm || filterCategory !== "All"
+                    ? "No resource matches this search."
+                    : "Anything you add will appear here."}
+                </p>
               </div>
             ) : (
-              <section className="admin-empty-panel">
-                <FileText size={30} />
-                <h3>No recent resource found</h3>
-                <p>Added resources will appear here.</p>
-              </section>
+              filteredResources.map((item) => (
+                <article className="alib-row" key={item.id}>
+                  <span
+                    className={`ico ico-sm ico--tint ${
+                      item.category === "Materials" ? "tone-green" : "tone-blue"
+                    }`}
+                  >
+                    <FileText size={16} />
+                  </span>
+
+                  <span>
+                    <h3>{item.title}</h3>
+                    <span className="alib-meta">
+                      <span
+                        className={
+                          item.is_published ? "apill apill--done" : "apill apill--muted"
+                        }
+                      >
+                        {item.is_published ? "Published" : "Hidden"}
+                      </span>
+                      {item.course_code || "No course"} · {item.category} ·{" "}
+                      {item.level || "No level"}
+                    </span>
+                  </span>
+
+                  <span className="alib-actions">
+                    <a
+                      href={item.external_link || item.file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Open the file"
+                      aria-label="Open the file"
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => startEdit(item)}
+                      title="Edit"
+                      aria-label="Edit"
+                    >
+                      <Pencil size={14} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => togglePublish(item)}
+                      title={item.is_published ? "Hide from students" : "Publish"}
+                      aria-label={item.is_published ? "Hide from students" : "Publish"}
+                    >
+                      {item.is_published ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="is-danger"
+                      onClick={() => deleteResource(item)}
+                      title="Delete"
+                      aria-label="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </span>
+                </article>
+              ))
             )}
           </section>
-        </>
+        </div>
       )}
     </main>
   );

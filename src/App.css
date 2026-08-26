@@ -17045,3 +17045,348 @@ a.arow:hover {
     transition: none;
   }
 }
+
+/* ============================================================
+   ADMIN WORKSPACE -- form beside the library
+   Uploads stacked a long form on top of the resource list, so adding
+   an item meant scrolling past the whole form to see whether it
+   landed. On a console the two belong side by side: compose on the
+   left, library on the right, both visible at once.
+   ============================================================ */
+
+.aworkspace {
+  margin-top: var(--sp-4);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+@media (min-width: 1080px) {
+  .aworkspace {
+    grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+  }
+
+  .aworkspace > aside {
+    position: sticky;
+    top: var(--sp-6);
+  }
+}
+
+/* --- form --- */
+
+.aform {
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.aform-body {
+  padding: var(--sp-4);
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.afield {
+  display: grid;
+  gap: 6px;
+}
+
+.afield > label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.afield input,
+.afield select,
+.afield textarea {
+  width: 100%;
+  height: 36px;
+  padding: 0 11px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  outline: 0;
+  transition: border-color 0.16s var(--ease);
+}
+
+.afield textarea {
+  height: auto;
+  min-height: 88px;
+  padding: 9px 11px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.afield input:focus,
+.afield select:focus,
+.afield textarea:focus {
+  border-color: var(--blue);
+}
+
+.afield input::placeholder,
+.afield textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+/* Input with a leading glyph. The icon is absolutely positioned, so it
+   needs its own centring -- the parent's alignment does not reach it. */
+.afield-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.afield-icon > svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.afield-icon input {
+  padding-left: 32px;
+}
+
+/* --- segmented choices --- */
+
+.achips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.achip {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-full);
+  background: #ffffff;
+  padding: 6px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease),
+    color 0.16s var(--ease);
+}
+
+.achip:hover {
+  background: var(--press);
+}
+
+.achip.is-on {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #ffffff;
+}
+
+/* Section choice reads as a list of options, not three coloured cards. */
+.aoptions {
+  display: grid;
+  gap: 5px;
+}
+
+.aoption {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: #ffffff;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
+}
+
+.aoption:hover {
+  background: var(--press);
+}
+
+.aoption.is-on {
+  border-color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 6%, transparent);
+}
+
+.aoption strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.aoption small {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.aoption-tick {
+  color: var(--blue);
+  opacity: 0;
+}
+
+.aoption.is-on .aoption-tick {
+  opacity: 1;
+}
+
+/* --- preview --- */
+
+.apreview {
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px dashed var(--rule);
+  background: #fbfcfe;
+}
+
+.apreview > span {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.apreview strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.apreview p {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.aform-foot {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--rule);
+  background: #ffffff;
+}
+
+.aform-foot .abtn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* --- library rows --- */
+
+.alib-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 11px var(--sp-4);
+}
+
+.alib-row + .alib-row {
+  border-top: 1px solid var(--rule);
+}
+
+.alib-row:hover {
+  background: #fbfcfe;
+}
+
+.alib-row h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alib-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.alib-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.alib-actions button,
+.alib-actions a {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.alib-actions button:hover,
+.alib-actions a:hover {
+  background: var(--press);
+  color: var(--text);
+}
+
+.alib-actions .is-danger:hover {
+  background: color-mix(in srgb, #dc2626 10%, transparent);
+  color: #b91c1c;
+}
+
+/* --- inline notices --- */
+
+.anote {
+  margin: 0 var(--sp-4) var(--sp-3);
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.anote.is-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.anote.is-bad {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .achip,
+  .aoption,
+  .alib-actions button,
+  .alib-actions a,
+  .afield input,
+  .afield select,
+  .afield textarea {
+    transition: none;
+  }
+}
