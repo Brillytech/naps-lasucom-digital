@@ -14,12 +14,14 @@ import {
 } from "docx";
 import * as XLSX from "xlsx";
 import { getSchemaForCategory } from "../data/recordFieldSchemas";
+import {
+  PDF_FONTS,
+  registerPdfFonts,
+  normaliseText,
+  formatAmount,
+} from "./pdfFonts";
 
 const BRAND_BLUE_HEX = "1D4ED8";
-const BRAND_BLUE_RGB = [29, 78, 216];
-const BRAND_LIGHT_RGB = [239, 246, 255];
-const MUTED_RGB = [130, 130, 130];
-const INK_RGB = [35, 35, 38];
 
 const LOGO_HEADER_PATH = "/images/naps-logo.png";
 const LOGO_WATERMARK_PATH = "/images/naps-logo-transparent.png";
@@ -109,7 +111,7 @@ function getMetaEntries(record, setLabel) {
     ["Office", record.source_office || "Not stated"],
   ];
 
-  if (record.amount) meta.push(["Amount / Proceeds", record.amount]);
+  if (record.amount) meta.push(["Amount / Proceeds", formatAmount(record.amount)]);
   if (record.drive_link) meta.push(["Drive Link", record.drive_link]);
 
   return meta;
@@ -130,207 +132,382 @@ function triggerDownload(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-/* ---------------------------- PDF EXPORT ---------------------------- */
+/* ---------------------------- PDF EXPORT ----------------------------
+ *
+ * Laid out as a formal record rather than a form dump: a masthead, a
+ * reference line, a rule-separated metadata table, numbered sections on a
+ * measured column, and a signature block. Type does the work -- serif for
+ * reading, sans for labels, one accent colour used sparingly.
+ */
+
+/** Page furniture, in points. A4 is 595.28 x 841.89. */
+const PDF = {
+  margin: 56,
+  gutter: 18,
+  // ~92 characters at 10pt serif is too wide to read comfortably; the body
+  // column is deliberately narrower than the full measure.
+  bodyLeading: 15.5,
+  rule: 0.6,
+};
+
+const TYPE = {
+  masthead: 15,
+  docType: 8.5,
+  title: 23,
+  subtitle: 10.5,
+  sectionNo: 8.5,
+  section: 11.5,
+  label: 7.5,
+  value: 9.5,
+  body: 10,
+  footer: 7.5,
+};
+
+const PALETTE = {
+  ink: [26, 28, 33],
+  body: [48, 52, 60],
+  muted: [122, 128, 140],
+  hairline: [214, 218, 226],
+  accent: [7, 82, 184],
+  accentSoft: [232, 240, 252],
+};
 
 export async function downloadRecordAsPDF(record, setLabel) {
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const doc = new jsPDF({ unit: "pt", format: "a4", compress: true });
+
+  // Embeds Unicode fonts. Without these, any curly quote letter-spaces its
+  // whole paragraph and the Naira sign renders as a broken bar.
+  const hasFonts = await registerPdfFonts(doc);
+
+  const SERIF = hasFonts ? PDF_FONTS.SERIF : "times";
+  const SANS = hasFonts ? PDF_FONTS.SANS : "helvetica";
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 50;
+  const { margin } = PDF;
   const contentWidth = pageWidth - margin * 2;
+  const footerY = pageHeight - 42;
+  const bodyFloor = footerY - 26;
+
   let y = margin;
+  let pageIndex = 1;
 
   let headerLogo = null;
   let watermarkLogo = null;
 
   try {
     headerLogo = await loadImageAsDataURL(LOGO_HEADER_PATH);
-  } catch (e) {
-    // Logo missing — export still proceeds without it.
+  } catch {
+    // Logo missing -- the export still produces a valid document.
   }
 
   try {
     watermarkLogo = await loadImageAsDataURL(LOGO_WATERMARK_PATH);
-  } catch (e) {
-    // Watermark missing — export still proceeds without it.
+  } catch {
+    // Watermark missing -- non-fatal.
   }
 
+  /* ---------------- primitives ---------------- */
+
+  const setType = (family, style, size, colour) => {
+    doc.setFont(family, style);
+    doc.setFontSize(size);
+    doc.setTextColor(...colour);
+  };
+
+  const hairline = (yy, x1 = margin, x2 = pageWidth - margin, colour = PALETTE.hairline) => {
+    doc.setDrawColor(...colour);
+    doc.setLineWidth(PDF.rule);
+    doc.line(x1, yy, x2, yy);
+  };
+
+  /**
+   * A restrained crest, low on the page rather than centred behind the text.
+   *
+   * Centred and large, it competed with the body on dense pages and dominated
+   * sparse ones. Kept small and set below the text block, it reads as a mark of
+   * origin instead of a background.
+   *
+   * Opacity is applied through GState where the renderer supports it, but the
+   * size and placement are chosen so the document still looks right if a
+   * renderer ignores it -- pdf.js, for one, does not honour it reliably.
+   */
   function drawWatermark() {
     if (!watermarkLogo) return;
-    const size = 320;
+
+    const size = 132;
+    const x = (pageWidth - size) / 2;
+    const yy = pageHeight - size - 96;
+
     doc.saveGraphicsState();
-    doc.setGState(new doc.GState({ opacity: 0.06 }));
-    doc.addImage(
-      watermarkLogo,
-      "PNG",
-      (pageWidth - size) / 2,
-      (pageHeight - size) / 2,
-      size,
-      size
-    );
+    doc.setGState(new doc.GState({ opacity: 0.05 }));
+    doc.addImage(watermarkLogo, "PNG", x, yy, size, size);
     doc.restoreGraphicsState();
   }
 
-  function drawHeader() {
-    y = margin;
+  /** Full masthead, page 1 only. */
+  function drawMasthead() {
+    const top = margin;
 
-    if (headerLogo) {
-      doc.addImage(headerLogo, "PNG", margin, y - 6, 34, 34);
-    }
+    if (headerLogo) doc.addImage(headerLogo, "PNG", margin, top - 4, 38, 38);
 
-    const textX = headerLogo ? margin + 44 : margin;
+    const textX = headerLogo ? margin + 50 : margin;
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...BRAND_BLUE_RGB);
-    doc.text("NAPS LASUCOM", textX, y + 8);
+    setType(SANS, "bold", TYPE.masthead, PALETTE.ink);
+    doc.text("NAPS LASUCOM", textX, top + 12);
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...MUTED_RGB);
-    doc.text("Digital Secretariat • Official Record Export", textX, y + 21);
-
-    doc.setDrawColor(...BRAND_BLUE_RGB);
-    doc.setLineWidth(1.2);
-    doc.line(margin, y + 34, pageWidth - margin, y + 34);
-
-    y += 58;
-  }
-
-  function ensureSpace(minSpace) {
-    if (y > pageHeight - minSpace) {
-      doc.addPage();
-      drawWatermark();
-      drawHeader();
-    }
-  }
-
-  function drawFooter(pageNum, totalPages) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...MUTED_RGB);
+    setType(SANS, "normal", 8, PALETTE.muted);
     doc.text(
-      `Generated ${formatDate(new Date().toISOString())} • NAPS LASUCOM Digital Secretariat`,
-      margin,
-      pageHeight - 26
+      "Nigeria Association of Physiotherapy Students",
+      textX,
+      top + 24
     );
-    doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - margin, pageHeight - 26, {
+
+    setType(SANS, "bold", TYPE.docType, PALETTE.accent);
+    doc.text("OFFICIAL RECORD", pageWidth - margin, top + 12, {
       align: "right",
+      charSpace: 0.8,
+    });
+
+    setType(SANS, "normal", 8, PALETTE.muted);
+    doc.text("Digital Secretariat", pageWidth - margin, top + 24, {
+      align: "right",
+    });
+
+    // Double rule: a heavy accent line over a hairline reads as letterhead
+    // rather than as a divider.
+    doc.setDrawColor(...PALETTE.accent);
+    doc.setLineWidth(1.6);
+    doc.line(margin, top + 40, pageWidth - margin, top + 40);
+    hairline(top + 44);
+
+    y = top + 74;
+  }
+
+  /** Compact running header for continuation pages. */
+  function drawRunningHeader() {
+    const top = margin - 12;
+
+    setType(SANS, "bold", 7.5, PALETTE.muted);
+    doc.text("NAPS LASUCOM · OFFICIAL RECORD", margin, top, { charSpace: 0.6 });
+
+    setType(SANS, "normal", 7.5, PALETTE.muted);
+    doc.text(
+      normaliseText(record.title || "Untitled Record").slice(0, 58),
+      pageWidth - margin,
+      top,
+      { align: "right" }
+    );
+
+    hairline(top + 8);
+    y = top + 30;
+  }
+
+  function newPage() {
+    doc.addPage();
+    pageIndex += 1;
+    drawWatermark();
+    drawRunningHeader();
+  }
+
+  const ensure = (needed) => {
+    if (y + needed > bodyFloor) newPage();
+  };
+
+  /**
+   * Draw a wrapped paragraph, breaking pages mid-paragraph where needed.
+   * Blank lines in the source become real paragraph spacing.
+   */
+  function paragraph(
+    text,
+    {
+      width = contentWidth,
+      x = margin,
+      leading = PDF.bodyLeading,
+      font = SERIF,
+      style = "normal",
+      size = TYPE.body,
+      colour = PALETTE.body,
+    } = {}
+  ) {
+    // Blank lines separate paragraphs; single newlines are real breaks. Minutes
+    // are typed as "3. HEALTH WEEK BUDGET\nThe Social Director tabled...", so
+    // collapsing single newlines would run every heading into its own body.
+    const blocks = normaliseText(text).split(/\n{2,}/);
+
+    blocks.forEach((block, blockIndex) => {
+      // Flatten to laid-out lines first so keep-with-next can look ahead.
+      const lines = block
+        .split("\n")
+        .flatMap((rawLine) => doc.splitTextToSize(rawLine, width));
+
+      lines.forEach((line, lineIndex) => {
+        // Never strand a line alone at a page foot. Reserving two leadings
+        // while more lines follow keeps a run-in heading with its body, which
+        // is where this showed up: "4. CONSTITUTIONAL AMENDMENT" sat by itself
+        // at the bottom of page one.
+        const hasMore = lineIndex < lines.length - 1;
+
+        // Order matters: break the page first, then re-assert type. The
+        // running header leaves the font set to sans, so setting it before
+        // ensure() would be undone by the break.
+        ensure(hasMore ? leading * 2 : leading);
+        setType(font, style, size, colour);
+        doc.text(line, x, y);
+        y += leading;
+      });
+
+      if (blockIndex < blocks.length - 1) y += leading * 0.5;
     });
   }
 
-  drawWatermark();
-  drawHeader();
+  /* ---------------- document ---------------- */
 
-  // Title
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.setTextColor(...INK_RGB);
-  doc.splitTextToSize(record.title || "Untitled Record", contentWidth).forEach((row) => {
-    ensureSpace(90);
-    doc.text(row, margin, y);
-    y += 24;
+  drawWatermark();
+  drawMasthead();
+
+  // --- Reference line: category and date, above the title ---
+  setType(SANS, "bold", TYPE.label, PALETTE.accent);
+  doc.text(
+    normaliseText(record.category || "Record").toUpperCase(),
+    margin,
+    y,
+    { charSpace: 1.1 }
+  );
+
+  setType(SANS, "normal", TYPE.label, PALETTE.muted);
+  doc.text(formatDate(record.record_date).toUpperCase(), pageWidth - margin, y, {
+    align: "right",
+    charSpace: 1.1,
+  });
+
+  y += 20;
+
+  // --- Title ---
+  setType(SERIF, "bold", TYPE.title, PALETTE.ink);
+  doc.splitTextToSize(normaliseText(record.title || "Untitled Record"), contentWidth).forEach(
+    (line) => {
+      ensure(30);
+      doc.text(line, margin, y);
+      y += 28;
+    }
+  );
+
+  y += 6;
+
+  // --- Metadata: a rule-separated table, not a grey box ---
+  const metaEntries = getMetaEntries(record, setLabel);
+  const colWidth = (contentWidth - PDF.gutter) / 2;
+  const metaRowHeight = 30;
+
+  hairline(y);
+  y += 16;
+
+  metaEntries.forEach(([label, value], index) => {
+    const col = index % 2;
+    const isNewRow = col === 0;
+
+    if (isNewRow) ensure(metaRowHeight);
+
+    const x = margin + col * (colWidth + PDF.gutter);
+    const rowY = y;
+
+    setType(SANS, "bold", TYPE.label, PALETTE.muted);
+    doc.text(label.toUpperCase(), x, rowY, { charSpace: 0.7 });
+
+    setType(SERIF, "normal", TYPE.value, PALETTE.ink);
+    const shown = doc.splitTextToSize(normaliseText(value), colWidth)[0] || "—";
+    doc.text(shown, x, rowY + 13);
+
+    // Advance only after the right-hand cell, or after a lone final cell.
+    if (col === 1 || index === metaEntries.length - 1) y += metaRowHeight;
   });
 
   y += 4;
+  hairline(y);
+  y += 30;
 
-  // Category badge
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  const badgeText = record.category || "Record";
-  const badgeWidth = doc.getTextWidth(badgeText) + 22;
-  doc.setFillColor(...BRAND_LIGHT_RGB);
-  doc.roundedRect(margin, y, badgeWidth, 21, 5, 5, "F");
-  doc.setTextColor(...BRAND_BLUE_RGB);
-  doc.text(badgeText, margin + 11, y + 14);
-  y += 38;
+  /* --- Sections --- */
 
-// Meta info box
-  const metaEntries = getMetaEntries(record, setLabel);
-  const metaRowHeight = 28;
-  const metaRows = Math.ceil(metaEntries.length / 2);
-  const metaBoxHeight = metaRows * metaRowHeight + 24;
+  const sections = [];
+  if (record.summary) sections.push(["Summary", record.summary]);
+  getFieldEntries(record).forEach(([label, value]) => sections.push([label, value]));
 
-  ensureSpace(metaBoxHeight + 60);
+  sections.forEach(([label, value], index) => {
+    // Keep a heading with at least a couple of lines of its body.
+    ensure(PDF.bodyLeading * 3 + 34);
 
-  doc.setFillColor(250, 250, 251);
-  doc.setDrawColor(226, 226, 230);
-  doc.setLineWidth(0.7);
-  doc.roundedRect(margin, y, contentWidth, metaBoxHeight, 6, 6, "FD");
+    const number = String(index + 1).padStart(2, "0");
 
-  const colWidth = contentWidth / 2;
-  const metaStartY = y + 26;
+    setType(SANS, "bold", TYPE.sectionNo, PALETTE.accent);
+    doc.text(number, margin, y);
 
-  metaEntries.forEach(([label, value], idx) => {
-    const col = idx % 2;
-    const row = Math.floor(idx / 2);
-    const x = margin + 16 + col * colWidth;
-    const rowY = metaStartY + row * metaRowHeight;
+    setType(SANS, "bold", TYPE.section, PALETTE.ink);
+    doc.text(normaliseText(label).toUpperCase(), margin + 24, y, { charSpace: 0.5 });
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...BRAND_BLUE_RGB);
-    doc.text(`${label}`, x, rowY);
+    y += 9;
+    hairline(y, margin + 24, pageWidth - margin, PALETTE.accentSoft);
+    y += 18;
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(70, 70, 70);
-    const valueLine = doc.splitTextToSize(String(value), colWidth - 32)[0] || "";
-    doc.text(valueLine, x, rowY + 13);
+    setType(SERIF, "normal", TYPE.body, PALETTE.body);
+    paragraph(value, { x: margin + 24, width: contentWidth - 24 });
+
+    y += 22;
   });
 
-  y += metaBoxHeight + 30;
+  /* --- Signature block --- */
 
-  // Summary
-  if (record.summary) {
-    ensureSpace(90);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(...BRAND_BLUE_RGB);
-    doc.text("SUMMARY", margin, y);
-    y += 16;
+  const signers = [
+    ["Prepared by", record.prepared_by],
+    ["Reviewed by", record.reviewed_by],
+  ].filter(([, name]) => normaliseText(name));
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(...INK_RGB);
-    doc.splitTextToSize(record.summary, contentWidth).forEach((row) => {
-      ensureSpace(70);
-      doc.text(row, margin, y);
-      y += 15;
+  if (signers.length) {
+    ensure(96);
+    y += 10;
+    hairline(y);
+    y += 30;
+
+    signers.forEach(([role, name], index) => {
+      const x = margin + index * (colWidth + PDF.gutter);
+
+      // Signature rule sits above the name, as on a signed document.
+      doc.setDrawColor(...PALETTE.hairline);
+      doc.setLineWidth(PDF.rule);
+      doc.line(x, y, x + colWidth - 40, y);
+
+      setType(SERIF, "bold", TYPE.value, PALETTE.ink);
+      doc.text(normaliseText(name), x, y + 15);
+
+      setType(SANS, "normal", TYPE.label, PALETTE.muted);
+      doc.text(role.toUpperCase(), x, y + 27, { charSpace: 0.7 });
     });
-    y += 20;
+
+    y += 46;
   }
 
-  // Structured field sections
-  getFieldEntries(record).forEach(([label, value]) => {
-    ensureSpace(100);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(...BRAND_BLUE_RGB);
-    doc.text(label.toUpperCase(), margin, y);
-    y += 7;
-
-    doc.setDrawColor(...BRAND_BLUE_RGB);
-    doc.setLineWidth(0.8);
-    doc.line(margin, y, margin + 34, y);
-    y += 17;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(...INK_RGB);
-    doc.splitTextToSize(String(value), contentWidth).forEach((row) => {
-      ensureSpace(70);
-      doc.text(row, margin, y);
-      y += 15;
-    });
-    y += 20;
-  });
+  /* --- Footers, once the page count is final --- */
 
   const totalPages = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    drawFooter(i, totalPages);
+  const reference = `${safeFileName(record.title).slice(0, 28).toUpperCase()}`;
+
+  for (let page = 1; page <= totalPages; page += 1) {
+    doc.setPage(page);
+
+    hairline(footerY - 12);
+
+    setType(SANS, "normal", TYPE.footer, PALETTE.muted);
+    doc.text(
+      `NAPS LASUCOM Digital Secretariat · Ref ${reference} · Generated ${formatDate(
+        new Date().toISOString()
+      )}`,
+      margin,
+      footerY
+    );
+
+    doc.text(`${page} / ${totalPages}`, pageWidth - margin, footerY, {
+      align: "right",
+    });
   }
 
   doc.save(`${safeFileName(record.title)}.pdf`);
