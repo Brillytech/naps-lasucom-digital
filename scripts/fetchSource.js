@@ -26,8 +26,23 @@ import { EXTRACTION, SOURCE_KIND } from "./explanationSchema.js";
  */
 const MAX_INLINE_BYTES = 20 * 1024 * 1024;
 
-/** Beyond this, something has gone wrong -- a lecture is not 150 MB. */
-const MAX_ANY_BYTES = 150 * 1024 * 1024;
+/**
+ * Hard ceiling for a document we will even attempt.
+ *
+ * Files past this are reference textbooks rather than lectures -- the DSM-5-TR
+ * and a 86 MB Psychology 2e sit in this table as "materials" -- and they blow
+ * the model's input context outright, returning a 400 no retry can fix.
+ * Marking them `unsupported` keeps them out of --retry-failed and records the
+ * reason as a size limit rather than an error.
+ *
+ * Byte size is an imperfect proxy for token count: a 24 MB scan can be fewer
+ * tokens than an 8 MB text-dense textbook, since scanned pages are images.
+ * The definitive signal is the API's own token-limit 400, which the Gemini
+ * provider also maps to `unsupported`. This gate just avoids paying for the
+ * download and the request to find out.
+ */
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
 
 const FETCH_TIMEOUT_MS = 60_000;
 const FETCH_ATTEMPTS = 2;
@@ -234,13 +249,18 @@ export async function prepareSource(resource) {
     };
   }
 
-  if (buffer.length > MAX_ANY_BYTES) {
+  if (buffer.length > MAX_DOCUMENT_BYTES) {
+    const mb = (buffer.length / 1024 / 1024).toFixed(1);
+
     return {
       ok: false,
       unsupported: true,
-      reason: `PDF is ${(buffer.length / 1024 / 1024).toFixed(
-        1
-      )} MB, which is too large to be a lecture document.`,
+      reason:
+        `Document is ${mb} MB, over the ${
+          MAX_DOCUMENT_BYTES / 1024 / 1024
+        } MB limit for a single request. ` +
+        `Files this size are reference textbooks rather than lectures and exceed the model's input context. ` +
+        `Not a retryable error -- the original stays available to read directly.`,
     };
   }
 

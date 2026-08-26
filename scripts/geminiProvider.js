@@ -36,13 +36,35 @@ export const DEFAULT_DELAY_MS = 3000;
 const MAX_INLINE_BYTES = 18 * 1024 * 1024;
 
 /**
- * Fail fast. On a lossy connection a long ladder burns minutes per file for
- * nothing: 45s x 2 attempts caps a bad file near a minute instead of seven,
- * and --retry-failed sweeps the casualties up later on a better line.
+ * Generating a full multi-section explanation legitimately takes one to three
+ * minutes, so this has to be generous. An earlier 45s setting was shorter than
+ * the work itself and aborted healthy calls -- the wasted time in this pipeline
+ * came from retrying quota errors, never from waiting on generation.
  */
-const REQUEST_TIMEOUT_MS = 45_000;
+const REQUEST_TIMEOUT_MS = 180_000;
 const DEFAULT_ATTEMPTS = 2;
 const RETRY_BACKOFF_MS = 4000;
+
+/**
+ * Longest 429 wait worth sitting through inline.
+ *
+ * Two different free-tier quotas produce a 429 here and they need opposite
+ * handling: input-tokens-per-minute clears in under a minute and is worth
+ * waiting for, while requests-per-day does not recover today at all. The
+ * server states the difference in retryDelay, so honour it rather than guess.
+ */
+const MAX_INLINE_RETRY_WAIT_MS = 70_000;
+
+/** Pull retryDelay ("53s") out of a 429 body. Returns ms, or null. */
+function parseRetryDelayMs(message) {
+  const match = /"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/.exec(message || "");
+  return match ? Math.ceil(Number(match[1]) * 1000) : null;
+}
+
+/** Is this the daily request cap, which will not clear today? */
+function isDailyQuota(message) {
+  return /PerDay/i.test(message || "");
+}
 
 const FILE_ACTIVE_TIMEOUT_MS = 180_000;
 const FILE_POLL_MS = 3000;
@@ -202,14 +224,48 @@ export async function generateWithGemini({
         config: { ...config, abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) },
       });
     } catch (error) {
-      lastReason = `Gemini call failed: ${error.message}`;
+      const message = error.message || "";
 
-      // Worth waiting out on a free tier: throttling, server errors, and
-      // transport failures ("fetch failed", aborts). A 400 or 404 is not --
-      // those fail immediately rather than burning the backoff.
+      // The document is simply larger than the model's input context. This is
+      // the definitive size signal -- more reliable than the byte gate in
+      // fetchSource, since a scanned PDF's page images tokenise very
+      // differently from dense text. Never retryable.
+      if (/input token count exceeds|exceeds the maximum number of tokens/i.test(message)) {
+        return {
+          ok: false,
+          unsupported: true,
+          reason:
+            "Document exceeds the model's maximum input token count. " +
+            "Too large to explain in one request -- the original stays available to read directly.",
+        };
+      }
+
+      // The daily request cap does not recover today, so retrying only spends
+      // another request against a quota that is already gone.
+      if (isDailyQuota(message)) {
+        lastReason =
+          "Daily free-tier request quota exhausted for this model (20/day). " +
+          "Try another --gemini-model, or wait for the quota to reset.";
+        break;
+      }
+
+      lastReason = `Gemini call failed: ${message.slice(0, 300)}`;
+
+      // A 429 states how long to wait. Short waits (input-tokens-per-minute)
+      // are worth sitting through; long ones are not.
+      const stated = parseRetryDelayMs(message);
+
+      if (stated !== null) {
+        if (stated > MAX_INLINE_RETRY_WAIT_MS || attempt === attempts) break;
+        await sleep(stated + 2000);
+        continue;
+      }
+
+      // Server errors and transport failures are worth one more go. A 400 or
+      // 404 is not -- those fail immediately rather than burning the backoff.
       const retryable =
-        /(429|500|502|503|504|quota|rate limit|timeout|abort|fetch failed|ECONN|ETIMEDOUT)/i.test(
-          error.message || ""
+        /(500|502|503|504|timeout|abort|fetch failed|ECONN|ETIMEDOUT)/i.test(
+          message
         );
 
       if (!retryable || attempt === attempts) break;

@@ -449,9 +449,14 @@ async function runGemini(supabase, prepared, args) {
 
     if (problem) {
       failed += 1;
-      log(`${label} FAIL ${title} -- ${problem}`);
+
+      // `unsupported` is a dead end, not a failure: it stays out of
+      // --retry-failed so an oversized document is never retried pointlessly.
+      const status = result.unsupported ? STATUS.UNSUPPORTED : STATUS.FAILED;
+
+      log(`${label} ${result.unsupported ? "UNSUP" : "FAIL "} ${title} -- ${problem}`);
       await markRow(supabase, id, {
-        processing_status: STATUS.FAILED,
+        processing_status: status,
         error_message: problem,
         generated_date: new Date().toISOString(),
       });
