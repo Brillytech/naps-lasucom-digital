@@ -248,7 +248,7 @@ function AdminRequests() {
                 note && count > 0 ? "ametric-note is-alert" : "ametric-note"
               }
             >
-              {note && count > 0 ? note : status === value ? "Filtering by this" : " "}
+              {note && count > 0 ? note : status === value && value !== "all" ? "Filtering by this" : " "}
             </span>
           </button>
         ))}
