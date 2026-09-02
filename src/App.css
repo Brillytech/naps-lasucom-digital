@@ -17390,3 +17390,547 @@ a.arow:hover {
     transition: none;
   }
 }
+
+/* ============================================================
+   CORRESPONDENCE COMPOSER
+   Controls on the left, the document forming on the right. The
+   preview is a CSS facsimile of the exported template -- same
+   proportions, same type scale, same furniture -- so what is typed
+   is seen taking shape rather than described in a form.
+   ============================================================ */
+
+.acompose {
+  margin-top: var(--sp-4);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+@media (min-width: 1140px) {
+  .acompose {
+    grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+  }
+
+  .acompose-panel {
+    position: sticky;
+    top: var(--sp-4);
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+}
+
+.acompose-panel {
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+}
+
+.acompose-section {
+  padding: var(--sp-4);
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.acompose-section + .acompose-section {
+  border-top: 1px solid var(--rule);
+}
+
+.acompose-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-bottom: -6px;
+}
+
+.acompose-legend h3 {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Shared, organisation-wide values. Flagged in the UI because editing
+   one changes it for every admin and every future document. */
+.ashared {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, #d97706 14%, transparent);
+  color: #92400e;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.ashared-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* --- template switch --- */
+
+.atemplates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+}
+
+.atemplate {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: #ffffff;
+  padding: 11px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
+}
+
+.atemplate:hover {
+  background: var(--press);
+}
+
+.atemplate.is-on {
+  border-color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 6%, transparent);
+}
+
+.atemplate strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.atemplate small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+/* --- office picker: exactly four, never free text --- */
+
+.aoffices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.aoffice {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
+}
+
+.aoffice:hover {
+  background: var(--press);
+}
+
+.aoffice.is-on {
+  border-color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 7%, transparent);
+  color: var(--blue);
+}
+
+.aoffice-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: var(--r-full);
+  border: 1.5px solid var(--rule);
+  display: grid;
+  place-items: center;
+}
+
+.aoffice.is-on .aoffice-dot {
+  border-color: var(--blue);
+}
+
+.aoffice.is-on .aoffice-dot::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--blue);
+}
+
+.aoffice small {
+  display: block;
+  font-weight: 500;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* --- rich text --- */
+
+.aeditor {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.aeditor-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+  padding: 5px;
+  border-bottom: 1px solid var(--rule);
+  background: #fbfcfe;
+}
+
+.aeditor-bar button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.14s var(--ease), color 0.14s var(--ease);
+}
+
+.aeditor-bar button:hover {
+  background: var(--press);
+  color: var(--text);
+}
+
+.aeditor-bar button.is-on {
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--blue);
+}
+
+.aeditor-bar .sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--rule);
+}
+
+.aeditor-area {
+  min-height: 210px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 12px 13px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+  outline: 0;
+}
+
+.aeditor-area:focus {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--blue) 22%, transparent);
+}
+
+.aeditor-area p {
+  margin: 0 0 10px;
+}
+
+.aeditor-area ul,
+.aeditor-area ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+
+.aeditor-area h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ============================================================
+   PREVIEW -- a facsimile of the exported page
+   ============================================================ */
+
+.apreview-stage {
+  display: grid;
+  gap: var(--sp-3);
+  justify-items: center;
+}
+
+.apreview-toolbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: 9px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: #ffffff;
+}
+
+.apreview-toolbar span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* A4 proportions, scaled to fit the column. */
+.apaper {
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 1 / 1.414;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(16, 32, 63, 0.1), 0 12px 40px rgba(16, 32, 63, 0.12);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+  container-type: inline-size;
+  font-size: 10px;
+}
+
+/* Everything inside scales with the paper, so the preview holds its
+   proportions at any column width. */
+.apaper-inner {
+  position: absolute;
+  inset: 0;
+  padding: 7.5cqw 7.5cqw 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.apaper-stripes {
+  position: absolute;
+  top: 0;
+  right: 7cqw;
+  display: flex;
+  gap: 1.1cqw;
+}
+
+.apaper-stripes i {
+  display: block;
+  width: 2.6cqw;
+}
+
+.apaper-head {
+  display: grid;
+  grid-template-columns: 9cqw minmax(0, 1fr);
+  gap: 2.6cqw;
+  align-items: center;
+}
+
+.apaper-head img {
+  width: 9cqw;
+  height: 9cqw;
+  object-fit: contain;
+}
+
+.apaper-org {
+  font-size: 2.5cqw;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #082b63;
+  line-height: 1.1;
+}
+
+.apaper-sub {
+  font-size: 1.55cqw;
+  color: #262a32;
+  line-height: 1.45;
+  margin-top: 0.4cqw;
+}
+
+.apaper-office {
+  margin-top: 0.6cqw;
+  font-size: 1.7cqw;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #22a447;
+  text-transform: uppercase;
+}
+
+.apaper-rule {
+  margin-top: 2.2cqw;
+  height: 0.55cqw;
+  background: #0752b8;
+  position: relative;
+}
+
+.apaper-rule::before {
+  content: "";
+  position: absolute;
+  inset: 0 70% 0 0;
+  background: #22a447;
+}
+
+.apaper-date {
+  margin-top: 2.4cqw;
+  text-align: right;
+  font-size: 1.6cqw;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #6e7684;
+  text-transform: uppercase;
+}
+
+.apaper-title {
+  margin-top: 2cqw;
+  padding: 1.8cqw 2.4cqw;
+  background: #eef4fc;
+  border-left: 0.7cqw solid #22a447;
+  font-size: 2.2cqw;
+  font-weight: 800;
+  color: #082b63;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.apaper-body {
+  flex: 1;
+  margin-top: 2.6cqw;
+  font-size: 1.75cqw;
+  line-height: 1.75;
+  color: #262a32;
+  text-align: justify;
+  overflow: hidden;
+}
+
+.apaper-body p {
+  margin: 0 0 1.5cqw;
+}
+
+.apaper-body ul,
+.apaper-body ol {
+  margin: 0 0 1.5cqw;
+  padding-left: 3.4cqw;
+}
+
+.apaper-body strong {
+  font-weight: 700;
+}
+
+/* Watermark: visible but never competing with the text. */
+.apaper-mark {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  width: 52cqw;
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+.apaper-foot {
+  border-top: 0.16cqw solid #ced4de;
+  padding: 2.2cqw 0 1.6cqw;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.apaper-official {
+  padding: 0 1.4cqw;
+  border-left: 0.16cqw solid #ced4de;
+  min-width: 0;
+}
+
+.apaper-official:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.apaper-official b {
+  display: block;
+  font-size: 1.55cqw;
+  color: #16181e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apaper-official span {
+  display: block;
+  font-size: 1.2cqw;
+  color: #6e7684;
+  margin-top: 0.3cqw;
+}
+
+.apaper-official em {
+  display: block;
+  font-style: normal;
+  font-size: 1.4cqw;
+  font-weight: 700;
+  color: #0752b8;
+  margin-top: 0.6cqw;
+}
+
+.apaper-official i {
+  display: block;
+  font-style: normal;
+  font-size: 1.35cqw;
+  color: #16181e;
+  margin-top: 0.3cqw;
+}
+
+.apaper-official .lbl {
+  color: #be1e2d;
+  font-weight: 700;
+}
+
+.apaper-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4.2cqw;
+  background: #082b63;
+  display: flex;
+  align-items: center;
+  padding: 0 7.5cqw;
+  color: #cee0fa;
+  font-size: 1.3cqw;
+}
+
+.apaper-band::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0.55cqw;
+  background: linear-gradient(
+    90deg,
+    #22a447 0 25%,
+    #0752b8 25% 50%,
+    #dea414 50% 75%,
+    #082b63 75%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atemplate,
+  .aoffice,
+  .aeditor-bar button {
+    transition: none;
+  }
+}

@@ -11,6 +11,7 @@ import {
   MessageCircle,
   Moon,
   MoreHorizontal,
+  PenLine,
   Sun,
   Users,
 } from "lucide-react";
@@ -44,6 +45,7 @@ import AdminAdmins from "./pages/admin/AdminAdmins";
 import AdminSetPassword from "./pages/admin/AdminSetPassword";
 import AdminRecords from "./pages/admin/AdminRecords";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
+import AdminCorrespondence from "./pages/admin/AdminCorrespondence";
 
 /* ADMIN PAGES - FUTURE */
 // import AdminHandover from "./pages/admin/AdminHandover";
@@ -176,6 +178,11 @@ useEffect(() => {
             element={<AdminAnnouncements />}
           />
 
+          <Route
+            path="/naps-admin/correspondence"
+            element={<AdminCorrespondence />}
+          />
+
           <Route path="/naps-admin/more" element={<AdminMore />} />
 
           {/* ADMIN ROUTES - FUTURE */}
@@ -291,6 +298,12 @@ function AdminConsoleNav() {
       <AdminNavItem to="/naps-admin/requests" icon={<MessageCircle size={19} />} label="Requests" />
       <AdminNavItem to="/naps-admin/uploads" icon={<FolderUp size={19} />} label="Uploads" />
       <AdminNavItem to="/naps-admin/records" icon={<FileArchive size={19} />} label="Records" />
+
+      <AdminNavItem
+        to="/naps-admin/correspondence"
+        icon={<PenLine size={19} />}
+        label="Correspondence"
+      />
 
       <span className="anav-group">Secretariat</span>
 
