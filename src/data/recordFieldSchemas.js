@@ -35,13 +35,6 @@ export const categoryFieldSchemas = {
     { key: "important_contacts", label: "Important Contacts", type: "textarea" },
     { key: "final_note", label: "Final Note", type: "textarea" },
   ],
-  "Letters / Memos": [
-    { key: "subject", label: "Subject", type: "text" },
-    { key: "recipient", label: "Recipient", type: "text" },
-    { key: "sender", label: "Sender", type: "text" },
-    { key: "body", label: "Body", type: "textarea" },
-    { key: "reference_number", label: "Reference Number", type: "text" },
-  ],
   "Event Records": [
     { key: "event_title", label: "Event Title", type: "text" },
     { key: "planning_committee", label: "Planning Committee", type: "text" },
