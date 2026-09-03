@@ -61,12 +61,6 @@ const recordCategories = [
     icon: FolderOpen,
   },
   {
-    key: "Letters / Memos",
-    title: "Letters / Memos",
-    description: "Official letters, internal memos, correspondence and notices.",
-    icon: FileText,
-  },
-  {
     key: "Event Records",
     title: "Event Records",
     description: "Association week, social activities, tours and event documentation.",
@@ -139,7 +133,6 @@ const categoryAccess = {
     "Financial Records",
     "Reports",
     "Handover Notes",
-    "Letters / Memos",
     "Constitution / Policies",
     "Event Records",
     "Sports Records",
@@ -150,7 +143,6 @@ const categoryAccess = {
     "Meeting Minutes",
     "Reports",
     "Handover Notes",
-    "Letters / Memos",
     "Constitution / Policies",
     "Event Records",
     "Other Records",
@@ -172,7 +164,6 @@ const categoryAccess = {
 
   pro: [
     "Reports",
-    "Letters / Memos",
     "Event Records",
     "Constitution / Policies",
     "Other Records",
@@ -576,25 +567,7 @@ function AdminRecords() {
     return records.filter((record) => record.category === category).length;
   }
 
-  function getLastUpdated(category) {
-    const categoryRecords = records.filter((record) => record.category === category);
 
-    if (!categoryRecords.length) return "No record yet";
-
-    const latest = categoryRecords[0]?.record_date || categoryRecords[0]?.created_at;
-
-    if (!latest) return "Recently";
-
-    return new Date(latest).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  }
-
-  const pinnedRecords = useMemo(() => {
-    return records.filter((record) => record.is_pinned).slice(0, 4);
-  }, [records]);
 
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
@@ -636,7 +609,7 @@ function AdminRecords() {
 
   if (errorMessage && !profile) {
     return (
-      <main className="admin-dashboard-page">
+      <main className="admin-page">
         <section className="admin-empty-panel">
           <AlertCircle size={34} />
           <h3>Unable to open records</h3>
@@ -662,273 +635,266 @@ function AdminRecords() {
   }
 
   return (
-    <main className="admin-dashboard-page records-page">
-      <header className="admin-dashboard-header records-header">
+    <main className="admin-page">
+      <header className="apage-head">
         <div>
-          <p>Digital Secretariat</p>
-          <h1>Records Archive</h1>
-          <span>Store, search and manage official NAPS LASUCOM records.</span>
+          <p className="apage-eyebrow">Digital secretariat</p>
+          <h1>Records</h1>
+          <p>Minutes, reports and Drive-backed documents, by DEC set and office.</p>
         </div>
 
-        {canCreateRecord() && (
-          <button type="button" onClick={() => openCreateForm()}>
-            <Plus size={17} />
-            Add
-          </button>
-        )}
+        <div className="apage-actions">
+          {filteredRecords.length > 0 && (
+            <button
+              type="button"
+              className="abtn"
+              onClick={() => downloadRecordsAsExcel(filteredRecords, getSetLabel)}
+            >
+              <Download size={14} />
+              Export {filteredRecords.length}
+            </button>
+          )}
+
+          {canCreateRecord() && (
+            <button
+              type="button"
+              className="abtn abtn--primary"
+              onClick={() => openCreateForm()}
+            >
+              <Plus size={14} />
+              New record
+            </button>
+          )}
+        </div>
       </header>
 
       {successMessage && (
-        <div className="request-success">
-          <CheckCircle2 size={18} />
+        <div className="anote is-ok" style={{ margin: "16px 0 0" }}>
+          <CheckCircle2 size={15} />
           {successMessage}
         </div>
       )}
 
       {errorMessage && (
-        <div className="request-error">
-          <AlertCircle size={18} />
+        <div className="anote is-bad" style={{ margin: "16px 0 0" }}>
+          <AlertCircle size={15} />
           {errorMessage}
         </div>
       )}
 
-      <section className="records-hero-card">
-        <div>
-          <FileArchive size={28} />
+      <div className="astats">
+        <div className="astat astat--soon">
+          <span className="astat-ico"><FileArchive size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{records.length}</span>
+            <span className="astat-l">Records</span>
+          </span>
         </div>
 
-        <section>
-          <h2>Official Record Book</h2>
-          <p>
-            Written records, minutes, reports and Drive-backed documents are
-            arranged by DEC set, category and office responsibility.
-          </p>
-        </section>
-      </section>
+        <div className="astat astat--mark">
+          <span className="astat-ico"><Pin size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{records.filter((r) => r.is_pinned).length}</span>
+            <span className="astat-l">Pinned</span>
+          </span>
+        </div>
 
-      <section className="records-stats-grid">
-        <article>
-          <strong>{records.length}</strong>
-          <span>Total Records</span>
-        </article>
+        <div className="astat astat--live">
+          <span className="astat-ico"><Link2 size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">
+              {records.filter((r) => r.record_type === "drive").length}
+            </span>
+            <span className="astat-l">Drive-backed</span>
+          </span>
+        </div>
 
-        <article>
-          <strong>{pinnedRecords.length}</strong>
-          <span>Pinned</span>
-        </article>
+        <div className="astat astat--idle">
+          <span className="astat-ico"><Filter size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{recordCategories.length}</span>
+            <span className="astat-l">Categories</span>
+          </span>
+        </div>
+      </div>
 
-        <article>
-          <strong>{recordCategories.length}</strong>
-          <span>Categories</span>
-        </article>
-      </section>
-
-      <section className="records-filter-card">
-        <div className="records-search-box">
-          <Search size={17} />
+      <div className="atoolbar">
+        <label className="asearch">
+          <Search size={14} />
           <input
-            type="text"
-            placeholder="Search records..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search records"
+            aria-label="Search records"
           />
-        </div>
+        </label>
 
-        <div className="records-select-row">
-          <div>
-            <Filter size={15} />
-            <select
-              value={selectedSet}
-              onChange={(e) => setSelectedSet(e.target.value)}
-            >
-              <option value="">All DEC sets</option>
-              {sets.map((set) => (
-                <option key={set.id} value={set.id}>
-                  {set.set_name}{" "}
-                  {set.academic_session ? `• ${set.academic_session}` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+        <select
+          className="aselect"
+          value={selectedSet}
+          onChange={(e) => setSelectedSet(e.target.value)}
+          aria-label="DEC set"
+        >
+          <option value="">All DEC sets</option>
+          {sets.map((set) => (
+            <option key={set.id} value={set.id}>
+              {set.set_name}
+              {set.academic_session ? ` · ${set.academic_session}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
 
-          {selectedCategory && (
-            <button type="button" onClick={() => setSelectedCategory("")}>
-              Clear
-            </button>
-          )}
-        </div>
-      </section>
-
-      {filteredRecords.length > 0 && (
+      {/* Categories were a grid of nine large cards, which pushed the records
+          themselves below the fold. As chips they are a filter rather than a
+          second navigation layer. */}
+      <div className="achips">
         <button
           type="button"
-          className="records-bulk-export-btn"
-          onClick={() => downloadRecordsAsExcel(filteredRecords, getSetLabel)}
+          className={selectedCategory === "" ? "achip-f is-on" : "achip-f"}
+          onClick={() => setSelectedCategory("")}
         >
-          <Download size={16} />
-          Export {filteredRecords.length} record{filteredRecords.length === 1 ? "" : "s"} to Excel
+          All
+          <em>{records.length}</em>
         </button>
-      )}
 
-      {pinnedRecords.length > 0 && !selectedCategory && (
-        <section className="records-section">
-          <div className="records-section-title">
-            <h2>Pinned Records</h2>
-            <p>Important records kept within quick reach.</p>
+        {recordCategories.map((category) => (
+          <button
+            type="button"
+            key={category.key}
+            className={selectedCategory === category.key ? "achip-f is-on" : "achip-f"}
+            onClick={() => setSelectedCategory(category.key)}
+          >
+            <category.icon size={12} />
+            {category.title}
+            <em>{getCategoryCount(category.key)}</em>
+          </button>
+        ))}
+      </div>
+
+      <div className="atable-wrap">
+        {filteredRecords.length === 0 ? (
+          <div className="aempty-row">
+            <FileArchive size={26} />
+            <strong>
+              {searchTerm ? "Nothing matches that search" : "No records here yet"}
+            </strong>
+            <span>
+              {searchTerm
+                ? "Try a shorter search, or clear the filters."
+                : "Records saved under this filter will appear here."}
+            </span>
           </div>
+        ) : (
+          <div className="atable-scroll">
+            <table className="atable">
+              <thead>
+                <tr>
+                  <th>Record</th>
+                  <th>Category</th>
+                  <th>DEC set</th>
+                  <th>Type</th>
+                  <th className="num">Date</th>
+                  <th className="num">Actions</th>
+                </tr>
+              </thead>
 
-          <div className="pinned-record-list">
-            {pinnedRecords.map((record) => (
-              <button
-                type="button"
-                key={record.id}
-                onClick={() => setViewRecord(record)}
-              >
-                <Pin size={15} />
-                <span>{record.title}</span>
-                <small>{record.category}</small>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+              <tbody>
+                {filteredRecords.map((record) => (
+                  <tr key={record.id}>
+                    <td>
+                      <button
+                        type="button"
+                        className="alink-cell"
+                        onClick={() => setViewRecord(record)}
+                      >
+                        <span className="acell-title">
+                          <strong>{record.title}</strong>
+                          <span>{record.summary || record.source_office || "—"}</span>
+                        </span>
+                      </button>
+                    </td>
 
-      {!selectedCategory && (
-        <section className="records-section">
-          <div className="records-section-title">
-            <h2>Record Categories</h2>
-            <p>Open a category to view related official records.</p>
-          </div>
+                    <td className="quiet">{record.category}</td>
+                    <td className="quiet">{getSetLabel(record)}</td>
 
-          <div className="records-category-grid">
-            {recordCategories.map((category) => {
-              const Icon = category.icon;
-              const count = getCategoryCount(category.key);
+                    <td>
+                      <span className="abadges">
+                      <span
+                        className={
+                          record.record_type === "drive"
+                            ? "abadge abadge--soon"
+                            : "abadge abadge--draft"
+                        }
+                      >
+                        {record.record_type === "drive" ? (
+                          <Link2 size={9} />
+                        ) : (
+                          <FileText size={9} />
+                        )}
+                        {record.record_type === "drive" ? "Drive" : "Written"}
+                      </span>
 
-              return (
-                <button
-                  type="button"
-                  key={category.key}
-                  className="records-category-card"
-                  onClick={() => setSelectedCategory(category.key)}
-                >
-                  <div>
-                    <Icon size={22} />
-                  </div>
+                      {record.is_pinned && (
+                        <span className="abadge abadge--pin">
+                          <Pin size={9} />
+                          Pinned
+                        </span>
+                      )}
+                      </span>
+                    </td>
 
-                  <section>
-                    <h3>{category.title}</h3>
-                    <p>{category.description}</p>
-
-                    <span>
-                      {count} record{count === 1 ? "" : "s"} •{" "}
-                      {getLastUpdated(category.key)}
-                    </span>
-                  </section>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {selectedCategory && (
-        <section className="records-section">
-          <div className="records-category-view-title">
-            <button type="button" onClick={() => setSelectedCategory("")}>
-              <ChevronLeft size={16} />
-              Categories
-            </button>
-
-            <section>
-              <h2>{selectedCategory}</h2>
-              <p>{filteredRecords.length} record(s) found.</p>
-            </section>
-
-            {canCreateRecord() && canWriteCategory(selectedCategory) && (
-              <button type="button" onClick={() => openCreateForm(selectedCategory)}>
-                <Plus size={15} />
-                Add
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-
-      <section className="records-section final">
-        <div className="records-section-title">
-          <h2>{selectedCategory ? "Records" : "Recent Records"}</h2>
-          <p>
-            {selectedCategory
-              ? "Compact archive list for this category."
-              : "Latest records across all categories."}
-          </p>
-        </div>
-
-        {filteredRecords.length > 0 ? (
-          <div className="records-list">
-            {filteredRecords.slice(0, selectedCategory ? 100 : 8).map((record) => (
-              <article className="record-row" key={record.id}>
-                <button type="button" onClick={() => setViewRecord(record)}>
-                  <div>
-                    {record.record_type === "drive" ? (
-                      <Link2 size={18} />
-                    ) : record.category === "Sports Records" ? (
-                      <Trophy size={18} />
-                    ) : (
-                      <FileText size={18} />
-                    )}
-                  </div>
-
-                  <section>
-                    <h3>{record.title}</h3>
-                    <p>
-                      {record.category} • {getSetLabel(record)}
-                    </p>
-                    <span>
+                    <td className="num quiet">
                       {record.record_date
                         ? new Date(record.record_date).toLocaleDateString("en-GB", {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
                           })
-                        : "No date"}{" "}
-                      • {record.record_type}
-                    </span>
-                  </section>
-                </button>
+                        : "—"}
+                    </td>
 
-                <aside>
-                  {record.is_pinned && <Pin size={14} />}
+                    <td>
+                      <div className="acell-actions">
+                        <button
+                          type="button"
+                          className="aicon-btn"
+                          title="Open"
+                          onClick={() => setViewRecord(record)}
+                        >
+                          <FileText size={14} />
+                        </button>
 
-                  <DownloadMenu
-                    record={record}
-                    setLabel={getSetLabel(record)}
-                    open={downloadMenuId === record.id}
-                    onToggle={() =>
-                      setDownloadMenuId(
-                        downloadMenuId === record.id ? null : record.id
-                      )
-                    }
-                  />
+                        <DownloadMenu
+                          record={record}
+                          setLabel={getSetLabel(record)}
+                          open={downloadMenuId === record.id}
+                          onToggle={() =>
+                            setDownloadMenuId(
+                              downloadMenuId === record.id ? null : record.id
+                            )
+                          }
+                        />
 
-                  {canPinRecord() && (
-                    <button type="button" onClick={() => togglePin(record)}>
-                      {record.is_pinned ? "Unpin" : "Pin"}
-                    </button>
-                  )}
-                </aside>
-              </article>
-            ))}
+                        {canPinRecord() && (
+                          <button
+                            type="button"
+                            className="aicon-btn"
+                            title={record.is_pinned ? "Unpin" : "Pin"}
+                            onClick={() => togglePin(record)}
+                          >
+                            <Pin size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          <section className="admin-empty-panel small">
-            <FileArchive size={30} />
-            <h3>No record found</h3>
-            <p>Records saved under this filter will appear here.</p>
-          </section>
         )}
-      </section>
+      </div>
 
       {showForm && (
         <RecordFormModal
@@ -951,9 +917,15 @@ function AdminRecords() {
 function DownloadMenu({ record, setLabel, open, onToggle }) {
   return (
     <div className="record-download-menu">
-      <button type="button" onClick={onToggle}>
-        <Download size={13} />
-        Export
+      {/* An icon button, so the actions column keeps one rhythm -- a labelled
+          button here set its own height and pushed the row taller. */}
+      <button
+        type="button"
+        className="aicon-btn"
+        title="Export this record"
+        onClick={onToggle}
+      >
+        <Download size={14} />
       </button>
 
       {open && (

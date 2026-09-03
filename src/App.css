@@ -18437,3 +18437,94 @@ tr:hover .aicon-btn { border-color: var(--rule); }
     transition: none;
   }
 }
+
+/* Select styled to match .asearch, so a toolbar reads as one control group. */
+.aselect {
+  height: 34px;
+  padding: 0 30px 0 11px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: #ffffff
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236d7890' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 10px center;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  outline: 0;
+  appearance: none;
+  cursor: pointer;
+}
+
+.aselect:focus { border-color: var(--blue); }
+
+/* Filter chips. A wrapping row of these replaces a grid of large cards --
+   the same choice, without pushing the data itself below the fold. */
+.achips {
+  margin-top: var(--sp-4);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.achip-f {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: #ffffff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.14s var(--ease), color 0.14s var(--ease),
+    border-color 0.14s var(--ease);
+}
+
+.achip-f:hover { color: var(--text); border-color: rgba(16, 32, 63, 0.2); }
+
+.achip-f.is-on {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #ffffff;
+}
+
+.achip-f em {
+  font-style: normal;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.62;
+}
+
+/* The whole identifying cell is the click target, so opening a record does
+   not depend on hitting the title text exactly. */
+.alink-cell {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.alink-cell:hover strong { color: var(--blue-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .achip-f { transition: none; }
+}
+
+/* Badges stay on one line: a wrapped second badge set the row taller than
+   every other row. The flex lives on an inner span, because display:flex on
+   a table cell drops it out of the table layout and breaks the columns. */
+.abadges {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
