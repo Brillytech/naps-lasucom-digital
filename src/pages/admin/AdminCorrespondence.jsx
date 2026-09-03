@@ -11,6 +11,8 @@ import {
   List,
   ListOrdered,
   Loader2,
+  Minus,
+  PenLine,
   Save,
   Underline,
 } from "lucide-react";
@@ -95,6 +97,10 @@ function AdminCorrespondence() {
   );
   const [salutation, setSalutation] = useState("Dear Sir,");
   const [closing, setClosing] = useState("Yours faithfully,");
+
+  // One setting for the whole letter: either all three officers get a rendered
+  // script mark, or all three get a clear line to sign by hand.
+  const [signed, setSigned] = useState(true);
 
   const [officials, setOfficials] = useState([]);
   const [decSet, setDecSet] = useState(null);
@@ -205,6 +211,7 @@ function AdminCorrespondence() {
         recipient,
         salutation,
         closing,
+        signed,
         logo: art.logo,
         watermark: art.watermark,
       }),
@@ -222,6 +229,7 @@ function AdminCorrespondence() {
       recipient,
       salutation,
       closing,
+      signed,
       art,
     ]
   );
@@ -549,6 +557,35 @@ function AdminCorrespondence() {
                       onChange={(e) => setClosing(e.target.value)}
                     />
                   </div>
+                </div>
+
+                <div className="afield">
+                  <label>Signatures</label>
+
+                  <div className="asegment">
+                    <button
+                      type="button"
+                      className={signed ? "is-on" : ""}
+                      onClick={() => setSigned(true)}
+                    >
+                      <PenLine size={13} />
+                      Rendered
+                    </button>
+                    <button
+                      type="button"
+                      className={signed ? "" : "is-on"}
+                      onClick={() => setSigned(false)}
+                    >
+                      <Minus size={13} />
+                      Blank
+                    </button>
+                  </div>
+
+                  <small className="afield-hint">
+                    {signed
+                      ? "President, Vice President and General Secretary sign in script."
+                      : "Clear lines for all three, to be signed by hand."}
+                  </small>
                 </div>
               </>
             )}

@@ -269,12 +269,7 @@ function drawFooter(doc, { officials, email, instagram, setName, office }) {
     // a line off silently loses part of someone's name, which is worse than
     // either wrapping or shrinking.
     if (nameLines.length > 2) {
-      const parts = name.split(/\s+/).filter(Boolean);
-      const shortened =
-        parts.length > 2
-          ? [parts[0], ...parts.slice(1, -1).map((p) => `${p[0]}.`), parts.at(-1)].join(" ")
-          : name;
-      nameLines = doc.splitTextToSize(shortened, inner);
+      nameLines = doc.splitTextToSize(shortenName(name), inner);
     }
 
     nameLines = nameLines.slice(0, 2);
@@ -327,46 +322,68 @@ function drawFooter(doc, { officials, email, instagram, setName, office }) {
   }
 }
 
-/**
- * Who signs a letter.
- *
- * The issuing officer, attested by the General Secretary -- or by the
- * President where the Secretary is the one issuing it. Two blocks either way,
- * which is both the convention and what balances the page.
- */
-function signatories(officials, officeLabel) {
-  const issuer = officials.find((o) => o.office === officeLabel);
-  const second = officials.find(
-    (o) =>
-      o.office ===
-      (officeLabel === "General Secretary" ? "President" : "General Secretary")
-  );
+/** Signatory offices, in order of precedence. The P.R.O does not sign. */
+const SIGNING_OFFICES = ["President", "Vice President", "General Secretary"];
 
-  return [issuer, second].filter((o) => o && o.name);
+/**
+ * Who signs a letter: the three principal officers, always in the same order
+ * whichever office issued it. A letter to a Provost carries the executive,
+ * not just its author.
+ */
+function signatories(officials) {
+  return SIGNING_OFFICES.map((label) =>
+    officials.find((o) => o.office === label)
+  ).filter((o) => o && o.name);
+}
+
+/**
+ * First name, middle initials, surname.
+ *
+ * Three signature blocks leave about 148pt each, and a name like "Anibaba
+ * Oluwadarasimi Brilliance" cannot be set in a script face at that width
+ * without shrinking to something illegible. Initialising the middle names is
+ * how the name is written on a signature anyway.
+ */
+function shortenName(name) {
+  const parts = String(name).split(/\s+/).filter(Boolean);
+  if (parts.length < 3) return name;
+
+  return [parts[0], ...parts.slice(1, -1).map((w) => `${w[0]}.`), parts.at(-1)].join(" ");
 }
 
 /**
  * Signature block.
  *
- * The script line is a rendered mark set from the name, not a scan of anyone's
- * hand. That is appropriate for routine correspondence, which is what this
- * composer is for, and not for anything that has to bind.
+ * With `signed`, the script line is a rendered mark set from the name -- not a
+ * scan of anyone's hand, which suits routine correspondence and nothing that
+ * has to bind. Without it the space is simply left clear for a pen, which is
+ * what a letter going out on paper needs.
  */
-function drawSignature(doc, person, x, y, width) {
-  doc.setFont(PDF_FONTS.SCRIPT, "normal");
+function drawSignature(doc, person, x, y, width, signed) {
+  if (signed) {
+    // Try the full name, fall back to initialised middle names, and only then
+    // shrink -- dropping to 11pt to fit a long name reads as a mistake.
+    let mark = person.name;
+    doc.setFont(PDF_FONTS.SCRIPT, "normal");
+    doc.setFontSize(23);
 
-  let size = 25;
-  while (size > 13) {
-    doc.setFontSize(size);
-    if (doc.getTextWidth(person.name) <= width - 6) break;
-    size -= 0.5;
+    if (doc.getTextWidth(mark) > width - 8) mark = shortenName(person.name);
+
+    let size = 23;
+    while (size > 13) {
+      doc.setFontSize(size);
+      if (doc.getTextWidth(mark) <= width - 8) break;
+      size -= 0.5;
+    }
+
+    doc.setTextColor(...C.deep);
+    doc.text(mark, x + 4, y);
   }
 
-  doc.setTextColor(...C.deep);
-  doc.text(person.name, x + 4, y);
-
-  doc.setDrawColor(...C.divider);
-  doc.setLineWidth(0.9);
+  // Darker than the footer dividers: a signature rule is meant to be seen,
+  // and on a blank block it is the only thing marking where to sign.
+  doc.setDrawColor(...C.ink);
+  doc.setLineWidth(1);
   doc.line(x, y + 9, x + width, y + 9);
 
   // fitted() leaves the font and size set, so the draw that follows inherits
@@ -648,6 +665,7 @@ export async function renderCorrespondence({
   recipient,
   salutation,
   closing,
+  signed = true,
   logo,
   watermark,
 }) {
@@ -672,17 +690,28 @@ export async function renderCorrespondence({
     : recipTop - 14.5;
   const salutationY = recipEnd + 28;
 
-  const titleY = isLetter ? salutationY + 26 : 162;
+  const titleY = isLetter ? salutationY + 30 : 162;
+
+  /*
+    A letter states its subject the way formal correspondence does: capitals,
+    underlined, set in the same serif as the body. The memo's banner belongs to
+    the memo's register -- on a letter to a Provost it would read as branding.
+  */
+  const titleFace = isLetter ? PDF_FONTS.SERIF : PDF_FONTS.SANS;
+  const titlePt = isLetter ? 12.5 : TITLE_PT;
+  const titleLead = isLetter ? 17 : 18;
 
   // Measure the title in the face it is actually set in: splitting under
   // whatever font happened to be current breaks the lines for the wrong width.
-  doc.setFont(PDF_FONTS.SANS, "bold");
-  doc.setFontSize(TITLE_PT);
+  doc.setFont(titleFace, "bold");
+  doc.setFontSize(titlePt);
   const titleLines = doc.splitTextToSize(
-    normaliseText(subject) || "Subject",
-    CONTENT - 56
+    isLetter
+      ? (normaliseText(subject) || "Subject").toUpperCase()
+      : normaliseText(subject) || "Subject",
+    CONTENT - (isLetter ? 20 : 56)
   );
-  const titleH = 24 + titleLines.length * 18;
+  const titleH = (isLetter ? 10 : 24) + titleLines.length * titleLead;
 
   const bodyTop = titleY + titleH + 36;
 
@@ -736,19 +765,33 @@ export async function renderCorrespondence({
     doc.text(normaliseText(salutation) || "Dear Sir/Ma,", M, salutationY);
   }
 
-  // Solid rather than tinted: against a page this open, a wash of pale blue
-  // had no more presence than the paper. This bookends the footer band.
-  doc.setFillColor(...C.deep);
-  doc.rect(M, titleY, CONTENT, titleH, "F");
-  doc.setFillColor(...C.green);
-  doc.rect(M, titleY, 5, titleH, "F");
-  doc.setFillColor(...C.gold);
-  doc.rect(M, titleY + titleH, CONTENT, 2, "F");
+  if (isLetter) {
+    setType(doc, titleFace, "bold", titlePt, C.ink);
+    doc.setDrawColor(...C.ink);
+    doc.setLineWidth(1);
 
-  setType(doc, PDF_FONTS.SANS, "bold", TITLE_PT, [255, 255, 255]);
-  titleLines.forEach((line, n) => {
-    doc.text(line, M + CONTENT / 2, titleY + 27 + n * 18, { align: "center" });
-  });
+    titleLines.forEach((line, n) => {
+      const ly = titleY + 12 + n * titleLead;
+      const half = doc.getTextWidth(line) / 2;
+
+      doc.text(line, A4.w / 2, ly, { align: "center" });
+      doc.line(A4.w / 2 - half, ly + 3.4, A4.w / 2 + half, ly + 3.4);
+    });
+  } else {
+    // Solid rather than tinted: against a page this open, a wash of pale blue
+    // had no more presence than the paper. This bookends the footer band.
+    doc.setFillColor(...C.deep);
+    doc.rect(M, titleY, CONTENT, titleH, "F");
+    doc.setFillColor(...C.green);
+    doc.rect(M, titleY, 5, titleH, "F");
+    doc.setFillColor(...C.gold);
+    doc.rect(M, titleY + titleH, CONTENT, 2, "F");
+
+    setType(doc, PDF_FONTS.SANS, "bold", TITLE_PT, [255, 255, 255]);
+    titleLines.forEach((line, n) => {
+      doc.text(line, M + CONTENT / 2, titleY + 27 + n * 18, { align: "center" });
+    });
+  }
 
   layoutBlocks(doc, blocks, CONTENT, size, leading, false, bodyTop, flow);
 
@@ -766,11 +809,12 @@ export async function renderCorrespondence({
     setType(doc, PDF_FONTS.SERIF, "normal", 11, C.ink);
     doc.text(normaliseText(closing) || "Yours faithfully,", M, closeY);
 
-    const signers = signatories(officials, office);
-    const colW = CONTENT / 2 - 18;
+    const signers = signatories(officials);
+    const gap = 24;
+    const colW = (CONTENT - gap * (signers.length - 1)) / Math.max(signers.length, 1);
 
-    signers.slice(0, 2).forEach((person, n) => {
-      drawSignature(doc, person, M + n * (colW + 36), closeY + 48, colW);
+    signers.forEach((person, n) => {
+      drawSignature(doc, person, M + n * (colW + gap), closeY + 52, colW, signed);
     });
   } else if (onePage) {
     drawClosing(doc, bodyEnd + 18);

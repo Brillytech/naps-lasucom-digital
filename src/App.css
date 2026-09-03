@@ -18012,3 +18012,42 @@ a.arow:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Two mutually exclusive choices, shown together so the alternative is
+   visible without opening anything. */
+.asegment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 3px;
+  background: var(--press);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+}
+
+.asegment button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  border: 0;
+  border-radius: calc(var(--r-sm) - 3px);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.14s var(--ease), color 0.14s var(--ease);
+}
+
+.asegment button:hover {
+  color: var(--text);
+}
+
+.asegment button.is-on {
+  background: #ffffff;
+  color: var(--blue-ink);
+  box-shadow: var(--sh-1);
+}
