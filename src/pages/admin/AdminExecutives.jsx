@@ -2,9 +2,11 @@ import {
   AlertCircle,
   CheckCircle2,
   Crown,
+  Eye,
+  EyeOff,
   ImagePlus,
+  Layers,
   Plus,
-  RefreshCw,
   ShieldCheck,
   Trash2,
   Upload,
@@ -34,6 +36,8 @@ function AdminExecutives() {
   const [selectedSetId, setSelectedSetId] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingSet, setSavingSet] = useState(false);
+  const [showSetForm, setShowSetForm] = useState(false);
+  const [showExecForm, setShowExecForm] = useState(false);
   const [savingExecutive, setSavingExecutive] = useState(false);
 
   const [successMessage, setSuccessMessage] = useState("");
@@ -345,7 +349,7 @@ const { error } = await supabase.from("executives").insert({
 
   if (!profile || profile.role !== "president") {
     return (
-      <main className="admin-dashboard-page">
+      <main className="admin-page">
         <section className="admin-empty-panel">
           <ShieldCheck size={34} />
           <h3>Access denied</h3>
@@ -356,68 +360,122 @@ const { error } = await supabase.from("executives").insert({
   }
 
   return (
-    <main className="admin-dashboard-page">
-      <header className="admin-dashboard-header">
+    <main className="admin-page">
+      <header className="apage-head">
         <div>
-          <p>President Control</p>
+          <p className="apage-eyebrow">President control</p>
           <h1>Executives</h1>
-          <span>Create DEC sets and manage public executive profiles.</span>
+          <p>DEC sets and the executive profiles students see.</p>
+        </div>
+
+        <div className="apage-actions">
+          <button
+            type="button"
+            className="abtn"
+            onClick={() => {
+              setShowSetForm((v) => !v);
+              setShowExecForm(false);
+            }}
+          >
+            <Layers size={14} />
+            New DEC set
+          </button>
+
+          <button
+            type="button"
+            className="abtn abtn--primary"
+            disabled={!selectedSetId}
+            onClick={() => {
+              setShowExecForm((v) => !v);
+              setShowSetForm(false);
+            }}
+          >
+            <Plus size={14} />
+            Add executive
+          </button>
         </div>
       </header>
 
       {successMessage && (
-        <div className="request-success">
-          <CheckCircle2 size={18} />
+        <div className="anote is-ok" style={{ margin: "16px 0 0" }}>
+          <CheckCircle2 size={15} />
           {successMessage}
         </div>
       )}
 
       {errorMessage && (
-        <div className="request-error">
-          <AlertCircle size={18} />
+        <div className="anote is-bad" style={{ margin: "16px 0 0" }}>
+          <AlertCircle size={15} />
           {errorMessage}
         </div>
       )}
 
-      <section className="executive-admin-hero">
-        <div>
-          <Crown size={23} />
+      <div className="astats">
+        <div className="astat astat--soon">
+          <span className="astat-ico"><Users size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{selectedExecutives.length}</span>
+            <span className="astat-l">In this set</span>
+          </span>
         </div>
 
-        <section>
-          <h3>President Access</h3>
-          <p>Only the President can create DEC sets and update executives.</p>
-        </section>
-      </section>
-
-      <section className="executive-admin-card">
-        <div className="admin-section-title">
-          <h2>Create DEC Set</h2>
-          <p>Example: 1st NAPS-LASUCOM DEC, 2026/2027 session.</p>
+        <div className="astat astat--live">
+          <span className="astat-ico"><Eye size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">
+              {selectedExecutives.filter((e) => e.is_active).length}
+            </span>
+            <span className="astat-l">Visible</span>
+          </span>
         </div>
 
-        <form className="executive-admin-form" onSubmit={createSet}>
-          <div className="request-form-row">
-            <div className="request-form-group">
-              <label>DEC set number</label>
+        <div className="astat astat--idle">
+          <span className="astat-ico"><EyeOff size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">
+              {selectedExecutives.filter((e) => !e.is_active).length}
+            </span>
+            <span className="astat-l">Hidden</span>
+          </span>
+        </div>
+
+        <div className="astat astat--mark">
+          <span className="astat-ico"><Layers size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{sets.length}</span>
+            <span className="astat-l">DEC sets</span>
+          </span>
+        </div>
+      </div>
+
+      {showSetForm && (
+        <section className="apanel">
+          <div className="apanel-head">
+            <div>
+              <h2>New DEC set</h2>
+              <p>The name is built from the number: 1st NAPS-LASUCOM DEC.</p>
+            </div>
+          </div>
+
+          <form className="apanel-body aform-grid" onSubmit={createSet}>
+            <div className="afield">
+              <label htmlFor="s-num">Set number</label>
               <input
+                id="s-num"
                 type="number"
                 min="1"
                 placeholder="1"
                 value={setForm.set_number}
                 onChange={(e) =>
-                  setSetForm((prev) => ({
-                    ...prev,
-                    set_number: e.target.value,
-                  }))
+                  setSetForm((prev) => ({ ...prev, set_number: e.target.value }))
                 }
               />
             </div>
 
-            <div className="request-form-group">
-              <label>Academic session</label>
+            <div className="afield">
+              <label htmlFor="s-session">Academic session</label>
               <input
-                type="text"
+                id="s-session"
                 placeholder="2026/2027"
                 value={setForm.academic_session}
                 onChange={(e) =>
@@ -428,101 +486,62 @@ const { error } = await supabase.from("executives").insert({
                 }
               />
             </div>
-          </div>
 
-          <button type="submit" disabled={savingSet}>
-            <Plus size={17} />
-            {savingSet ? "Creating..." : "Create Set"}
-          </button>
-        </form>
-      </section>
+            <div className="aform-foot">
+              <span className="aform-note">
+                Will be named
+                <strong>
+                  {setForm.set_number
+                    ? `${getOrdinal(setForm.set_number)} NAPS-LASUCOM DEC`
+                    : "—"}
+                </strong>
+              </span>
 
-      <section className="executive-admin-card">
-        <div className="admin-section-title">
-          <h2>DEC Sets</h2>
-          <p>Select the set you want to manage.</p>
-        </div>
-
-        {sets.length > 0 ? (
-          <div className="executive-set-list">
-            {sets.map((item) => (
               <button
-                type="button"
-                key={item.id}
-                className={
-                  selectedSetId === item.id
-                    ? "executive-set-card active"
-                    : "executive-set-card"
-                }
-                onClick={() => setSelectedSetId(item.id)}
+                type="submit"
+                className="abtn abtn--primary"
+                disabled={savingSet}
               >
-                <section>
-                  <h3>{item.set_name}</h3>
-                  <p>{item.academic_session || "No session added"}</p>
-                </section>
-
-                <div>
-                  {item.is_current && <span>Current</span>}
-
-                  {!item.is_current && (
-                    <small
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        markCurrentSet(item.id);
-                      }}
-                    >
-                      Make current
-                    </small>
-                  )}
-                </div>
+                <Plus size={14} />
+                {savingSet ? "Creating…" : "Create set"}
               </button>
-            ))}
-          </div>
-        ) : (
-          <section className="admin-empty-panel small">
-            <Users size={28} />
-            <h3>No DEC set yet</h3>
-            <p>Create the first NAPS-LASUCOM DEC set.</p>
-          </section>
-        )}
-      </section>
+            </div>
+          </form>
+        </section>
+      )}
 
-      <section className="executive-admin-card">
-        <div className="admin-section-title">
-          <h2>Add Executive</h2>
-          <p>
-            {selectedSet
-              ? `Adding to ${selectedSet.set_name}`
-              : "Select a DEC set first."}
-          </p>
-        </div>
-
-        <form className="executive-admin-form" onSubmit={addExecutive}>
-          <div className="request-form-group">
-            <label>Full name</label>
-            <input
-              type="text"
-              placeholder="Executive full name"
-              value={executiveForm.full_name}
-              onChange={(e) =>
-                setExecutiveForm((prev) => ({
-                  ...prev,
-                  full_name: e.target.value,
-                }))
-              }
-            />
+      {showExecForm && (
+        <section className="apanel">
+          <div className="apanel-head">
+            <div>
+              <h2>Add executive</h2>
+              <p>{selectedSet ? `Into ${selectedSet.set_name}` : "Select a set first."}</p>
+            </div>
           </div>
 
-          <div className="request-form-row">
-            <div className="request-form-group">
-              <label>Office</label>
-              <select
-                value={executiveForm.office}
+          <form className="apanel-body aform-grid" onSubmit={addExecutive}>
+            <div className="afield">
+              <label htmlFor="e-name">Full name</label>
+              <input
+                id="e-name"
+                placeholder="Executive full name"
+                value={executiveForm.full_name}
                 onChange={(e) =>
                   setExecutiveForm((prev) => ({
                     ...prev,
-                    office: e.target.value,
+                    full_name: e.target.value,
                   }))
+                }
+              />
+            </div>
+
+            <div className="afield">
+              <label htmlFor="e-office">Office</label>
+              <select
+                id="e-office"
+                value={executiveForm.office}
+                onChange={(e) =>
+                  setExecutiveForm((prev) => ({ ...prev, office: e.target.value }))
                 }
               >
                 {offices.map((office) => (
@@ -531,9 +550,23 @@ const { error } = await supabase.from("executives").insert({
               </select>
             </div>
 
-            <div className="request-form-group">
-              <label>Display order optional</label>
+            <div className="afield">
+              <label htmlFor="e-phone">Phone</label>
               <input
+                id="e-phone"
+                type="tel"
+                placeholder="Phone or WhatsApp"
+                value={executiveForm.phone}
+                onChange={(e) =>
+                  setExecutiveForm((prev) => ({ ...prev, phone: e.target.value }))
+                }
+              />
+            </div>
+
+            <div className="afield">
+              <label htmlFor="e-order">Display order</label>
+              <input
+                id="e-order"
                 type="number"
                 min="1"
                 placeholder="Auto"
@@ -546,88 +579,126 @@ const { error } = await supabase.from("executives").insert({
                 }
               />
             </div>
-          </div>
 
-          <div className="request-form-group">
-            <label>Phone optional</label>
-            <input
-              type="tel"
-              placeholder="Phone or WhatsApp number"
-              value={executiveForm.phone}
-              onChange={(e) =>
-                setExecutiveForm((prev) => ({
-                  ...prev,
-                  phone: e.target.value,
-                }))
-              }
-            />
-          </div>
+            <label className="adrop">
+              <ImagePlus size={16} />
+              <span>
+                {executiveForm.image
+                  ? executiveForm.image.name
+                  : "Choose a portrait"}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) =>
+                  setExecutiveForm((prev) => ({
+                    ...prev,
+                    image: e.target.files?.[0] || null,
+                  }))
+                }
+              />
+            </label>
 
-          <label className="executive-image-upload">
-            <ImagePlus size={21} />
-            <span>
-              {executiveForm.image
-                ? executiveForm.image.name
-                : "Upload executive image"}
-            </span>
+            <div className="aform-foot">
+              <span className="aform-note">Shown on the public Executives page.</span>
 
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) =>
-                setExecutiveForm((prev) => ({
-                  ...prev,
-                  image: e.target.files?.[0] || null,
-                }))
-              }
-            />
-          </label>
+              <button
+                type="submit"
+                className="abtn abtn--primary"
+                disabled={savingExecutive}
+              >
+                <Upload size={14} />
+                {savingExecutive ? "Uploading…" : "Add executive"}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
-          <button type="submit" disabled={savingExecutive}>
-            <Upload size={17} />
-            {savingExecutive ? "Uploading..." : "Add Executive"}
+      {/* Sets were a list of large cards taking a full section. As chips they
+          are the filter they always were, above the roster they filter. */}
+      <div className="achips">
+        {sets.map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            className={selectedSetId === item.id ? "achip-f is-on" : "achip-f"}
+            onClick={() => setSelectedSetId(item.id)}
+          >
+            {item.set_name}
+            {item.is_current && <em>current</em>}
           </button>
-        </form>
-      </section>
+        ))}
 
-      <section className="executive-admin-card final">
-        <div className="admin-section-title">
-          <h2>{selectedSet?.set_name || "Executives"}</h2>
-          <p>{selectedSet?.academic_session || "No set selected"}</p>
-        </div>
-
-        {selectedExecutives.length > 0 ? (
-          <div className="admin-executive-list">
-            {selectedExecutives.map((item) => (
-              <article className="admin-executive-card" key={item.id}>
-                <img src={item.image_url} alt={item.full_name} />
-
-                <section>
-                  <h3>{item.full_name}</h3>
-                  <p>{item.office}</p>
-                  <small>{item.is_active ? "Visible" : "Hidden"}</small>
-                </section>
-
-                <div>
-                  <button type="button" onClick={() => toggleExecutiveStatus(item)}>
-                    <RefreshCw size={15} />
-                  </button>
-
-                  <button type="button" onClick={() => deleteExecutive(item)}>
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <section className="admin-empty-panel small">
-            <Users size={28} />
-            <h3>No executive added</h3>
-            <p>Add executives under this DEC set.</p>
-          </section>
+        {selectedSet && !selectedSet.is_current && (
+          <button
+            type="button"
+            className="achip-f"
+            onClick={() => markCurrentSet(selectedSet.id)}
+          >
+            <Crown size={12} />
+            Make current
+          </button>
         )}
-      </section>
+      </div>
+
+      {/* A roster, not a table: the portrait is the point on a page whose
+         output is the public Executives page. */}
+      {selectedExecutives.length === 0 ? (
+        <div className="atable-wrap">
+          <div className="aempty-row">
+            <Users size={26} />
+            <strong>{sets.length ? "No executives in this set" : "No DEC set yet"}</strong>
+            <span>
+              {sets.length
+                ? "Add executives and they appear on the public page."
+                : "Create the first NAPS-LASUCOM DEC set to begin."}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="aroster">
+          {selectedExecutives.map((item) => (
+            <article className="aroster-card" key={item.id}>
+              <img src={item.image_url} alt="" />
+
+              <div className="aroster-body">
+                <strong>{item.full_name}</strong>
+                <span>{item.office}</span>
+
+                <span
+                  className={
+                    item.is_active ? "abadge abadge--live" : "abadge abadge--draft"
+                  }
+                >
+                  <i />
+                  {item.is_active ? "Visible" : "Hidden"}
+                </span>
+              </div>
+
+              <div className="aroster-actions">
+                <button
+                  type="button"
+                  className="aicon-btn"
+                  title={item.is_active ? "Hide from students" : "Show to students"}
+                  onClick={() => toggleExecutiveStatus(item)}
+                >
+                  {item.is_active ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+
+                <button
+                  type="button"
+                  className="aicon-btn is-danger"
+                  title="Remove"
+                  onClick={() => deleteExecutive(item)}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </main>
   );
 }
