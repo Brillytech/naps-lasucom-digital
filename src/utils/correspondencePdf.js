@@ -20,12 +20,11 @@ const C = {
   green: [34, 164, 71],
   gold: [222, 164, 20],
   ink: [22, 24, 30],
-  body: [40, 44, 52],
+  body: [28, 32, 40],
   muted: [108, 116, 130],
   /** Footer dividers. Deliberately darker than the page rules -- the old
    *  value sat too close to white to read as a division at all. */
   divider: [176, 184, 198],
-  wash: [238, 244, 252],
   /** Edge rails. Pale enough to sit under the text without pulling focus. */
   rail: [211, 222, 240],
   red: [190, 30, 45],
@@ -35,8 +34,11 @@ const M = 52;
 const CONTENT = A4.w - M * 2;
 
 /** Body never goes below this, however long the document runs. */
-const MIN_BODY_PT = 9.5;
-const MAX_BODY_PT = 11.5;
+const MIN_BODY_PT = 10.5;
+const MAX_BODY_PT = 12.5;
+
+/** Subject band. Set once so the title is measured at the size it renders. */
+const TITLE_PT = 13;
 
 const FOOTER_H = 150;
 const BAND_H = 26;
@@ -315,13 +317,52 @@ function drawBand(doc, page, total) {
   doc.text(`Page ${page} of ${total}`, A4.w - M, y + 16, { align: "right" });
 }
 
-function drawWatermark(doc, mark) {
+/**
+ * Crest watermark, sized and placed to occupy whatever the body leaves.
+ *
+ * A short memo used to end halfway down and leave the rest of the sheet
+ * blank, which read as something missing rather than as margin. Filling that
+ * region with the crest is what makes the space deliberate; on a full page
+ * the region is small and the mark sits quietly behind the text as before.
+ */
+function drawWatermark(doc, mark, region) {
   if (!mark) return;
-  const size = 300;
+
+  const height = region.bottom - region.top;
+  if (height < 120) return;
+
+  const size = Math.max(190, Math.min(height * 0.94, 372));
+
   doc.saveGraphicsState();
-  doc.setGState(new doc.GState({ opacity: 0.06 }));
-  doc.addImage(mark, "PNG", (A4.w - size) / 2, A4.h / 2 - size / 2 - 30, size, size);
+  doc.setGState(new doc.GState({ opacity: height > 260 ? 0.085 : 0.055 }));
+  doc.addImage(
+    mark,
+    "PNG",
+    (A4.w - size) / 2,
+    region.top + (height - size) / 2,
+    size,
+    size
+  );
   doc.restoreGraphicsState();
+}
+
+/**
+ * Closing mark: a short centred rule in the brand sequence, set below the
+ * last paragraph so the text block visibly ends rather than just stopping.
+ * Echoes the rails and the header bars so it reads as part of the furniture.
+ */
+function drawClosing(doc, y) {
+  const w = 26;
+  const gap = 6;
+  const h = 2.4;
+  const colours = [C.green, C.blue, C.gold];
+  let x = (A4.w - (colours.length * w + (colours.length - 1) * gap)) / 2;
+
+  colours.forEach((colour) => {
+    doc.setFillColor(...colour);
+    doc.roundedRect(x, y, w, h, h / 2, h / 2, "F");
+    x += w + gap;
+  });
 }
 
 /**
@@ -448,7 +489,12 @@ function layoutBlocks(doc, blocks, width, size, leading, dryRun, startY) {
         }
 
         const gaps = l.words.length - 1;
-        const extra = !l.last && gaps > 0 ? (usable - l.width) / gaps : 0;
+
+        // Justify, but stop short of stretching a sparse line into holes --
+        // past roughly a space-and-a-half per gap the rivers cost more
+        // legibility than a ragged right edge does, so that line goes flush.
+        let extra = !l.last && gaps > 0 ? (usable - l.width) / gaps : 0;
+        if (extra > sw * 0.85) extra = 0;
         let x = M + indent;
 
         for (const word of l.words) {
@@ -493,23 +539,45 @@ export async function renderCorrespondence({
 
   const blocks = htmlToBlocks(bodyHtml);
 
-  const bodyTop = 232;
-  const available = A4.h - FOOTER_H - 18 - bodyTop;
+  const titleY = 162;
 
-  // Try the largest size that fits one page, then settle at the floor.
+  // Measure the title in the face it is actually set in: splitting under
+  // whatever font happened to be current breaks the lines for the wrong width.
+  doc.setFont(PDF_FONTS.SANS, "bold");
+  doc.setFontSize(TITLE_PT);
+  const titleLines = doc.splitTextToSize(
+    normaliseText(subject) || "Subject",
+    CONTENT - 56
+  );
+  const titleH = 24 + titleLines.length * 18;
+
+  const bodyTop = titleY + titleH + 36;
+  const footerTop = A4.h - FOOTER_H;
+  const available = footerTop - 18 - bodyTop;
+
+  // Largest size that still fits one page, then settle at the floor.
   let size = MAX_BODY_PT;
   let leading = size * 1.62;
+  let used = 0;
 
   for (; size >= MIN_BODY_PT; size -= 0.25) {
     leading = size * 1.62;
-    if (layoutBlocks(doc, blocks, CONTENT, size, leading, true, bodyTop) <= available) break;
+    used = layoutBlocks(doc, blocks, CONTENT, size, leading, true, bodyTop);
+    if (used <= available) break;
   }
   if (size < MIN_BODY_PT) {
     size = MIN_BODY_PT;
     leading = size * 1.62;
+    used = layoutBlocks(doc, blocks, CONTENT, size, leading, true, bodyTop);
   }
 
-  drawWatermark(doc, watermark);
+  const onePage = used <= available;
+  const bodyEnd = bodyTop + used;
+
+  drawWatermark(doc, watermark, {
+    top: onePage ? bodyEnd + 34 : bodyTop,
+    bottom: footerTop - 20,
+  });
   drawRails(doc);
   drawHead(doc, { office, logo });
 
@@ -520,21 +588,23 @@ export async function renderCorrespondence({
     charSpace: 0.4,
   });
 
-  const titleY = 162;
-  const titleLines = doc.splitTextToSize(normaliseText(subject) || "Subject", CONTENT - 40);
-  const titleH = 20 + titleLines.length * 17;
-
-  doc.setFillColor(...C.wash);
+  // Solid rather than tinted: against a page this open, a wash of pale blue
+  // had no more presence than the paper. This bookends the footer band.
+  doc.setFillColor(...C.deep);
   doc.rect(M, titleY, CONTENT, titleH, "F");
   doc.setFillColor(...C.green);
-  doc.rect(M, titleY, 4, titleH, "F");
+  doc.rect(M, titleY, 5, titleH, "F");
+  doc.setFillColor(...C.gold);
+  doc.rect(M, titleY + titleH, CONTENT, 2, "F");
 
-  setType(doc, PDF_FONTS.SANS, "bold", 12.5, C.deep);
-  titleLines.forEach((line, i) => {
-    doc.text(line, M + CONTENT / 2, titleY + 24 + i * 17, { align: "center" });
+  setType(doc, PDF_FONTS.SANS, "bold", TITLE_PT, [255, 255, 255]);
+  titleLines.forEach((line, n) => {
+    doc.text(line, M + CONTENT / 2, titleY + 27 + n * 18, { align: "center" });
   });
 
   layoutBlocks(doc, blocks, CONTENT, size, leading, false, bodyTop);
+
+  if (onePage) drawClosing(doc, bodyEnd + 18);
 
   const total = doc.internal.getNumberOfPages();
   for (let page = 1; page <= total; page += 1) {
