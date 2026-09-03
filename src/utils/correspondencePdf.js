@@ -30,9 +30,8 @@ const A4 = { w: 595.28, h: 841.89 };
 const C = {
   blue: [7, 82, 184],
   deep: [8, 43, 99],
-  /** Mid and light tints of the same blue, carrying the work gold used to. */
+  /** A mid tint of the same blue, carrying the work gold used to. */
   sky: [92, 143, 214],
-  mist: [168, 196, 232],
   green: [34, 164, 71],
   ink: [22, 24, 30],
   body: [28, 32, 40],
@@ -42,6 +41,9 @@ const C = {
   divider: [176, 184, 198],
   /** Edge rails. Pale enough to sit under the text without pulling focus. */
   rail: [211, 222, 240],
+  /** Reference band. A wash, not a fill -- it groups the line without
+   *  becoming a second banner competing with the subject. */
+  wash: [239, 244, 251],
 };
 
 const M = 52;
@@ -117,39 +119,6 @@ function fitted(doc, text, family, style, max, floor, width) {
 }
 
 /**
- * Staggered accent bars.
- *
- * Thin, rounded, and of varying height rather than one flat block: the eye
- * reads the rhythm as deliberate. Heights follow a fixed pattern so every
- * document looks the same rather than randomly generated.
- */
-function accentBars(doc, rightEdge, y) {
-  // One hue, four values, descending: the eye reads it as a single mark
-  // rather than four competing ones.
-  const bars = [
-    { colour: C.deep, h: 60 },
-    { colour: C.blue, h: 45 },
-    { colour: C.sky, h: 31 },
-    { colour: C.mist, h: 20 },
-  ];
-
-  const w = 5.6;
-  const gap = 6.4;
-  const total = bars.length * (w + gap) - gap;
-
-  // Right-aligned rather than placed from the left, so changing the weight
-  // never walks the group off the margin.
-  const x = rightEdge - total;
-
-  bars.forEach((bar, i) => {
-    doc.setFillColor(...bar.colour);
-    doc.roundedRect(x + i * (w + gap), y, w, bar.h, w / 2, w / 2, "F");
-  });
-
-  return total;
-}
-
-/**
  * Edge rails.
  *
  * A hairline down each side margin: a pale spine the full height of the page,
@@ -201,35 +170,53 @@ function drawRails(doc) {
   doc.roundedRect(right, bottom - tail * 0.42, w, tail * 0.42, r, r, "F");
 }
 
-/** Header: crest, wordmark, issuing office, and the rule beneath. */
+/**
+ * Masthead.
+ *
+ * The wordmark used to sit in a column beside the crest, leaving the right
+ * half of the header to a group of decorative bars. Centring the whole block
+ * across the content width lets the name occupy the space the bars were
+ * standing in for, which is what a letterhead is supposed to do.
+ *
+ * The crest stays hard left. A centred crest would push the name down and
+ * cost two lines of body on every document.
+ */
 function drawHead(doc, { office, logo }) {
-  if (logo) doc.addImage(logo, "PNG", M, 40, 56, 56);
+  if (logo) doc.addImage(logo, "PNG", M, 36, 58, 58);
 
-  const x = M + 68;
+  const mid = A4.w / 2;
 
-  setType(doc, PDF_FONTS.SANS, "bold", 16.5, C.deep);
-  doc.text("NAPS-LASUCOM", x, 59, { charSpace: 0.2 });
+  setType(doc, PDF_FONTS.SANS, "bold", 20, C.deep);
+  doc.text("NAPS-LASUCOM", mid, 60, { align: "center", charSpace: 1.1 });
 
-  setType(doc, PDF_FONTS.SANS, "bold", 8.8, C.ink);
-  doc.text("Nigeria Association of Physiotherapy Students", x, 74);
-
-  setType(doc, PDF_FONTS.SANS, "normal", 8.6, C.body);
-  doc.text("Lagos State University College of Medicine", x, 86);
-
-  // Blue, not green: the rule directly beneath already carries the green, and
-  // two greens stacked in the header is where the old palette started to
-  // scatter.
-  setType(doc, PDF_FONTS.SANS, "bold", 10, C.blue);
-  doc.text(`OFFICE OF THE ${String(office || "").toUpperCase()}`, x, 101, {
-    charSpace: 0.6,
+  setType(doc, PDF_FONTS.SANS, "bold", 9.2, C.ink);
+  doc.text("Nigeria Association of Physiotherapy Students", mid, 76, {
+    align: "center",
   });
 
-  accentBars(doc, A4.w - M, 34);
+  setType(doc, PDF_FONTS.SANS, "normal", 8.8, C.body);
+  doc.text("Lagos State University College of Medicine", mid, 88, {
+    align: "center",
+  });
 
+  setType(doc, PDF_FONTS.SANS, "bold", 9.6, C.blue);
+  doc.text(`OFFICE OF THE ${String(office || "").toUpperCase()}`, mid, 103, {
+    align: "center",
+    charSpace: 0.7,
+  });
+
+  /*
+    A stacked rule rather than one bar: a 2.6pt blue with a hairline set
+    below it. It is the oldest device on a letterhead and it costs four
+    points of height -- which is the point, with the bars gone.
+  */
   doc.setFillColor(...C.blue);
-  doc.rect(M, 112, CONTENT, 2.6, "F");
+  doc.rect(M, 114, CONTENT, 2.6, "F");
   doc.setFillColor(...C.green);
-  doc.rect(M, 112, CONTENT * 0.28, 2.6, "F");
+  doc.rect(M, 114, CONTENT * 0.24, 2.6, "F");
+
+  doc.setFillColor(...C.sky);
+  doc.rect(M, 120, CONTENT, 0.8, "F");
 }
 
 /**
@@ -777,9 +764,14 @@ export async function renderCorrespondence({
   drawRails(doc);
   drawHead(doc, { office, logo });
 
-  setType(doc, PDF_FONTS.SANS, "bold", 8.4, C.muted);
-  doc.text(`REF: ${normaliseText(reference) || "—"}`, M, 140, { charSpace: 0.4 });
-  doc.text(`DATE: ${String(date || "").toUpperCase()}`, A4.w - M, 140, {
+  doc.setFillColor(...C.wash);
+  doc.roundedRect(M, 132, CONTENT, 20, 2, 2, "F");
+
+  setType(doc, PDF_FONTS.SANS, "bold", 8.2, C.deep);
+  doc.text(`REF: ${normaliseText(reference) || "—"}`, M + 10, 145.5, {
+    charSpace: 0.4,
+  });
+  doc.text(`DATE: ${String(date || "").toUpperCase()}`, A4.w - M - 10, 145.5, {
     align: "right",
     charSpace: 0.4,
   });
