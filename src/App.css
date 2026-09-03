@@ -18528,3 +18528,43 @@ tr:hover .aicon-btn { border-color: var(--rule); }
   gap: 5px;
   white-space: nowrap;
 }
+
+/* Panel form: a grid of fields with the submit and its explanation on one
+   foot row, rather than a column of full-width inputs. */
+.aform-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--sp-3) var(--sp-4);
+}
+
+.aform-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--rule);
+}
+
+/* The role is derived from the office, so it is stated rather than chosen. */
+.aform-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.aform-note strong {
+  font-weight: 600;
+  color: var(--blue-ink);
+}
+
+/* A select sitting inside a table cell while a row is being edited. */
+.atable .aselect {
+  height: 30px;
+  font-size: 12.5px;
+  max-width: 190px;
+}

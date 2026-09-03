@@ -1,15 +1,17 @@
 import {
   AlertCircle,
   CheckCircle2,
-  ChevronRight,
   KeyRound,
-  Mail,
+  Layers,
+  Lock,
   Pencil,
   Save,
   Send,
   ShieldCheck,
   Trash2,
-  UserCog,
+  UserCheck,
+  UserMinus,
+  UserPlus,
   Users,
   X,
 } from "lucide-react";
@@ -69,9 +71,9 @@ function AdminAdmins() {
     office: "General Secretary",
     dec_set_id: "",
   });
-
-  const [showDisabled, setShowDisabled] = useState(false);
   const [editingId, setEditingId] = useState("");
+  const [view, setView] = useState("active");
+  const [showInvite, setShowInvite] = useState(false);
   const [editOffice, setEditOffice] = useState("");
   const [editSetId, setEditSetId] = useState("");
 
@@ -413,6 +415,14 @@ async function removeDisabledAdmin(admin) {
     return admins.filter((admin) => !admin.is_active);
   }, [admins]);
 
+  const shownAdmins =
+    view === "active"
+      ? activeAdmins
+      : view === "disabled"
+        ? disabledAdmins
+        : admins;
+
+
   if (loading) {
     return (
       <main className="admin-dashboard-page">
@@ -423,7 +433,7 @@ async function removeDisabledAdmin(admin) {
 
   if (!profile || profile.role !== "president" || !profile.is_active) {
     return (
-      <main className="admin-dashboard-page">
+      <main className="admin-page">
         <section className="admin-empty-panel">
           <ShieldCheck size={34} />
           <h3>Access denied</h3>
@@ -434,330 +444,362 @@ async function removeDisabledAdmin(admin) {
   }
 
   return (
-    <main className="admin-dashboard-page">
-      <header className="admin-dashboard-header">
+    <main className="admin-page">
+      <header className="apage-head">
         <div>
-          <p>President Control</p>
-          <h1>Admin Management</h1>
-          <span>Invite executives and manage admin access.</span>
+          <p className="apage-eyebrow">President control</p>
+          <h1>Admin access</h1>
+          <p>Invite executives and manage who can sign in to the console.</p>
+        </div>
+
+        <div className="apage-actions">
+          <button
+            type="button"
+            className={showInvite ? "abtn" : "abtn abtn--primary"}
+            onClick={() => setShowInvite((v) => !v)}
+          >
+            {showInvite ? <X size={14} /> : <UserPlus size={14} />}
+            {showInvite ? "Close" : "Invite executive"}
+          </button>
         </div>
       </header>
 
       {successMessage && (
-        <div className="request-success">
-          <CheckCircle2 size={18} />
+        <div className="anote is-ok" style={{ margin: "16px 0 0" }}>
+          <CheckCircle2 size={15} />
           {successMessage}
         </div>
       )}
 
       {errorMessage && (
-        <div className="request-error">
-          <AlertCircle size={18} />
+        <div className="anote is-bad" style={{ margin: "16px 0 0" }}>
+          <AlertCircle size={15} />
           {errorMessage}
         </div>
       )}
 
-      <section className="admin-management-hero">
-        <div>
-          <UserCog size={24} />
+      <div className="astats">
+        <div className="astat astat--live">
+          <span className="astat-ico"><ShieldCheck size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{activeAdmins.length}</span>
+            <span className="astat-l">Active</span>
+          </span>
         </div>
 
-        <section>
-          <h3>Executive Invite System</h3>
-          <p>Invite executives by email. Password setup is handled from the invite link.</p>
-        </section>
-      </section>
-
-      <section className="admin-admin-stats">
-        <article>
-          <strong>{activeAdmins.length}</strong>
-          <span>Active Admins</span>
-        </article>
-
-        <article>
-          <strong>{disabledAdmins.length}</strong>
-          <span>Disabled</span>
-        </article>
-
-        <article>
-          <strong>Invite</strong>
-          <span>Add Executive</span>
-        </article>
-      </section>
-
-      <section className="admin-management-card">
-        <div className="admin-section-title">
-          <h2>Invite Executive</h2>
-          <p>Enter executive details and send an admin invite.</p>
+        <div className="astat astat--idle">
+          <span className="astat-ico"><UserMinus size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{disabledAdmins.length}</span>
+            <span className="astat-l">Disabled</span>
+          </span>
         </div>
 
-        <form className="admin-management-form" onSubmit={sendInvite}>
-          <div className="request-form-group">
-            <label>Full name</label>
-            <input
-              type="text"
-              placeholder="Executive full name"
-              value={form.full_name}
-              onChange={(e) => updateField("full_name", e.target.value)}
-            />
-          </div>
-
-          <div className="request-form-group">
-            <label>Email address</label>
-            <input
-              type="email"
-              placeholder="executive@email.com"
-              value={form.email}
-              onChange={(e) => updateField("email", e.target.value)}
-            />
-          </div>
-
-          <div className="request-form-group">
-            <label>Office</label>
-            <select
-              value={form.office}
-              onChange={(e) => updateField("office", e.target.value)}
-            >
-              {offices.map((office) => (
-                <option key={office}>{office}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="request-form-group">
-            <label>DEC set</label>
-            <select
-              value={form.dec_set_id}
-              onChange={(e) => updateField("dec_set_id", e.target.value)}
-            >
-              <option value="">No DEC set</option>
-              {sets.map((set) => (
-                <option key={set.id} value={set.id}>
-                  {set.set_name} {set.academic_session ? `• ${set.academic_session}` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="admin-role-preview">
-            <span>Role</span>
-            <strong>{roleLabels[officeToRole[form.office]] || "Viewer"}</strong>
-          </div>
-
-          <button type="submit" disabled={sendingInvite}>
-            <Send size={17} />
-            {sendingInvite ? "Sending Invite..." : "Send Invite"}
-          </button>
-        </form>
-      </section>
-
-      <section className="admin-management-card final">
-        <div className="admin-section-title admin-list-title">
-          <div>
-            <h2>Active Admins</h2>
-            <p>Disabled profiles are hidden from this list.</p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setShowDisabled((prev) => !prev);
-              setEditingId("");
-              setEditOffice("");
-              setEditSetId("");
-            }}
-          >
-            {showDisabled ? "Hide Disabled" : `Disabled (${disabledAdmins.length})`}
-            <ChevronRight size={15} />
-          </button>
+        <div className="astat astat--mark">
+          <span className="astat-ico"><Users size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{admins.length}</span>
+            <span className="astat-l">Profiles</span>
+          </span>
         </div>
 
-        {activeAdmins.length > 0 ? (
-          <div className="admin-profile-list">
-            {activeAdmins.map((admin) => {
-              const isEditing = editingId === admin.id;
-              const isPresident = admin.role === "president";
+        <div className="astat astat--soon">
+          <span className="astat-ico"><Layers size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{sets.length}</span>
+            <span className="astat-l">DEC sets</span>
+          </span>
+        </div>
+      </div>
 
-              return (
-                <article className="admin-profile-card" key={admin.id}>
-                  <div className="admin-profile-avatar">
-                    <Users size={20} />
-                  </div>
-
-                  <section>
-                    <div className="admin-profile-main">
-                      <h3>{admin.full_name || "Unnamed Admin"}</h3>
-                      <small className="active">Active</small>
-                    </div>
-
-                    <p>
-                      <Mail size={13} />
-                      {admin.email || "No email saved"}
-                    </p>
-
-                    {!isEditing && (
-                      <div className="admin-role-lines">
-                        <span>{admin.office || "No office"}</span>
-                        <strong>{roleLabels[admin.role] || admin.role}</strong>
-                        <em>{getSetLabel(admin)}</em>
-                      </div>
-                    )}
-
-                    {isEditing && (
-                      <div className="admin-edit-box">
-                        <label>Change office</label>
-                        <select
-                          value={editOffice}
-                          onChange={(e) => setEditOffice(e.target.value)}
-                        >
-                          {offices.map((office) => (
-                            <option key={office}>{office}</option>
-                          ))}
-                        </select>
-
-                        <label>DEC set</label>
-                        <select
-                          value={editSetId}
-                          onChange={(e) => setEditSetId(e.target.value)}
-                        >
-                          <option value="">No DEC set</option>
-                          {sets.map((set) => (
-                            <option key={set.id} value={set.id}>
-                              {set.set_name} {set.academic_session ? `• ${set.academic_session}` : ""}
-                            </option>
-                          ))}
-                        </select>
-
-                        <div className="admin-role-preview compact">
-                          <span>Role</span>
-                          <strong>
-                            {roleLabels[officeToRole[editOffice]] || "Viewer"}
-                          </strong>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="admin-profile-actions">
-                      {!isEditing && (
-                        <button
-                          type="button"
-                          className="admin-edit-btn"
-                          onClick={() => startEdit(admin)}
-                        >
-                          <Pencil size={14} />
-                          Edit
-                        </button>
-                      )}
-
-                      {isEditing && (
-                        <>
-                          <button
-                            type="button"
-                            className="admin-save-btn"
-                            disabled={savingId === admin.id}
-                            onClick={() => saveEdit(admin)}
-                          >
-                            <Save size={14} />
-                            Save
-                          </button>
-
-                          <button
-                            type="button"
-                            className="admin-cancel-btn"
-                            onClick={cancelEdit}
-                          >
-                            <X size={14} />
-                            Cancel
-                          </button>
-                        </>
-                      )}
-
-                      {!isEditing && !isPresident && (
-  <>
-    <button
-      type="button"
-      className="admin-reset-btn"
-      disabled={savingId === admin.id}
-      onClick={() => resetPassword(admin)}
-    >
-      <KeyRound size={14} />
-      Reset Password
-    </button>
-
-    <button
-      type="button"
-      className="admin-disable-btn"
-      disabled={savingId === admin.id}
-      onClick={() => toggleStatus(admin)}
-    >
-      Disable
-    </button>
-  </>
-)}
-                      {!isEditing && isPresident && (
-                        <button type="button" className="admin-locked-btn" disabled>
-                          Protected
-                        </button>
-                      )}
-                    </div>
-                  </section>
-                </article>
-              );
-            })}
+      {/* The invite form is the page's one write action, so it opens from the
+          header rather than sitting above the list permanently. */}
+      {showInvite && (
+        <section className="apanel">
+          <div className="apanel-head">
+            <div>
+              <h2>Invite an executive</h2>
+              <p>They set their own password from the invite link.</p>
+            </div>
           </div>
-        ) : (
-          <section className="admin-empty-panel small">
-            <Users size={30} />
-            <h3>No active admin</h3>
-            <p>Invited executives will appear here after activation.</p>
-          </section>
-        )}
 
-        {showDisabled && (
-          <section className="disabled-admin-panel">
-            <div className="disabled-admin-title">
-              <h3>Disabled Admins</h3>
-              <p>Compact archive for inactive or mistaken admin profiles.</p>
+          <form className="apanel-body aform-grid" onSubmit={sendInvite}>
+            <div className="afield">
+              <label htmlFor="i-name">Full name</label>
+              <input
+                id="i-name"
+                value={form.full_name}
+                onChange={(e) => updateField("full_name", e.target.value)}
+                placeholder="Executive full name"
+              />
             </div>
 
-            {disabledAdmins.length > 0 ? (
-              <div className="disabled-admin-list">
-                {disabledAdmins.map((admin) => (
-                  <article className="disabled-admin-row" key={admin.id}>
-                    <section>
-                      <h4>{admin.full_name || "Unnamed Admin"}</h4>
-                      <p>{admin.email || "No email saved"}</p>
-                      <span>{admin.office || "No office"} • {getSetLabel(admin)}</span>
-                    </section>
+            <div className="afield">
+              <label htmlFor="i-email">Email address</label>
+              <input
+                id="i-email"
+                type="email"
+                value={form.email}
+                onChange={(e) => updateField("email", e.target.value)}
+                placeholder="executive@email.com"
+              />
+            </div>
 
-                    <div>
-                      <button
-                        type="button"
-                        className="admin-activate-btn"
-                        disabled={savingId === admin.id}
-                        onClick={() => toggleStatus(admin)}
-                      >
-                        Activate
-                      </button>
-
-                      <button
-                        type="button"
-                        className="admin-remove-btn"
-                        disabled={savingId === admin.id}
-                        onClick={() => removeDisabledAdmin(admin)}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </article>
+            <div className="afield">
+              <label htmlFor="i-office">Office</label>
+              <select
+                id="i-office"
+                value={form.office}
+                onChange={(e) => updateField("office", e.target.value)}
+              >
+                {offices.map((office) => (
+                  <option key={office}>{office}</option>
                 ))}
-              </div>
-            ) : (
-              <p className="disabled-admin-empty">No disabled admin profile.</p>
-            )}
-          </section>
+              </select>
+            </div>
+
+            <div className="afield">
+              <label htmlFor="i-set">DEC set</label>
+              <select
+                id="i-set"
+                value={form.dec_set_id}
+                onChange={(e) => updateField("dec_set_id", e.target.value)}
+              >
+                <option value="">No DEC set</option>
+                {sets.map((set) => (
+                  <option key={set.id} value={set.id}>
+                    {set.set_name}
+                    {set.academic_session ? ` · ${set.academic_session}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="aform-foot">
+              <span className="aform-note">
+                Role from office:
+                <strong>{roleLabels[officeToRole[form.office]] || "Viewer"}</strong>
+              </span>
+
+              <button
+                type="submit"
+                className="abtn abtn--primary"
+                disabled={sendingInvite}
+              >
+                <Send size={14} />
+                {sendingInvite ? "Sending…" : "Send invite"}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      <div className="atoolbar">
+        <div className="aseg">
+          {[
+            ["active", "Active", activeAdmins.length],
+            ["disabled", "Disabled", disabledAdmins.length],
+            ["all", "All", admins.length],
+          ].map(([id, label, count]) => (
+            <button
+              type="button"
+              key={id}
+              className={view === id ? "is-on" : ""}
+              onClick={() => {
+                setView(id);
+                setEditingId("");
+              }}
+            >
+              {label}
+              <em>{count}</em>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="atable-wrap">
+        {shownAdmins.length === 0 ? (
+          <div className="aempty-row">
+            <Users size={26} />
+            <strong>Nobody here</strong>
+            <span>Invited executives appear once they accept.</span>
+          </div>
+        ) : (
+          <div className="atable-scroll">
+            <table className="atable">
+              <thead>
+                <tr>
+                  <th>Executive</th>
+                  <th>Office</th>
+                  <th>Role</th>
+                  <th>DEC set</th>
+                  <th>Status</th>
+                  <th className="num">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {shownAdmins.map((admin) => {
+                  const isEditing = editingId === admin.id;
+                  const isPresident = admin.role === "president";
+                  const busy = savingId === admin.id;
+
+                  return (
+                    <tr key={admin.id}>
+                      <td>
+                        <div className="acell-title">
+                          <strong>{admin.full_name || "Unnamed admin"}</strong>
+                          <span>{admin.email || "No email saved"}</span>
+                        </div>
+                      </td>
+
+                      {/* Editing swaps two cells in place rather than opening a
+                          form elsewhere, so the row keeps its context. */}
+                      <td>
+                        {isEditing ? (
+                          <select
+                            className="aselect"
+                            value={editOffice}
+                            onChange={(e) => setEditOffice(e.target.value)}
+                            aria-label="Office"
+                          >
+                            {offices.map((office) => (
+                              <option key={office}>{office}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="quiet">{admin.office || "No office"}</span>
+                        )}
+                      </td>
+
+                      <td>
+                        <span className="abadge">
+                          {isEditing
+                            ? roleLabels[officeToRole[editOffice]] || "Viewer"
+                            : roleLabels[admin.role] || admin.role}
+                        </span>
+                      </td>
+
+                      <td>
+                        {isEditing ? (
+                          <select
+                            className="aselect"
+                            value={editSetId}
+                            onChange={(e) => setEditSetId(e.target.value)}
+                            aria-label="DEC set"
+                          >
+                            <option value="">No DEC set</option>
+                            {sets.map((set) => (
+                              <option key={set.id} value={set.id}>
+                                {set.set_name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="quiet">{getSetLabel(admin)}</span>
+                        )}
+                      </td>
+
+                      <td>
+                        <span
+                          className={
+                            admin.is_active
+                              ? "abadge abadge--live"
+                              : "abadge abadge--off"
+                          }
+                        >
+                          <i />
+                          {admin.is_active ? "Active" : "Disabled"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="acell-actions">
+                          {isEditing ? (
+                            <>
+                              <button
+                                type="button"
+                                className="aicon-btn"
+                                title="Save"
+                                disabled={busy}
+                                onClick={() => saveEdit(admin)}
+                              >
+                                <Save size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="aicon-btn"
+                                title="Cancel"
+                                onClick={cancelEdit}
+                              >
+                                <X size={14} />
+                              </button>
+                            </>
+                          ) : isPresident ? (
+                            <span className="abadge">
+                              <Lock size={9} />
+                              Protected
+                            </span>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="aicon-btn"
+                                title="Edit office and set"
+                                onClick={() => startEdit(admin)}
+                              >
+                                <Pencil size={14} />
+                              </button>
+
+                              {admin.is_active && (
+                                <button
+                                  type="button"
+                                  className="aicon-btn"
+                                  title="Send password reset"
+                                  disabled={busy}
+                                  onClick={() => resetPassword(admin)}
+                                >
+                                  <KeyRound size={14} />
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                className={admin.is_active ? "aicon-btn is-danger" : "aicon-btn"}
+                                title={admin.is_active ? "Disable access" : "Restore access"}
+                                disabled={busy}
+                                onClick={() => toggleStatus(admin)}
+                              >
+                                {admin.is_active ? (
+                                  <UserMinus size={14} />
+                                ) : (
+                                  <UserCheck size={14} />
+                                )}
+                              </button>
+
+                              {!admin.is_active && (
+                                <button
+                                  type="button"
+                                  className="aicon-btn is-danger"
+                                  title="Remove profile"
+                                  disabled={busy}
+                                  onClick={() => removeDisabledAdmin(admin)}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
-      </section>
+      </div>
     </main>
   );
 }
