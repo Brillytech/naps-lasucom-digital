@@ -18051,3 +18051,80 @@ a.arow:hover {
   color: var(--blue-ink);
   box-shadow: var(--sh-1);
 }
+
+/* Saved documents, listed at the head of the composer panel. */
+.adrafts {
+  display: grid;
+  gap: 2px;
+  max-height: 210px;
+  overflow-y: auto;
+  margin: 0 -6px;
+}
+
+.adraft {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.14s var(--ease);
+}
+
+.adraft:hover {
+  background: var(--press);
+}
+
+.adraft.is-on {
+  background: color-mix(in srgb, var(--blue) 9%, transparent);
+}
+
+.adraft > svg {
+  flex: none;
+  color: var(--muted);
+}
+
+.adraft.is-on > svg {
+  color: var(--blue-ink);
+}
+
+.adraft span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.adraft strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adraft small {
+  font-size: 10.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Not a failure -- the document still renders, just without those blocks. */
+.anote.is-warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.anote.is-warn > svg,
+.anote.is-ok > svg,
+.anote.is-bad > svg {
+  flex: none;
+  margin-top: 1px;
+}

@@ -1,9 +1,12 @@
 import {
   AlertCircle,
+  AlertTriangle,
   Bold,
   Calendar,
   CheckCircle2,
   Download,
+  FilePlus2,
+  FileText,
   Globe,
   Hash,
   Image as ImageIcon,
@@ -20,10 +23,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import {
   OFFICES,
+  SIGNING_OFFICES,
   pickOfficials,
   renderCorrespondence,
 } from "../../utils/correspondencePdf";
-import { download, rasterisePdf, safeFileName } from "../../utils/pdfPreview";
+import {
+  download,
+  rasterisePdf,
+  safeFileName,
+  stitchPages,
+} from "../../utils/pdfPreview";
 
 const TEMPLATES = [
   {
@@ -107,6 +116,14 @@ function AdminCorrespondence() {
   const [email, setEmail] = useState("");
   const [instagram, setInstagram] = useState("");
 
+  // The draft currently open, if any. Null means this is a new document and
+  // saving will create a row rather than overwrite one.
+  const [draftId, setDraftId] = useState(null);
+  const [drafts, setDrafts] = useState([]);
+
+  /** The number the next export would take. Provisional until it allocates. */
+  const [nextSeq, setNextSeq] = useState(1);
+
   const [art, setArt] = useState({ logo: null, watermark: null });
   const [pages, setPages] = useState([]);
   const [rendering, setRendering] = useState(true);
@@ -182,27 +199,87 @@ function AdminCorrespondence() {
 
   /* ---------------- reference ---------------- */
 
-  const autoReference = useMemo(() => {
-    const code =
-      { president: "PRES", vice_president: "VP", general_secretary: "GS", pro: "PRO" }[
-        office
-      ] || "GS";
-    const year = (date || today()).slice(0, 4);
-    return `NAPS/LASUCOM/${code}/${year}/001`;
-  }, [office, date]);
+  const referenceFor = useCallback(
+    (seq) => {
+      const code =
+        { president: "PRES", vice_president: "VP", general_secretary: "GS", pro: "PRO" }[
+          office
+        ] || "GS";
+      const year = (date || today()).slice(0, 4);
+      return `NAPS/LASUCOM/${code}/${year}/${String(seq).padStart(3, "0")}`;
+    },
+    [office, date]
+  );
+
+  const autoReference = useMemo(
+    () => referenceFor(nextSeq),
+    [referenceFor, nextSeq]
+  );
 
   const effectiveRef = autoRef ? autoReference : reference;
+
+  // What the counter stands at for this office and year. Read only to show the
+  // number ahead of time; the export allocates the real one.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const { data } = await supabase
+        .from("correspondence_counters")
+        .select("last")
+        .eq("office", office)
+        .eq("year", Number((date || today()).slice(0, 4)))
+        .maybeSingle();
+
+      if (!cancelled) setNextSeq((data?.last ?? 0) + 1);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [office, date]);
+
+  const loadDrafts = useCallback(async () => {
+    const { data } = await supabase
+      .from("correspondence_drafts")
+      .select("id, template, office, subject, reference, status, document_date, updated_at, body_html, recipient, salutation, closing")
+      .order("updated_at", { ascending: false })
+      .limit(25);
+
+    setDrafts(data || []);
+  }, []);
+
+  useEffect(() => {
+    loadDrafts();
+  }, [loadDrafts]);
+
+  /*
+    A letter is signed by three named officers. If the executives table has
+    not been filled in, signatories() drops the blanks and the letter prints
+    with fewer blocks -- or none -- and says nothing about it.
+  */
+  const missingSigners = useMemo(
+    () =>
+      template === "letter"
+        ? SIGNING_OFFICES.filter(
+            (label) => !officials.find((o) => o.office === label)?.name
+          )
+        : [],
+    [template, officials]
+  );
 
   /* ---------------- preview ---------------- */
 
   const build = useCallback(
-    () =>
+    (referenceOverride) =>
       renderCorrespondence({
         template,
         office: officeLabel,
         subject,
         date: longDate(date),
-        reference: effectiveRef,
+        // The preview shows the provisional number; an export passes the one
+        // the database actually handed out.
+        reference: referenceOverride || effectiveRef,
         bodyHtml,
         officials,
         email,
@@ -262,11 +339,57 @@ function AdminCorrespondence() {
 
   /* ---------------- actions ---------------- */
 
+  /**
+   * Allocate the definitive reference and record the document as issued.
+   *
+   * The number comes from the database, not from counting rows here: two
+   * admins exporting at the same moment would otherwise read the same count
+   * and both take it. Drafts never allocate -- a draft is not an issued
+   * document, and numbering them would leave a gap for every one abandoned.
+   */
+  async function issue() {
+    if (!autoRef) return effectiveRef;
+
+    const { data: seq, error } = await supabase.rpc("next_correspondence_ref", {
+      p_office: office,
+      p_year: Number(date.slice(0, 4)),
+    });
+
+    if (error) throw new Error(error.message);
+
+    const allocated = referenceFor(seq);
+    const { data: auth } = await supabase.auth.getUser();
+
+    await supabase.from("correspondence_drafts").upsert({
+      ...(draftId ? { id: draftId } : {}),
+      template,
+      office,
+      reference: allocated,
+      reference_seq: seq,
+      subject,
+      body_html: bodyHtml,
+      document_date: date,
+      recipient: template === "letter" ? recipient : null,
+      salutation: template === "letter" ? salutation : null,
+      closing: template === "letter" ? closing : null,
+      status: "issued",
+      issued_at: new Date().toISOString(),
+      created_by: auth?.user?.id ?? null,
+    });
+
+    setNextSeq(seq + 1);
+    loadDrafts();
+
+    return allocated;
+  }
+
   async function handleExportPdf() {
     setBusy("pdf");
     try {
-      const doc = await build();
+      const reference = await issue();
+      const doc = await build(reference);
       doc.save(`${safeFileName(subject)}.pdf`);
+      setNotice({ kind: "ok", text: `Issued as ${reference}.` });
     } catch (error) {
       setNotice({ kind: "bad", text: `Export failed: ${error.message}` });
     } finally {
@@ -277,14 +400,12 @@ function AdminCorrespondence() {
   async function handleExportPng() {
     setBusy("png");
     try {
-      const doc = await build();
+      const reference = await issue();
+      const doc = await build(reference);
       const { pages: rendered } = await rasterisePdf(doc, 3);
-      rendered.forEach((dataUrl, i) =>
-        download(
-          dataUrl,
-          `${safeFileName(subject)}${rendered.length > 1 ? `-${i + 1}` : ""}.png`
-        )
-      );
+
+      download(await stitchPages(rendered), `${safeFileName(subject)}.png`);
+      setNotice({ kind: "ok", text: `Issued as ${reference}.` });
     } catch (error) {
       setNotice({ kind: "bad", text: `Image export failed: ${error.message}` });
     } finally {
@@ -298,7 +419,7 @@ function AdminCorrespondence() {
 
     const { data: auth } = await supabase.auth.getUser();
 
-    const { error } = await supabase.from("correspondence_drafts").insert({
+    const row = {
       template,
       office,
       reference: effectiveRef,
@@ -310,7 +431,26 @@ function AdminCorrespondence() {
       salutation: template === "letter" ? salutation : null,
       closing: template === "letter" ? closing : null,
       created_by: auth?.user?.id ?? null,
-    });
+      updated_at: new Date().toISOString(),
+    };
+
+    // Saving a draft that was opened from the list updates it. Without this
+    // every save of the same document would leave another copy behind.
+    const { data, error } = draftId
+      ? await supabase
+          .from("correspondence_drafts")
+          .update(row)
+          .eq("id", draftId)
+          .select("id")
+          .maybeSingle()
+      : await supabase
+          .from("correspondence_drafts")
+          .insert(row)
+          .select("id")
+          .maybeSingle();
+
+    if (data?.id) setDraftId(data.id);
+    if (!error) loadDrafts();
 
     setBusy("");
     setNotice(
@@ -318,6 +458,35 @@ function AdminCorrespondence() {
         ? { kind: "bad", text: `Could not save: ${error.message}` }
         : { kind: "ok", text: "Draft saved. You can leave and come back to it." }
     );
+  }
+
+  function loadDraft(row) {
+    setDraftId(row.id);
+    setTemplate(row.template || "memo");
+    setOffice(row.office || "general_secretary");
+    setSubject(row.subject || "");
+    setDate(row.document_date || today());
+    setRecipient(row.recipient || "");
+    setSalutation(row.salutation || "Dear Sir,");
+    setClosing(row.closing || "Yours faithfully,");
+
+    // A reference already allocated is kept verbatim rather than renumbered.
+    setAutoRef(row.status !== "issued");
+    setReference(row.reference || "");
+
+    setBodyHtml(row.body_html || "");
+    if (editorRef.current) editorRef.current.innerHTML = row.body_html || "";
+
+    setNotice({ kind: "ok", text: `Opened “${row.subject || "Untitled"}”.` });
+  }
+
+  function newDocument() {
+    setDraftId(null);
+    setAutoRef(true);
+    setSubject("");
+    setBodyHtml("");
+    if (editorRef.current) editorRef.current.innerHTML = "";
+    setNotice(null);
   }
 
   /** Shared across the secretariat, so this writes the single settings row. */
@@ -428,8 +597,52 @@ function AdminCorrespondence() {
         </div>
       )}
 
+      {missingSigners.length > 0 && (
+        <div className="anote is-warn" style={{ margin: "16px 0 0" }}>
+          <AlertTriangle size={15} />
+          No {missingSigners.join(", ")} on the current DEC set — those
+          signature blocks will not be printed. Add them on Executives first.
+        </div>
+      )}
+
       <div className="acompose">
         <aside className="acompose-panel">
+          <div className="acompose-section">
+            <div className="acompose-legend">
+              <h3>Documents</h3>
+              <button type="button" className="achip" onClick={newDocument}>
+                <FilePlus2 size={11} />
+                New
+              </button>
+            </div>
+
+            {drafts.length === 0 ? (
+              <p className="ashared-note">
+                Nothing saved yet. Save a draft and it will be listed here.
+              </p>
+            ) : (
+              <div className="adrafts">
+                {drafts.map((row) => (
+                  <button
+                    type="button"
+                    key={row.id}
+                    className={row.id === draftId ? "adraft is-on" : "adraft"}
+                    onClick={() => loadDraft(row)}
+                  >
+                    <FileText size={13} />
+                    <span>
+                      <strong>{row.subject || "Untitled"}</strong>
+                      <small>
+                        {row.reference || "No reference"}
+                        {row.status === "issued" ? " · Issued" : " · Draft"}
+                      </small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="acompose-section">
             <div className="acompose-legend">
               <h3>Template</h3>
@@ -511,6 +724,11 @@ function AdminCorrespondence() {
                   onChange={(e) => setReference(e.target.value)}
                 />
               </div>
+              <small className="afield-hint">
+                {autoRef
+                  ? "Assigned when you export. Saving a draft does not take a number."
+                  : "Manual — use this to continue an existing sequence or correct one."}
+              </small>
             </div>
 
             <div className="afield">

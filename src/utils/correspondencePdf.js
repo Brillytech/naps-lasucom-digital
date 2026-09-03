@@ -323,7 +323,7 @@ function drawFooter(doc, { officials, email, instagram, setName, office }) {
 }
 
 /** Signatory offices, in order of precedence. The P.R.O does not sign. */
-const SIGNING_OFFICES = ["President", "Vice President", "General Secretary"];
+export const SIGNING_OFFICES = ["President", "Vice President", "General Secretary"];
 
 /**
  * Who signs a letter: the three principal officers, always in the same order

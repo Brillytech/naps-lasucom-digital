@@ -1,4 +1,11 @@
-import { Routes, Route, NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  NavLink,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import {
   BookOpen,
   LogOut,
@@ -166,24 +173,88 @@ useEffect(() => {
             path="/naps-admin/set-password"
             element={<AdminSetPassword />}
           />
-          <Route path="/naps-admin" element={<AdminDashboard />} />
-          <Route path="/naps-admin/requests" element={<AdminRequests />} />
-          <Route path="/naps-admin/uploads" element={<AdminUploads />} />
-          <Route path="/naps-admin/resources" element={<AdminResources />} />
-          <Route path="/naps-admin/executives" element={<AdminExecutives />} />
-          <Route path="/naps-admin/admins" element={<AdminAdmins />} />
-          <Route path="/naps-admin/records" element={<AdminRecords />} />
+          <Route
+            path="/naps-admin"
+            element={
+              <RequireAdmin>
+                <AdminDashboard />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/naps-admin/requests"
+            element={
+              <RequireAdmin>
+                <AdminRequests />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/naps-admin/uploads"
+            element={
+              <RequireAdmin>
+                <AdminUploads />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/naps-admin/resources"
+            element={
+              <RequireAdmin>
+                <AdminResources />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/naps-admin/executives"
+            element={
+              <RequireAdmin>
+                <AdminExecutives />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/naps-admin/admins"
+            element={
+              <RequireAdmin>
+                <AdminAdmins />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/naps-admin/records"
+            element={
+              <RequireAdmin>
+                <AdminRecords />
+              </RequireAdmin>
+            }
+          />
           <Route
             path="/naps-admin/announcements"
-            element={<AdminAnnouncements />}
+            element={
+              <RequireAdmin>
+                <AdminAnnouncements />
+              </RequireAdmin>
+            }
           />
 
           <Route
             path="/naps-admin/correspondence"
-            element={<AdminCorrespondence />}
+            element={
+              <RequireAdmin>
+                <AdminCorrespondence />
+              </RequireAdmin>
+            }
           />
 
-          <Route path="/naps-admin/more" element={<AdminMore />} />
+          <Route
+            path="/naps-admin/more"
+            element={
+              <RequireAdmin>
+                <AdminMore />
+              </RequireAdmin>
+            }
+          />
 
           {/* ADMIN ROUTES - FUTURE */}
           {/* <Route path="/naps-admin/handover" element={<AdminHandover />} /> */}
@@ -239,6 +310,58 @@ function StudentNavItem({ to, icon, label }) {
       <span>{label}</span>
     </NavLink>
   );
+}
+
+/**
+ * Gate for the admin console.
+ *
+ * The console had no gate at all: any visitor could open every admin page.
+ * Nothing leaked -- RLS is the real boundary and it rejected every read and
+ * write -- but the screens rendered, and each action failed with a raw
+ * Postgres error rather than a sign-in prompt.
+ *
+ * getSession() reads the stored session rather than asking the server, so a
+ * signed-in admin is never bounced to the login page by a slow network. The
+ * subscription then keeps the gate honest if the session expires or is signed
+ * out in another tab.
+ */
+function RequireAdmin({ children }) {
+  const location = useLocation();
+  const [state, setState] = useState("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled) setState(data?.session ? "in" : "out");
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!cancelled) setState(session ? "in" : "out");
+    });
+
+    return () => {
+      cancelled = true;
+      sub?.subscription?.unsubscribe();
+    };
+  }, []);
+
+  if (state === "checking") {
+    return (
+      <main className="admin-page">
+        <div className="askel" style={{ height: 64, marginBottom: 12 }} />
+        <div className="askel" style={{ height: 220 }} />
+      </main>
+    );
+  }
+
+  if (state === "out") {
+    return (
+      <Navigate to="/naps-admin/login" replace state={{ from: location.pathname }} />
+    );
+  }
+
+  return children;
 }
 
 /**

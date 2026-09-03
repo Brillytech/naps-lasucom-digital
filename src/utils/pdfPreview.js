@@ -70,6 +70,50 @@ export async function rasterisePdf(doc, scale = 1.6) {
   };
 }
 
+/**
+ * Join rendered pages into one tall image.
+ *
+ * A download per page does not work: browsers block the second and later
+ * saves from a single gesture, so a three-page export quietly handed over
+ * page one alone. One file also matches what the image export is for --
+ * posting the notice somewhere that will not take a PDF.
+ */
+export async function stitchPages(dataUrls, gap = 24) {
+  const images = await Promise.all(
+    dataUrls.map(
+      (src) =>
+        new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+          image.src = src;
+        })
+    )
+  );
+
+  if (images.length === 1) return dataUrls[0];
+
+  const width = Math.max(...images.map((i) => i.width));
+  const height =
+    images.reduce((sum, i) => sum + i.height, 0) + gap * (images.length - 1);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+
+  let y = 0;
+  for (const image of images) {
+    context.drawImage(image, (width - image.width) / 2, y);
+    y += image.height + gap;
+  }
+
+  return canvas.toDataURL("image/png");
+}
+
 /** Hand the browser a file to save. */
 export function download(blobOrDataUrl, filename) {
   const url =
