@@ -173,52 +173,68 @@ function drawRails(doc) {
 /**
  * Masthead.
  *
- * The wordmark used to sit in a column beside the crest, leaving the right
- * half of the header to a group of decorative bars. Centring the whole block
- * across the content width lets the name occupy the space the bars were
- * standing in for, which is what a letterhead is supposed to do.
+ * The name is set to the width it is given rather than to a fixed size:
+ * whatever room is left beside the crest, the wordmark fills it. Centring a
+ * small wordmark left the same emptiness the decorative bars had been
+ * covering; sizing it to the space removes the emptiness instead.
  *
- * The crest stays hard left. A centred crest would push the name down and
- * cost two lines of body on every document.
+ * The office sits at the far right of the last line, so the block reaches
+ * both margins with content rather than with ornament.
  */
 function drawHead(doc, { office, logo }) {
-  if (logo) doc.addImage(logo, "PNG", M, 36, 58, 58);
+  if (logo) doc.addImage(logo, "PNG", M, 30, 62, 62);
 
-  const mid = A4.w / 2;
+  const left = M + 78;
+  const right = A4.w - M;
+  const span = right - left;
 
-  setType(doc, PDF_FONTS.SANS, "bold", 20, C.deep);
-  doc.text("NAPS-LASUCOM", mid, 60, { align: "center", charSpace: 1.1 });
+  // Largest size that still fits the span, tracking included.
+  const mark = "NAPS-LASUCOM";
+  const track = 0.5;
 
-  setType(doc, PDF_FONTS.SANS, "bold", 9.2, C.ink);
-  doc.text("Nigeria Association of Physiotherapy Students", mid, 76, {
-    align: "center",
-  });
+  doc.setFont(PDF_FONTS.SANS, "bold");
 
-  setType(doc, PDF_FONTS.SANS, "normal", 8.8, C.body);
-  doc.text("Lagos State University College of Medicine", mid, 88, {
-    align: "center",
-  });
+  let size = 54;
+  while (size > 24) {
+    doc.setFontSize(size);
+    if (doc.getTextWidth(mark) + track * (mark.length - 1) <= span) break;
+    size -= 0.5;
+  }
 
-  setType(doc, PDF_FONTS.SANS, "bold", 9.6, C.blue);
-  doc.text(`OFFICE OF THE ${String(office || "").toUpperCase()}`, mid, 103, {
-    align: "center",
-    charSpace: 0.7,
-  });
+  doc.setTextColor(...C.deep);
+  doc.text(mark, left, 74, { charSpace: track });
+
+  setType(doc, PDF_FONTS.SANS, "bold", 10, C.ink);
+  doc.text("Nigeria Association of Physiotherapy Students", left, 93);
+
+  setType(doc, PDF_FONTS.SANS, "normal", 9.6, C.body);
+  doc.text("Lagos State University College of Medicine", left, 106);
+  const collegeEnd = left + doc.getTextWidth("Lagos State University College of Medicine");
 
   /*
-    A stacked rule rather than one bar: a 2.6pt blue with a hairline set
-    below it. It is the oldest device on a letterhead and it costs four
-    points of height -- which is the point, with the bars gone.
+    The office shares the last line, pushed to the right margin. It fits
+    itself to what the college line leaves, because a long office would
+    otherwise run into it -- "OFFICE OF THE GENERAL SECRETARY" is already
+    within twenty points of doing so.
+  */
+  const label = `OFFICE OF THE ${String(office || "").toUpperCase()}`;
+  fitted(doc, label, PDF_FONTS.SANS, "bold", 10, 7, right - collegeEnd - 22);
+  doc.setTextColor(...C.blue);
+  doc.text(label, right, 106, { align: "right", charSpace: 0.6 });
+
+  /*
+    A stacked rule: 2.6pt of blue with a hairline set below it. It is the
+    oldest device on a letterhead, and with the bars gone it is what gives
+    the header a floor.
   */
   doc.setFillColor(...C.blue);
-  doc.rect(M, 114, CONTENT, 2.6, "F");
+  doc.rect(M, 118, CONTENT, 2.6, "F");
   doc.setFillColor(...C.green);
-  doc.rect(M, 114, CONTENT * 0.24, 2.6, "F");
+  doc.rect(M, 118, CONTENT * 0.24, 2.6, "F");
 
   doc.setFillColor(...C.sky);
-  doc.rect(M, 120, CONTENT, 0.8, "F");
+  doc.rect(M, 124, CONTENT, 0.8, "F");
 }
-
 /**
  * Officials row plus contact column.
  *
@@ -700,13 +716,13 @@ export async function renderCorrespondence({
     ? normaliseText(recipient).split(/\r?\n/).filter(Boolean)
     : [];
 
-  const recipTop = 168;
+  const recipTop = 174;
   const recipEnd = recipientLines.length
     ? recipTop + (recipientLines.length - 1) * 14.5
     : recipTop - 14.5;
   const salutationY = recipEnd + 28;
 
-  const titleY = isLetter ? salutationY + 30 : 162;
+  const titleY = isLetter ? salutationY + 30 : 168;
 
   /*
     A letter states its subject the way formal correspondence does: capitals,
@@ -765,13 +781,13 @@ export async function renderCorrespondence({
   drawHead(doc, { office, logo });
 
   doc.setFillColor(...C.wash);
-  doc.roundedRect(M, 132, CONTENT, 20, 2, 2, "F");
+  doc.roundedRect(M, 136, CONTENT, 20, 2, 2, "F");
 
   setType(doc, PDF_FONTS.SANS, "bold", 8.2, C.deep);
-  doc.text(`REF: ${normaliseText(reference) || "—"}`, M + 10, 145.5, {
+  doc.text(`REF: ${normaliseText(reference) || "—"}`, M + 10, 149.5, {
     charSpace: 0.4,
   });
-  doc.text(`DATE: ${String(date || "").toUpperCase()}`, A4.w - M - 10, 145.5, {
+  doc.text(`DATE: ${String(date || "").toUpperCase()}`, A4.w - M - 10, 149.5, {
     align: "right",
     charSpace: 0.4,
   });

@@ -422,10 +422,13 @@ function AdminConsoleNav() {
       <AdminNavItem to="/naps-admin/uploads" icon={<FolderUp size={19} />} label="Uploads" />
       <AdminNavItem to="/naps-admin/records" icon={<FileArchive size={19} />} label="Records" />
 
+      {/* Rail only. Six entries plus More overflowed the mobile bar, so this
+          one reaches small screens from the Overview page instead. */}
       <AdminNavItem
         to="/naps-admin/correspondence"
         icon={<PenLine size={19} />}
         label="Correspondence"
+        desktopOnly
       />
 
       <span className="anav-group">Secretariat</span>
@@ -485,8 +488,12 @@ function AdminConsoleNav() {
   );
 }
 
-function AdminNavItem({ to, icon, label, end, secondary, mobileOnly }) {
-  const extra = [secondary && "is-secondary", mobileOnly && "is-mobile-only"]
+function AdminNavItem({ to, icon, label, end, secondary, mobileOnly, desktopOnly }) {
+  const extra = [
+    secondary && "is-secondary",
+    mobileOnly && "is-mobile-only",
+    desktopOnly && "is-desktop-only",
+  ]
     .filter(Boolean)
     .join(" ");
 

@@ -18777,3 +18777,16 @@ tr:hover .aicon-btn { border-color: var(--rule); }
     transition: none;
   }
 }
+
+/* Rail-only destination. Unlike .is-secondary it keeps its place in the
+   primary group on desktop -- it is hidden from the mobile bar only because
+   six entries plus More do not fit across a phone. */
+.anav-item.is-desktop-only {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .anav-item.is-desktop-only {
+    display: grid;
+  }
+}

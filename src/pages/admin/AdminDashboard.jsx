@@ -7,6 +7,7 @@ import {
   MessageCircle,
   Users,
   UserCog,
+  PenLine,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -130,6 +131,16 @@ function AdminDashboard() {
         icon: <Bell size={18} />,
         color: "blue",
         allowed: canManageAnnouncements(role),
+      },
+      {
+        // Not in the mobile bar -- six entries plus More did not fit across a
+        // phone -- so Overview is how small screens reach it.
+        title: "Correspondence",
+        text: "Compose letters and memoranda on NAPS-LASUCOM letterhead.",
+        to: "/naps-admin/correspondence",
+        icon: <PenLine size={18} />,
+        color: "blue",
+        allowed: true,
       },
       {
         title: "Internal Records",
