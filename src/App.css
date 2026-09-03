@@ -18661,3 +18661,119 @@ tr:hover .aicon-btn { border-color: var(--rule); }
     transition: none;
   }
 }
+
+/* ============================================================
+   ADMIN SIGN-IN
+   The console's front door was the one screen still on its own
+   language -- a blue-to-green gradient button, 30px corners and
+   54px pill inputs, none of which appear anywhere behind it.
+   ============================================================ */
+
+.admin-login-panel {
+  margin-top: 0;
+  padding: 30px 30px 32px;
+  border-radius: var(--r-lg, 18px);
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  box-shadow: 0 1px 2px rgba(16, 32, 63, 0.06),
+    0 24px 48px -18px rgba(16, 32, 63, 0.18);
+  backdrop-filter: none;
+}
+
+/* Centred in the viewport rather than pinned 82px from the top, so the
+   card does not sit high on a laptop and low on a phone. */
+.admin-login-page {
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+}
+
+.admin-login-main-logo {
+  width: 46px;
+  height: 46px;
+  margin-bottom: 18px;
+}
+
+.admin-login-title p {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.admin-login-title h1 {
+  margin-top: 8px;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  color: var(--heading);
+}
+
+.admin-login-title span {
+  margin-top: 7px;
+  font-size: 13px;
+}
+
+.admin-login-form {
+  margin-top: 22px;
+  gap: var(--sp-3);
+}
+
+.admin-input-group label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.admin-input-group div {
+  min-height: 0;
+  height: 40px;
+  padding: 0 12px;
+  gap: 9px;
+  border-radius: var(--r-sm);
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  transition: border-color 0.16s var(--ease);
+}
+
+.admin-input-group div:focus-within { border-color: var(--blue); }
+
+.admin-input-group input { font-size: 13.5px; }
+
+/* Flat brand blue, matching every other primary action in the console. */
+.admin-login-btn {
+  margin-top: var(--sp-2);
+  height: 42px;
+  border-radius: var(--r-sm);
+  background: var(--blue);
+  font-size: 13.5px;
+  font-weight: 600;
+  gap: 8px;
+  transition: background 0.16s var(--ease);
+}
+
+.admin-login-btn:hover:not(:disabled) { background: #063f8e; }
+
+.admin-error {
+  margin-top: var(--sp-3);
+  padding: 9px 11px;
+  border-radius: var(--r-sm);
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+@media (min-width: 560px) {
+  .admin-login-panel { width: 380px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-input-group div,
+  .admin-login-btn {
+    transition: none;
+  }
+}
