@@ -33,6 +33,9 @@ const FONT_DIR = "/fonts";
 export const PDF_FONTS = {
   SERIF: "NotoSerif",
   SANS: "NotoSans",
+  /** Signature marks on letters. Never used for anything that has to be read
+   *  at size -- it is a rendered mark, not body type. */
+  SCRIPT: "AlexBrush",
 };
 
 const FILES = [
@@ -40,6 +43,7 @@ const FILES = [
   { file: "NotoSerif-Bold.ttf", family: PDF_FONTS.SERIF, style: "bold" },
   { file: "NotoSans-Regular.ttf", family: PDF_FONTS.SANS, style: "normal" },
   { file: "NotoSans-Bold.ttf", family: PDF_FONTS.SANS, style: "bold" },
+  { file: "AlexBrush-Regular.ttf", family: PDF_FONTS.SCRIPT, style: "normal" },
 ];
 
 /** Base64 payloads, keyed by filename. Populated once per page load. */

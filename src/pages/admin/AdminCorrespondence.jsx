@@ -87,6 +87,14 @@ function AdminCorrespondence() {
   const [subject, setSubject] = useState("2026 NAPS Health Week — Call for Volunteers!");
   const [bodyHtml, setBodyHtml] = useState(STARTER_BODY);
 
+  // Letters only. Kept in state regardless of the active template so that
+  // switching to a memo and back does not lose what was typed.
+  const [recipient, setRecipient] = useState(
+    "The Provost,\nLagos State University College of Medicine,\nIkeja, Lagos."
+  );
+  const [salutation, setSalutation] = useState("Dear Sir,");
+  const [closing, setClosing] = useState("Yours faithfully,");
+
   const [officials, setOfficials] = useState([]);
   const [decSet, setDecSet] = useState(null);
   const [email, setEmail] = useState("");
@@ -171,6 +179,7 @@ function AdminCorrespondence() {
   const build = useCallback(
     () =>
       renderCorrespondence({
+        template,
         office: officeLabel,
         subject,
         date: longDate(date),
@@ -180,10 +189,14 @@ function AdminCorrespondence() {
         email,
         instagram,
         setName: decSet?.set_name,
+        recipient,
+        salutation,
+        closing,
         logo: art.logo,
         watermark: art.watermark,
       }),
     [
+      template,
       officeLabel,
       subject,
       date,
@@ -193,6 +206,9 @@ function AdminCorrespondence() {
       email,
       instagram,
       decSet,
+      recipient,
+      salutation,
+      closing,
       art,
     ]
   );
@@ -268,6 +284,10 @@ function AdminCorrespondence() {
       subject,
       body_html: bodyHtml,
       document_date: date,
+      // Null on a memo, which is how a reader tells the two apart.
+      recipient: template === "letter" ? recipient : null,
+      salutation: template === "letter" ? salutation : null,
+      closing: template === "letter" ? closing : null,
       created_by: auth?.user?.id ?? null,
     });
 
@@ -459,6 +479,41 @@ function AdminCorrespondence() {
                 />
               </div>
             </div>
+
+            {template === "letter" && (
+              <>
+                <div className="afield">
+                  <label htmlFor="c-recipient">Addressed to</label>
+                  <textarea
+                    id="c-recipient"
+                    rows={3}
+                    value={recipient}
+                    onChange={(e) => setRecipient(e.target.value)}
+                  />
+                  <small className="afield-hint">One line each, as it should print.</small>
+                </div>
+
+                <div className="afield-pair">
+                  <div className="afield">
+                    <label htmlFor="c-salutation">Salutation</label>
+                    <input
+                      id="c-salutation"
+                      value={salutation}
+                      onChange={(e) => setSalutation(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="afield">
+                    <label htmlFor="c-closing">Closing</label>
+                    <input
+                      id="c-closing"
+                      value={closing}
+                      onChange={(e) => setClosing(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="afield">
               <label htmlFor="c-subject">Subject</label>

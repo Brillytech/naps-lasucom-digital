@@ -41,6 +41,15 @@ const MAX_BODY_PT = 12.5;
 const TITLE_PT = 13;
 
 const FOOTER_H = 150;
+
+/**
+ * Letters run a slim foot instead.
+ *
+ * The officials strip names the same four people the signature blocks do, so
+ * carrying both would say it twice. Letters are signed; memos are not, which
+ * is why memos keep the strip.
+ */
+const LETTER_FOOTER_H = 66;
 const BAND_H = 26;
 
 export const OFFICES = [
@@ -100,23 +109,28 @@ function fitted(doc, text, family, style, max, floor, width) {
  * reads the rhythm as deliberate. Heights follow a fixed pattern so every
  * document looks the same rather than randomly generated.
  */
-function accentBars(doc, x, y) {
+function accentBars(doc, rightEdge, y) {
   const bars = [
-    { colour: C.green, h: 52 },
-    { colour: C.blue, h: 38 },
-    { colour: C.gold, h: 26 },
-    { colour: C.deep, h: 16 },
+    { colour: C.green, h: 60 },
+    { colour: C.blue, h: 45 },
+    { colour: C.gold, h: 31 },
+    { colour: C.deep, h: 20 },
   ];
 
-  const w = 3.4;
-  const gap = 5.2;
+  const w = 5.6;
+  const gap = 6.4;
+  const total = bars.length * (w + gap) - gap;
+
+  // Right-aligned rather than placed from the left, so changing the weight
+  // never walks the group off the margin.
+  const x = rightEdge - total;
 
   bars.forEach((bar, i) => {
     doc.setFillColor(...bar.colour);
     doc.roundedRect(x + i * (w + gap), y, w, bar.h, w / 2, w / 2, "F");
   });
 
-  return bars.length * (w + gap) - gap;
+  return total;
 }
 
 /**
@@ -173,23 +187,25 @@ function drawRails(doc) {
 
 /** Header: crest, wordmark, issuing office, and the rule beneath. */
 function drawHead(doc, { office, logo }) {
-  if (logo) doc.addImage(logo, "PNG", M, 40, 52, 52);
+  if (logo) doc.addImage(logo, "PNG", M, 40, 56, 56);
 
-  const x = M + 64;
+  const x = M + 68;
 
-  setType(doc, PDF_FONTS.SANS, "bold", 15, C.deep);
-  doc.text("NAPS-LASUCOM", x, 58);
+  setType(doc, PDF_FONTS.SANS, "bold", 16.5, C.deep);
+  doc.text("NAPS-LASUCOM", x, 59, { charSpace: 0.2 });
 
-  setType(doc, PDF_FONTS.SANS, "normal", 8.4, C.body);
-  doc.text("Nigeria Association of Physiotherapy Students", x, 72);
-  doc.text("Lagos State University College of Medicine", x, 84);
+  setType(doc, PDF_FONTS.SANS, "bold", 8.8, C.ink);
+  doc.text("Nigeria Association of Physiotherapy Students", x, 74);
 
-  setType(doc, PDF_FONTS.SANS, "bold", 9.2, C.green);
-  doc.text(`OFFICE OF THE ${String(office || "").toUpperCase()}`, x, 99, {
-    charSpace: 0.5,
+  setType(doc, PDF_FONTS.SANS, "normal", 8.6, C.body);
+  doc.text("Lagos State University College of Medicine", x, 86);
+
+  setType(doc, PDF_FONTS.SANS, "bold", 10, C.green);
+  doc.text(`OFFICE OF THE ${String(office || "").toUpperCase()}`, x, 101, {
+    charSpace: 0.6,
   });
 
-  accentBars(doc, A4.w - M - 33, 34);
+  accentBars(doc, A4.w - M, 34);
 
   doc.setFillColor(...C.blue);
   doc.rect(M, 112, CONTENT, 2.6, "F");
@@ -204,8 +220,19 @@ function drawHead(doc, { office, logo }) {
  * Brilliance" in a fifth of the page width, so every string fits itself to
  * its column rather than wrapping into the line below.
  */
-function drawFooter(doc, { officials, email, instagram, setName }) {
+function drawFooter(doc, { officials, email, instagram, setName, office }) {
   const top = A4.h - FOOTER_H;
+
+  // A memo carries no signature, so the issuing office is stated instead.
+  if (office) {
+    setType(doc, PDF_FONTS.SANS, "bold", 7.4, C.muted);
+    doc.text(
+      `ISSUED BY THE OFFICE OF THE ${String(office).toUpperCase()}`,
+      A4.w / 2,
+      top - 15,
+      { align: "center", charSpace: 0.5 }
+    );
+  }
 
   doc.setDrawColor(...C.divider);
   doc.setLineWidth(0.8);
@@ -298,6 +325,83 @@ function drawFooter(doc, { officials, email, instagram, setName }) {
 
     cy += 34;
   }
+}
+
+/**
+ * Who signs a letter.
+ *
+ * The issuing officer, attested by the General Secretary -- or by the
+ * President where the Secretary is the one issuing it. Two blocks either way,
+ * which is both the convention and what balances the page.
+ */
+function signatories(officials, officeLabel) {
+  const issuer = officials.find((o) => o.office === officeLabel);
+  const second = officials.find(
+    (o) =>
+      o.office ===
+      (officeLabel === "General Secretary" ? "President" : "General Secretary")
+  );
+
+  return [issuer, second].filter((o) => o && o.name);
+}
+
+/**
+ * Signature block.
+ *
+ * The script line is a rendered mark set from the name, not a scan of anyone's
+ * hand. That is appropriate for routine correspondence, which is what this
+ * composer is for, and not for anything that has to bind.
+ */
+function drawSignature(doc, person, x, y, width) {
+  doc.setFont(PDF_FONTS.SCRIPT, "normal");
+
+  let size = 25;
+  while (size > 13) {
+    doc.setFontSize(size);
+    if (doc.getTextWidth(person.name) <= width - 6) break;
+    size -= 0.5;
+  }
+
+  doc.setTextColor(...C.deep);
+  doc.text(person.name, x + 4, y);
+
+  doc.setDrawColor(...C.divider);
+  doc.setLineWidth(0.9);
+  doc.line(x, y + 9, x + width, y + 9);
+
+  // fitted() leaves the font and size set, so the draw that follows inherits
+  // whatever it settled on.
+  fitted(doc, person.name, PDF_FONTS.SANS, "bold", 9.2, 7, width);
+  doc.setTextColor(...C.ink);
+  doc.text(person.name, x, y + 23);
+
+  fitted(doc, person.office, PDF_FONTS.SANS, "bold", 8.2, 6.6, width);
+  doc.setTextColor(...C.blue);
+  doc.text(person.office, x, y + 35);
+}
+
+/** Slim foot for letters: contact details and the tenure, nothing more. */
+function drawLetterFoot(doc, { email, instagram, setName }) {
+  const top = A4.h - LETTER_FOOTER_H;
+
+  doc.setDrawColor(...C.divider);
+  doc.setLineWidth(0.8);
+  doc.line(M, top, A4.w - M, top);
+
+  const col = M + 200;
+
+  setType(doc, PDF_FONTS.SANS, "bold", 6.8, C.red);
+  doc.text("E-MAIL", M, top + 17, { charSpace: 0.5 });
+  doc.text("INSTAGRAM", col, top + 17, { charSpace: 0.5 });
+
+  setType(doc, PDF_FONTS.SANS, "normal", 7.8, C.ink);
+  doc.text(normaliseText(email) || "—", M, top + 29);
+  doc.text(normaliseText(instagram) || "—", col, top + 29);
+
+  setType(doc, PDF_FONTS.SANS, "normal", 7.2, C.muted);
+  doc.text(normaliseText(setName) || "NAPS-LASUCOM", A4.w - M, top + 29, {
+    align: "right",
+  });
 }
 
 function drawBand(doc, page, total) {
@@ -435,7 +539,7 @@ export function htmlToBlocks(html) {
 }
 
 /** Lay runs out as justified lines, returning the height used. */
-function layoutBlocks(doc, blocks, width, size, leading, dryRun, startY) {
+function layoutBlocks(doc, blocks, width, size, leading, dryRun, startY, flow) {
   let y = startY;
 
   const spaceWidth = () => {
@@ -482,6 +586,13 @@ function layoutBlocks(doc, blocks, width, size, leading, dryRun, startY) {
     if (line.length) lines.push({ words: line, width: lineW, last: true });
 
     lines.forEach((l, index) => {
+      // Break before drawing, not after: a line committed past the limit is
+      // one that has already run into the footer.
+      if (!dryRun && flow && y > flow.limit) {
+        doc.addPage();
+        y = flow.resumeTop;
+      }
+
       if (!dryRun) {
         if (block.type === "li" && index === 0) {
           setType(doc, PDF_FONTS.SERIF, "normal", blockSize, C.body);
@@ -511,6 +622,8 @@ function layoutBlocks(doc, blocks, width, size, leading, dryRun, startY) {
     y += leading * (isHeading ? 0.5 : 0.4);
   }
 
+  if (!dryRun && flow) flow.endY = y;
+
   return y - startY;
 }
 
@@ -522,24 +635,44 @@ function layoutBlocks(doc, blocks, width, size, leading, dryRun, startY) {
  * it flows onto another page rather than shrinking further.
  */
 export async function renderCorrespondence({
+  template = "memo",
   office,
   subject,
   date,
   reference,
   bodyHtml,
-  officials,
+  officials = [],
   email,
   instagram,
   setName,
+  recipient,
+  salutation,
+  closing,
   logo,
   watermark,
 }) {
   const doc = new jsPDF({ unit: "pt", format: "a4", compress: true });
   await registerPdfFonts(doc);
 
+  // Letters are addressed and signed; memos are neither. Everything else --
+  // the head, the rails, the band, the subject treatment -- is shared, because
+  // it is one letterhead.
+  const isLetter = template === "letter";
   const blocks = htmlToBlocks(bodyHtml);
 
-  const titleY = 162;
+  const footerTop = A4.h - (isLetter ? LETTER_FOOTER_H : FOOTER_H);
+
+  const recipientLines = isLetter
+    ? normaliseText(recipient).split(/\r?\n/).filter(Boolean)
+    : [];
+
+  const recipTop = 168;
+  const recipEnd = recipientLines.length
+    ? recipTop + (recipientLines.length - 1) * 14.5
+    : recipTop - 14.5;
+  const salutationY = recipEnd + 28;
+
+  const titleY = isLetter ? salutationY + 26 : 162;
 
   // Measure the title in the face it is actually set in: splitting under
   // whatever font happened to be current breaks the lines for the wrong width.
@@ -552,8 +685,13 @@ export async function renderCorrespondence({
   const titleH = 24 + titleLines.length * 18;
 
   const bodyTop = titleY + titleH + 36;
-  const footerTop = A4.h - FOOTER_H;
-  const available = footerTop - 18 - bodyTop;
+
+  // A letter must keep room under the body for the close and the two
+  // signature blocks, or they would be pushed onto a page of their own.
+  const signSpace = isLetter ? 132 : 18;
+  const available = footerTop - signSpace - bodyTop;
+
+  const flow = { limit: footerTop - 24, resumeTop: 96, endY: 0 };
 
   // Largest size that still fits one page, then settle at the floor.
   let size = MAX_BODY_PT;
@@ -575,7 +713,7 @@ export async function renderCorrespondence({
   const bodyEnd = bodyTop + used;
 
   drawWatermark(doc, watermark, {
-    top: onePage ? bodyEnd + 34 : bodyTop,
+    top: onePage ? bodyEnd + (isLetter ? 118 : 34) : bodyTop,
     bottom: footerTop - 20,
   });
   drawRails(doc);
@@ -587,6 +725,16 @@ export async function renderCorrespondence({
     align: "right",
     charSpace: 0.4,
   });
+
+  if (isLetter) {
+    setType(doc, PDF_FONTS.SERIF, "normal", 10.5, C.ink);
+    recipientLines.forEach((line, n) =>
+      doc.text(line, M, recipTop + n * 14.5)
+    );
+
+    setType(doc, PDF_FONTS.SERIF, "normal", 11, C.ink);
+    doc.text(normaliseText(salutation) || "Dear Sir/Ma,", M, salutationY);
+  }
 
   // Solid rather than tinted: against a page this open, a wash of pale blue
   // had no more presence than the paper. This bookends the footer band.
@@ -602,16 +750,44 @@ export async function renderCorrespondence({
     doc.text(line, M + CONTENT / 2, titleY + 27 + n * 18, { align: "center" });
   });
 
-  layoutBlocks(doc, blocks, CONTENT, size, leading, false, bodyTop);
+  layoutBlocks(doc, blocks, CONTENT, size, leading, false, bodyTop, flow);
 
-  if (onePage) drawClosing(doc, bodyEnd + 18);
+  if (isLetter) {
+    // The body may have run onto a later page, so the close hangs off where
+    // the text actually finished. If the signatures will not fit under it,
+    // they take a page of their own rather than colliding with the foot.
+    let closeY = (onePage ? bodyEnd : flow.endY) + 26;
+
+    if (closeY + signSpace - 26 > footerTop) {
+      doc.addPage();
+      closeY = flow.resumeTop + 24;
+    }
+
+    setType(doc, PDF_FONTS.SERIF, "normal", 11, C.ink);
+    doc.text(normaliseText(closing) || "Yours faithfully,", M, closeY);
+
+    const signers = signatories(officials, office);
+    const colW = CONTENT / 2 - 18;
+
+    signers.slice(0, 2).forEach((person, n) => {
+      drawSignature(doc, person, M + n * (colW + 36), closeY + 48, colW);
+    });
+  } else if (onePage) {
+    drawClosing(doc, bodyEnd + 18);
+  }
 
   const total = doc.internal.getNumberOfPages();
   for (let page = 1; page <= total; page += 1) {
     doc.setPage(page);
     // Page one is drawn above; later pages get the rails here.
     if (page > 1) drawRails(doc);
-    drawFooter(doc, { officials, email, instagram, setName });
+
+    if (isLetter) {
+      drawLetterFoot(doc, { email, instagram, setName });
+    } else {
+      drawFooter(doc, { officials, email, instagram, setName, office });
+    }
+
     drawBand(doc, page, total);
   }
 

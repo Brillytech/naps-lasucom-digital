@@ -17993,3 +17993,22 @@ a.arow:hover {
   padding: 3px 9px;
   white-space: nowrap;
 }
+
+/* Letter-only fields in the composer. Two short values that belong on one
+   line rather than each claiming a full row. */
+.afield-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.afield-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+@media (max-width: 560px) {
+  .afield-pair {
+    grid-template-columns: 1fr;
+  }
+}
