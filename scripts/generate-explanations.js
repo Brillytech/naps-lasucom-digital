@@ -79,6 +79,7 @@ function parseArgs(argv) {
     retryFailed: false,
     resetStuck: false,
     dryRun: false,
+    ignoreSizeLimit: false,
   };
 
   for (const arg of argv.slice(2)) {
@@ -98,6 +99,10 @@ function parseArgs(argv) {
     else if (arg === "--retry-failed") args.retryFailed = true;
     else if (arg === "--reset-stuck") args.resetStuck = true;
     else if (arg === "--dry-run") args.dryRun = true;
+    // Bypass the byte ceiling and let the API decide. The ceiling is a
+    // heuristic -- an 86 MB file has succeeded -- so this exists to test a
+    // specific document rather than to loosen the guard for everything.
+    else if (arg === "--ignore-size-limit") args.ignoreSizeLimit = true;
     else {
       console.error(`Unknown flag: ${arg}`);
       process.exit(1);
@@ -210,7 +215,9 @@ async function prepareAll(supabase, queue, args, anthropic) {
     const label = `${index + 1}/${queue.length}`;
     const title = (resource.title || "untitled").slice(0, 58);
 
-    const source = await prepareSource(resource);
+    const source = await prepareSource(resource, {
+      ignoreSizeLimit: args.ignoreSizeLimit,
+    });
 
     if (!source.ok) {
       skipped += 1;

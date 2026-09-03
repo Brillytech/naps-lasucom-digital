@@ -165,7 +165,7 @@ async function download(url) {
  *
  * @returns {Promise<PreparedSource>}
  */
-export async function prepareSource(resource) {
+export async function prepareSource(resource, options = {}) {
   const url = resource.external_link?.trim() || resource.file_url?.trim() || "";
 
   if (!url) {
@@ -249,7 +249,7 @@ export async function prepareSource(resource) {
     };
   }
 
-  if (buffer.length > MAX_DOCUMENT_BYTES) {
+  if (buffer.length > MAX_DOCUMENT_BYTES && !options.ignoreSizeLimit) {
     const mb = (buffer.length / 1024 / 1024).toFixed(1);
 
     return {
