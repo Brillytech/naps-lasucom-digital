@@ -38,8 +38,9 @@ const TEMPLATES = [
 
 const STARTER_BODY = `<p>We are pleased to inform all NAPSITES that registration for the <strong>2026 NAPS Health Week</strong> volunteer corps is now open to students across all levels.</p><p>Volunteers will assist with free blood pressure and blood sugar screening, the blood donation drive, and crowd coordination at the College Auditorium.</p>`;
 
-/** Debounce for the preview. Long enough not to re-render mid-word. */
-const PREVIEW_DELAY = 300;
+/** Debounce for the preview. A render costs a few hundred milliseconds on the
+ *  main thread, so it waits until typing has actually stopped. */
+const PREVIEW_DELAY = 450;
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -159,6 +160,18 @@ function AdminCorrespondence() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  /*
+    Seed the editor once, by hand.
+
+    It cannot be done with dangerouslySetInnerHTML: the prop is a fresh object
+    on every render, so React rewrote the node's innerHTML after every input
+    event and threw away whatever had just been typed. Writing it once here and
+    never letting React near the children is what makes the field editable.
+  */
+  useEffect(() => {
+    if (editorRef.current) editorRef.current.innerHTML = STARTER_BODY;
   }, []);
 
   /* ---------------- reference ---------------- */
@@ -324,9 +337,34 @@ function AdminCorrespondence() {
     );
   }
 
+  /**
+   * Toolbar buttons take focus on mousedown, which collapses the selection in
+   * the editor before execCommand ever runs -- so Bold would apply to nothing.
+   */
+  function keepSelection(event) {
+    event.preventDefault();
+  }
+
   function format(command, value) {
     document.execCommand(command, false, value ?? null);
     editorRef.current?.focus();
+    setBodyHtml(editorRef.current?.innerHTML ?? "");
+  }
+
+  /**
+   * Paste as plain text.
+   *
+   * Anything copied out of Word or a browser arrives carrying its own fonts,
+   * colours and sizes. None of it survives into the PDF -- the renderer reads
+   * bold, italic, headings and lists and ignores the rest -- so letting it
+   * into the editor only makes what is on screen disagree with what prints.
+   */
+  function handlePaste(event) {
+    event.preventDefault();
+
+    const text = event.clipboardData.getData("text/plain");
+    document.execCommand("insertText", false, text);
+
     setBodyHtml(editorRef.current?.innerHTML ?? "");
   }
 
@@ -529,13 +567,22 @@ function AdminCorrespondence() {
 
               <div className="aeditor">
                 <div className="aeditor-bar">
-                  <button type="button" onClick={() => format("bold")} title="Bold">
+                  <button
+                    type="button"
+                    onMouseDown={keepSelection}
+                    onClick={() => format("bold")} title="Bold">
                     <Bold size={13} />
                   </button>
-                  <button type="button" onClick={() => format("italic")} title="Italic">
+                  <button
+                    type="button"
+                    onMouseDown={keepSelection}
+                    onClick={() => format("italic")} title="Italic">
                     <Italic size={13} />
                   </button>
-                  <button type="button" onClick={() => format("underline")} title="Underline">
+                  <button
+                    type="button"
+                    onMouseDown={keepSelection}
+                    onClick={() => format("underline")} title="Underline">
                     <Underline size={13} />
                   </button>
 
@@ -543,6 +590,7 @@ function AdminCorrespondence() {
 
                   <button
                     type="button"
+                    onMouseDown={keepSelection}
                     onClick={() => format("formatBlock", "<h3>")}
                     title="Heading"
                   >
@@ -550,6 +598,7 @@ function AdminCorrespondence() {
                   </button>
                   <button
                     type="button"
+                    onMouseDown={keepSelection}
                     onClick={() => format("insertUnorderedList")}
                     title="Bulleted list"
                   >
@@ -557,6 +606,7 @@ function AdminCorrespondence() {
                   </button>
                   <button
                     type="button"
+                    onMouseDown={keepSelection}
                     onClick={() => format("insertOrderedList")}
                     title="Numbered list"
                   >
@@ -564,13 +614,18 @@ function AdminCorrespondence() {
                   </button>
                 </div>
 
+                {/*
+                  No children and no dangerouslySetInnerHTML: React must not
+                  own what is inside this node. The initial content is written
+                  once by ref below -- see the effect for why.
+                */}
                 <div
                   ref={editorRef}
                   className="aeditor-area"
                   contentEditable
                   suppressContentEditableWarning
                   onInput={(e) => setBodyHtml(e.currentTarget.innerHTML)}
-                  dangerouslySetInnerHTML={{ __html: STARTER_BODY }}
+                  onPaste={handlePaste}
                 />
               </div>
             </div>
