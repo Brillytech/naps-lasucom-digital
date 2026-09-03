@@ -1,6 +1,9 @@
 import {
   ExternalLink,
+  Eye,
+  EyeOff,
   FileText,
+  Filter,
   Pencil,
   Search,
   Trash2,
@@ -102,118 +105,225 @@ function AdminResources() {
     }));
   }, [filteredResources]);
 
+  // Grouping existed to give a stacked list some structure. The table
+  // carries category as a column, so the rows stay flat and sortable by eye.
+  const visibleResources = useMemo(
+    () => groupedResources.flatMap((group) => group.items),
+    [groupedResources]
+  );
+
   return (
-    <main className="admin-dashboard-page">
-      <header className="admin-dashboard-header">
+    <main className="admin-page">
+      <header className="apage-head">
         <div>
-          <p>Admin Resources</p>
-          <h1>All Resources</h1>
-          <span>Manage uploaded Drive links.</span>
+          <p className="apage-eyebrow">Admin resources</p>
+          <h1>Resource list</h1>
+          <p>Every uploaded material, past question and timetable.</p>
         </div>
       </header>
 
-      <section className="admin-all-resource-tools">
-        <div className="admin-recent-search">
-          <Search size={17} />
+      <div className="astats">
+        <div className="astat astat--soon">
+          <span className="astat-ico"><FileText size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{resources.length}</span>
+            <span className="astat-l">Resources</span>
+          </span>
+        </div>
+
+        <div className="astat astat--live">
+          <span className="astat-ico"><Eye size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">
+              {resources.filter((r) => r.is_published).length}
+            </span>
+            <span className="astat-l">Published</span>
+          </span>
+        </div>
+
+        <div className="astat astat--idle">
+          <span className="astat-ico"><EyeOff size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">
+              {resources.filter((r) => !r.is_published).length}
+            </span>
+            <span className="astat-l">Hidden</span>
+          </span>
+        </div>
+
+        <div className="astat astat--mark">
+          <span className="astat-ico"><Filter size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{visibleResources.length}</span>
+            <span className="astat-l">Matching</span>
+          </span>
+        </div>
+      </div>
+
+      <div className="atoolbar">
+        <label className="asearch">
+          <Search size={14} />
           <input
-            placeholder="Search title or course..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search title or course"
+            aria-label="Search resources"
           />
-        </div>
+        </label>
 
-        <div className="admin-filter-row">
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option>All</option>
-            <option>Materials</option>
-            <option>Past Questions</option>
-            <option>Timetables</option>
-          </select>
+        <select
+          className="aselect"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          aria-label="Category"
+        >
+          <option value="All">All categories</option>
+          <option>Materials</option>
+          <option>Past Questions</option>
+          <option>Timetables</option>
+        </select>
 
-          <select value={level} onChange={(e) => setLevel(e.target.value)}>
-            <option>All</option>
-            <option>200L</option>
-            <option>300L</option>
-            <option>400L</option>
-            <option>500L</option>
-            <option>600L</option>
-          </select>
+        <select
+          className="aselect"
+          value={level}
+          onChange={(e) => setLevel(e.target.value)}
+          aria-label="Level"
+        >
+          <option value="All">All levels</option>
+          <option>200L</option>
+          <option>300L</option>
+          <option>400L</option>
+          <option>500L</option>
+          <option>600L</option>
+        </select>
 
-          <select value={semester} onChange={(e) => setSemester(e.target.value)}>
-            <option>All</option>
-            <option>First Semester</option>
-            <option>Second Semester</option>
-          </select>
-        </div>
-      </section>
+        <select
+          className="aselect"
+          value={semester}
+          onChange={(e) => setSemester(e.target.value)}
+          aria-label="Semester"
+        >
+          <option value="All">All semesters</option>
+          <option>First Semester</option>
+          <option>Second Semester</option>
+        </select>
+      </div>
 
       {loading ? (
-        <div className="admin-loading-card">Loading resources...</div>
-      ) : groupedResources.length > 0 ? (
-        <section className="admin-classified-list">
-          {groupedResources.map((group) => (
-            <div className="admin-classified-group" key={group.title}>
-              <h2>{group.title}</h2>
+        <>
+          <div className="askel" style={{ height: 44, marginTop: 16 }} />
+          <div className="askel" style={{ height: 300, marginTop: 12 }} />
+        </>
+      ) : (
+        <div className="atable-wrap">
+          {visibleResources.length === 0 ? (
+            <div className="aempty-row">
+              <FileText size={26} />
+              <strong>Nothing matches</strong>
+              <span>Try a shorter search, or widen the filters.</span>
+            </div>
+          ) : (
+            <div className="atable-scroll">
+              <table className="atable">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Course</th>
+                    <th>Category</th>
+                    <th>Level</th>
+                    <th>Semester</th>
+                    <th>Status</th>
+                    <th className="num">Actions</th>
+                  </tr>
+                </thead>
 
-              <div className="admin-recent-list">
-                {group.items.map((item) => (
-                  <article className="admin-recent-item" key={item.id}>
-                    <section>
-                      <div className="admin-recent-topline">
+                <tbody>
+                  {visibleResources.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <div className="acell-title">
+                          <strong>{item.title}</strong>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className="abadge">
+                          {item.course_code || "No code"}
+                        </span>
+                      </td>
+
+                      <td className="quiet">{item.category}</td>
+                      <td className="quiet">{item.level}</td>
+                      <td className="quiet">{item.semester}</td>
+
+                      <td>
                         <span
                           className={
                             item.is_published
-                              ? "resource-status published"
-                              : "resource-status hidden"
+                              ? "abadge abadge--live"
+                              : "abadge abadge--draft"
                           }
                         >
+                          <i />
                           {item.is_published ? "Published" : "Hidden"}
                         </span>
+                      </td>
 
-                        <a
-                          href={item.external_link || item.file_url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <ExternalLink size={14} />
-                        </a>
-                      </div>
+                      <td>
+                        <div className="acell-actions">
+                          <a
+                            className="aicon-btn"
+                            href={item.external_link || item.file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Open the file"
+                          >
+                            <ExternalLink size={14} />
+                          </a>
 
-                      <h3>{item.title}</h3>
+                          <button
+                            type="button"
+                            className="aicon-btn"
+                            title="Edit"
+                            onClick={() => editResource(item)}
+                          >
+                            <Pencil size={14} />
+                          </button>
 
-                      <p>
-                        {item.category} • {item.level} • {item.semester}
-                      </p>
+                          <button
+                            type="button"
+                            className="aicon-btn"
+                            title={
+                              item.is_published
+                                ? "Hide from students"
+                                : "Publish to students"
+                            }
+                            onClick={() => togglePublish(item)}
+                          >
+                            {item.is_published ? (
+                              <EyeOff size={14} />
+                            ) : (
+                              <Eye size={14} />
+                            )}
+                          </button>
 
-                      <strong>{item.course_code || "No course code"}</strong>
-                    </section>
-
-                    <div className="admin-recent-actions">
-                      <button type="button" onClick={() => editResource(item)}>
-                        <Pencil size={15} />
-                        Edit
-                      </button>
-
-                      <button type="button" onClick={() => togglePublish(item)}>
-                        {item.is_published ? "Hide" : "Show"}
-                      </button>
-
-                      <button type="button" onClick={() => deleteResource(item)}>
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
+                          <button
+                            type="button"
+                            className="aicon-btn is-danger"
+                            title="Delete"
+                            onClick={() => deleteResource(item)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-        </section>
-      ) : (
-        <section className="admin-empty-panel">
-          <FileText size={30} />
-          <h3>No resource found</h3>
-          <p>Try changing your filter.</p>
-        </section>
+          )}
+        </div>
       )}
     </main>
   );
