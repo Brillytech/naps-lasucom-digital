@@ -18128,3 +18128,312 @@ a.arow:hover {
   flex: none;
   margin-top: 1px;
 }
+
+/* ============================================================
+   CONSOLE PRIMITIVES -- table, badges, stat tiles, toolbar
+   The console had none of these, so every page invented its own
+   arrangement of headings and paragraphs. These replace four hero
+   slabs and three stat grids with one set.
+   ============================================================ */
+
+/* ---- stat tiles -------------------------------------------------- */
+
+.astats {
+  margin-top: var(--sp-5);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  gap: var(--sp-3);
+}
+
+.astat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-1);
+}
+
+/* The icon carries the tile's meaning, so it is tinted by state rather
+   than all five sharing one blue. */
+.astat-ico {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--press);
+  color: var(--muted);
+}
+
+.astat--live .astat-ico { background: rgba(34, 164, 71, 0.11); color: #17803a; }
+.astat--soon .astat-ico { background: rgba(7, 82, 184, 0.1); color: var(--blue); }
+.astat--idle .astat-ico { background: rgba(16, 32, 63, 0.06); color: #5b6880; }
+.astat--mark .astat-ico { background: rgba(8, 43, 99, 0.09); color: #082b63; }
+
+.astat-body { display: grid; gap: 1px; min-width: 0; }
+
+.astat-n {
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.astat-l {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---- toolbar and segmented filter -------------------------------- */
+
+.atoolbar {
+  margin-top: var(--sp-5);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.aseg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--press);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+}
+
+.aseg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: calc(var(--r-sm) - 3px);
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.14s var(--ease), color 0.14s var(--ease);
+}
+
+.aseg button:hover { color: var(--text); }
+
+.aseg button.is-on {
+  background: #ffffff;
+  color: var(--blue-ink);
+  box-shadow: var(--sh-1);
+}
+
+/* Count riding inside the tab, so switching filters is an informed choice. */
+.aseg em {
+  font-style: normal;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.62;
+}
+
+.asearch {
+  position: relative;
+  flex: 1 1 200px;
+  min-width: 180px;
+  display: flex;
+  align-items: center;
+}
+
+.asearch > svg {
+  position: absolute;
+  left: 11px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.asearch input {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px 0 33px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  outline: 0;
+}
+
+.asearch input:focus { border-color: var(--blue); }
+
+/* ---- data table -------------------------------------------------- */
+
+.atable-wrap {
+  margin-top: var(--sp-4);
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-1);
+  overflow: hidden;
+}
+
+/* The scroller sits inside the frame so the page body never moves
+   sideways on a narrow screen. */
+.atable-scroll { overflow-x: auto; }
+
+.atable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.atable thead th {
+  padding: 10px 14px;
+  background: #fbfcfe;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.atable tbody tr { border-top: 1px solid var(--rule); }
+.atable tbody tr:first-child { border-top: 0; }
+.atable tbody tr:hover { background: rgba(16, 32, 63, 0.022); }
+
+.atable td {
+  padding: 12px 14px;
+  vertical-align: middle;
+  color: var(--text);
+}
+
+.atable td.num,
+.atable th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.atable td.quiet { color: var(--muted); white-space: nowrap; }
+
+/* The identifying column: a title that can run long, over a line of
+   context that should not compete with it. */
+.acell-title { display: grid; gap: 2px; min-width: 220px; max-width: 460px; }
+
+.acell-title strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--heading);
+  line-height: 1.35;
+}
+
+.acell-title span {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.acell-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+/* Actions stay quiet until the row is approached, so a long table reads
+   as data rather than as a wall of buttons. */
+.aicon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.14s var(--ease), color 0.14s var(--ease),
+    border-color 0.14s var(--ease);
+}
+
+tr:hover .aicon-btn { border-color: var(--rule); }
+
+.aicon-btn:hover { background: var(--press); color: var(--blue-ink); }
+.aicon-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.aicon-btn.is-danger:hover { background: rgba(190, 30, 45, 0.08); color: #be1e2d; }
+
+/* ---- status badges ----------------------------------------------- */
+
+.abadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 21px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: var(--press);
+  color: var(--muted);
+}
+
+.abadge--live { background: rgba(34, 164, 71, 0.12); color: #15702f; }
+.abadge--soon { background: rgba(7, 82, 184, 0.1); color: var(--blue); }
+.abadge--draft { background: rgba(16, 32, 63, 0.07); color: #5b6880; }
+.abadge--pin { background: rgba(222, 164, 20, 0.14); color: #8a6206; }
+.abadge--off { background: rgba(190, 30, 45, 0.09); color: #a81b28; }
+
+/* A dot rather than an icon: it keeps the badge short enough to sit in a
+   table cell without setting the row height. */
+.abadge i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ---- compact empty state ----------------------------------------- */
+
+.aempty-row {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 44px 20px;
+  text-align: center;
+}
+
+.aempty-row > svg { color: var(--muted); opacity: 0.5; }
+
+.aempty-row strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--heading);
+}
+
+.aempty-row span { font-size: 12.5px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .aseg button,
+  .aicon-btn {
+    transition: none;
+  }
+}

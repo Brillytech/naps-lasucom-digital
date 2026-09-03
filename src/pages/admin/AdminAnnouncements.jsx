@@ -9,6 +9,7 @@ import {
   Pin,
   Plus,
   Save,
+  Search,
   Send,
   Trash2,
   X,
@@ -61,6 +62,9 @@ function AdminAnnouncements() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
 
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -520,124 +524,187 @@ function AdminAnnouncements() {
     return announcements.filter((item) => item.is_pinned);
   }, [announcements]);
 
+  /*
+    One table, filtered -- not three stacked lists.
+
+    Published, scheduled and drafts each had their own heading, description
+    and empty panel, which is most of what made this page read as a document.
+    They are one dataset in three states, so they belong on one surface with
+    the state as a column.
+  */
+  const visible = useMemo(() => {
+    const pool =
+      filter === "pinned"
+        ? pinnedAnnouncements
+        : filter === "all"
+          ? announcements
+          : announcements.filter((item) => item.status === filter);
+
+    const needle = query.trim().toLowerCase();
+    if (!needle) return pool;
+
+    return pool.filter((item) =>
+      [item.title, item.body, item.category]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle)
+    );
+  }, [filter, query, announcements, pinnedAnnouncements]);
+
   if (loading) {
     return (
-      <main className="admin-dashboard-page">
-        <div className="admin-loading-card">Loading announcements...</div>
+      <main className="admin-page">
+        <div className="askel" style={{ height: 74 }} />
+        <div className="askel" style={{ height: 84, marginTop: 20 }} />
+        <div className="askel" style={{ height: 320, marginTop: 16 }} />
       </main>
     );
   }
 
   return (
-    <main className="admin-dashboard-page announcements-page">
-      <header className="admin-dashboard-header announcements-header">
+    <main className="admin-page">
+      <header className="apage-head">
         <div>
-          <p>Public Communication</p>
+          <p className="apage-eyebrow">Public communication</p>
           <h1>Announcements</h1>
-          <span>Manage official notices displayed to NAPSITES.</span>
+          <p>Notices shown to NAPSITES. The PRO publishes; the President has oversight.</p>
         </div>
 
         {canManageAnnouncements() && (
-          <button type="button" onClick={openCreateForm}>
-            <Plus size={17} />
-            <span>New</span>
-          </button>
+          <div className="apage-actions">
+            <button type="button" className="abtn abtn--primary" onClick={openCreateForm}>
+              <Plus size={14} />
+              New notice
+            </button>
+          </div>
         )}
       </header>
 
       {successMessage && (
-        <div className="request-success">
-          <CheckCircle2 size={18} />
+        <div className="anote is-ok" style={{ margin: "16px 0 0" }}>
+          <CheckCircle2 size={15} />
           {successMessage}
         </div>
       )}
 
       {errorMessage && (
-        <div className="request-error">
-          <AlertCircle size={18} />
+        <div className="anote is-bad" style={{ margin: "16px 0 0" }}>
+          <AlertCircle size={15} />
           {errorMessage}
         </div>
       )}
 
-      <section className="announcements-hero-card">
-        <div>
-          <Megaphone size={30} />
+      <div className="astats">
+        <div className="astat astat--live">
+          <span className="astat-ico"><Send size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{publishedAnnouncements.length}</span>
+            <span className="astat-l">Live</span>
+          </span>
         </div>
 
-        <section>
-          <h2>Official Notice Board</h2>
-          <p>
-            PRO manages public communication while President keeps oversight
-            control. Other executives can view announcements only.
-          </p>
-        </section>
-      </section>
+        <div className="astat astat--soon">
+          <span className="astat-ico"><Clock size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{scheduledAnnouncements.length}</span>
+            <span className="astat-l">Scheduled</span>
+          </span>
+        </div>
 
-      <section className="announcements-stats-grid">
-        <article>
-          <strong>{announcements.length}</strong>
-          <span>Total</span>
-        </article>
+        <div className="astat astat--idle">
+          <span className="astat-ico"><Edit3 size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{draftAnnouncements.length}</span>
+            <span className="astat-l">Drafts</span>
+          </span>
+        </div>
 
-        <article>
-          <strong>{publishedAnnouncements.length}</strong>
-          <span>Published</span>
-        </article>
+        <div className="astat astat--mark">
+          <span className="astat-ico"><Pin size={16} /></span>
+          <span className="astat-body">
+            <span className="astat-n">{pinnedAnnouncements.length}</span>
+            <span className="astat-l">Pinned</span>
+          </span>
+        </div>
+      </div>
 
-        <article>
-          <strong>{scheduledAnnouncements.length}</strong>
-          <span>Scheduled</span>
-        </article>
+      <div className="atoolbar">
+        <div className="aseg">
+          {[
+            ["all", "All", announcements.length],
+            ["published", "Live", publishedAnnouncements.length],
+            ["scheduled", "Scheduled", scheduledAnnouncements.length],
+            ["draft", "Drafts", draftAnnouncements.length],
+            ["pinned", "Pinned", pinnedAnnouncements.length],
+          ].map(([id, label, count]) => (
+            <button
+              type="button"
+              key={id}
+              className={filter === id ? "is-on" : ""}
+              onClick={() => setFilter(id)}
+            >
+              {label}
+              <em>{count}</em>
+            </button>
+          ))}
+        </div>
 
-        <article>
-          <strong>{draftAnnouncements.length}</strong>
-          <span>Drafts</span>
-        </article>
+        <label className="asearch">
+          <Search size={14} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search notices"
+            aria-label="Search notices"
+          />
+        </label>
+      </div>
 
-        <article>
-          <strong>{pinnedAnnouncements.length}</strong>
-          <span>Pinned</span>
-        </article>
-      </section>
+      <div className="atable-wrap">
+        {visible.length === 0 ? (
+          <div className="aempty-row">
+            <Megaphone size={26} />
+            <strong>{query ? "Nothing matches that search" : "No notices here yet"}</strong>
+            <span>
+              {query
+                ? "Try a shorter search, or switch filter."
+                : "Create one and it will appear in this list."}
+            </span>
+          </div>
+        ) : (
+          <div className="atable-scroll">
+            <table className="atable">
+              <thead>
+                <tr>
+                  <th>Notice</th>
+                  <th>Category</th>
+                  <th>Audience</th>
+                  <th>Status</th>
+                  <th className="num">Date</th>
+                  {canManageAnnouncements() && <th className="num">Actions</th>}
+                </tr>
+              </thead>
 
-      <AnnouncementSection
-        title="Published Announcements"
-        description="Notices currently visible on the public side."
-        items={publishedAnnouncements}
-        canManage={canManageAnnouncements()}
-        canDelete={canDeleteAnnouncements()}
-        onEdit={openEditForm}
-        onDelete={deleteAnnouncement}
-        onPin={togglePin}
-        onStatus={toggleStatus}
-      />
-
-      <AnnouncementSection
-        title="Scheduled Announcements"
-        description="Will publish automatically at their scheduled time."
-        items={scheduledAnnouncements}
-        canManage={canManageAnnouncements()}
-        canDelete={canDeleteAnnouncements()}
-        onEdit={openEditForm}
-        onDelete={deleteAnnouncement}
-        onPin={togglePin}
-        onPublishNow={publishScheduledNow}
-        onCancelSchedule={cancelScheduling}
-        isScheduledSection
-        emptyText="No scheduled announcement yet."
-      />
-
-      <AnnouncementSection
-        title="Draft Announcements"
-        description="Saved announcements not visible to the public."
-        items={draftAnnouncements}
-        canManage={canManageAnnouncements()}
-        canDelete={canDeleteAnnouncements()}
-        onEdit={openEditForm}
-        onDelete={deleteAnnouncement}
-        onStatus={toggleStatus}
-        emptyText="No draft announcement yet."
-      />
+              <tbody>
+                {visible.map((item) => (
+                  <AnnouncementRow
+                    key={item.id}
+                    item={item}
+                    canManage={canManageAnnouncements()}
+                    canDelete={canDeleteAnnouncements()}
+                    onEdit={openEditForm}
+                    onDelete={deleteAnnouncement}
+                    onPin={togglePin}
+                    onStatus={toggleStatus}
+                    onPublishNow={publishScheduledNow}
+                    onCancelSchedule={cancelScheduling}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {showForm && (
         <AnnouncementModal
@@ -655,10 +722,16 @@ function AdminAnnouncements() {
   );
 }
 
-function AnnouncementSection({
-  title,
-  description,
-  items,
+/**
+ * One notice as a table row.
+ *
+ * The card it replaces carried a hero image, a category chip, a title, the
+ * full body, three meta lines and up to five buttons -- roughly 200px per
+ * notice. At that size six notices were a scroll. The row keeps what
+ * identifies a notice and moves the rest behind the edit action.
+ */
+function AnnouncementRow({
+  item,
   canManage,
   canDelete,
   onEdit,
@@ -667,149 +740,127 @@ function AnnouncementSection({
   onStatus,
   onPublishNow,
   onCancelSchedule,
-  isScheduledSection,
-  emptyText = "No announcement found.",
 }) {
+  const scheduled = item.status === "scheduled";
+
+  const when = scheduled
+    ? item.scheduled_for &&
+      new Date(item.scheduled_for).toLocaleString("en-GB", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Africa/Lagos",
+      })
+    : item.published_at &&
+      new Date(item.published_at).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+
+  const badge =
+    item.status === "published"
+      ? ["abadge abadge--live", "Live"]
+      : scheduled
+        ? ["abadge abadge--soon", "Scheduled"]
+        : ["abadge abadge--draft", "Draft"];
+
   return (
-    <section className="announcements-section">
-      <div className="announcements-section-title">
-        <h2>{title}</h2>
-        <p>{description}</p>
-      </div>
-
-      {items.length > 0 ? (
-        <div className="announcements-list">
-          {items.map((item) => (
-            <article className="announcement-card" key={item.id}>
-              {item.image_url && (
-                <img
-                  className="announcement-image"
-                  src={item.image_url}
-                  alt=""
-                />
-              )}
-
-              <div className="announcement-card-top">
-                <span>{item.category}</span>
-
-                <div className="announcement-badge-row">
-                  {item.is_pinned && (
-                    <strong>
-                      <Pin size={13} />
-                      Pinned
-                    </strong>
-                  )}
-
-                  {item.status === "scheduled" && (
-                    <strong className="scheduled-badge">
-                      <Clock size={13} />
-                      Scheduled
-                    </strong>
-                  )}
-                </div>
-              </div>
-
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
-
-              <div className="announcement-meta">
-                <span>{item.audience || "All NAPSITES"}</span>
-                <span>{item.source_office || "PRO"}</span>
-
-                {item.status === "scheduled" && item.scheduled_for ? (
-                  <span>
-                    Publishes{" "}
-                    {new Date(item.scheduled_for).toLocaleString("en-GB", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      timeZone: "Africa/Lagos",
-                    })}{" "}
-                    (WAT)
-                  </span>
-                ) : (
-                  <span>
-                    {item.published_at
-                      ? new Date(item.published_at).toLocaleDateString(
-                          "en-GB",
-                          {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          }
-                        )
-                      : "Draft"}
-                  </span>
-                )}
-              </div>
-
-              {canManage && (
-                <div className="announcement-actions">
-                  <button type="button" onClick={() => onEdit(item)}>
-                    <Edit3 size={14} />
-                    Edit
-                  </button>
-
-                  {isScheduledSection ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => onPublishNow(item)}
-                      >
-                        <Send size={14} />
-                        Publish Now
-                      </button>
-
-                      <button
-                        type="button"
-                        className="danger"
-                        onClick={() => onCancelSchedule(item)}
-                      >
-                        <XCircle size={14} />
-                        Cancel Schedule
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {onPin && (
-                        <button type="button" onClick={() => onPin(item)}>
-                          <Pin size={14} />
-                          {item.is_pinned ? "Unpin" : "Pin"}
-                        </button>
-                      )}
-
-                      <button type="button" onClick={() => onStatus(item)}>
-                        <Send size={14} />
-                        {item.status === "published" ? "Draft" : "Publish"}
-                      </button>
-                    </>
-                  )}
-
-                  {canDelete && (
-                    <button
-                      type="button"
-                      className="danger"
-                      onClick={() => onDelete(item)}
-                    >
-                      <Trash2 size={14} />
-                      Delete
-                    </button>
-                  )}
-                </div>
-              )}
-            </article>
-          ))}
+    <tr>
+      <td>
+        <div className="acell-title">
+          <strong>{item.title}</strong>
+          <span>{item.body}</span>
         </div>
-      ) : (
-        <section className="admin-empty-panel small">
-          <Megaphone size={30} />
-          <h3>{emptyText}</h3>
-          <p>Announcements will appear here after they are created.</p>
-        </section>
+      </td>
+
+      <td className="quiet">{item.category}</td>
+      <td className="quiet">{item.audience || "All NAPSITES"}</td>
+
+      <td>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+          <span className={badge[0]}>
+            <i />
+            {badge[1]}
+          </span>
+          {item.is_pinned && (
+            <span className="abadge abadge--pin">
+              <Pin size={9} />
+              Pinned
+            </span>
+          )}
+        </div>
+      </td>
+
+      <td className="num quiet">{when || "—"}</td>
+
+      {canManage && (
+        <td>
+          <div className="acell-actions">
+            <button
+              type="button"
+              className="aicon-btn"
+              title="Edit"
+              onClick={() => onEdit(item)}
+            >
+              <Edit3 size={14} />
+            </button>
+
+            {scheduled ? (
+              <>
+                <button
+                  type="button"
+                  className="aicon-btn"
+                  title="Publish now"
+                  onClick={() => onPublishNow(item)}
+                >
+                  <Send size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="aicon-btn is-danger"
+                  title="Cancel schedule"
+                  onClick={() => onCancelSchedule(item)}
+                >
+                  <XCircle size={14} />
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="aicon-btn"
+                  title={item.is_pinned ? "Unpin" : "Pin"}
+                  onClick={() => onPin(item)}
+                >
+                  <Pin size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="aicon-btn"
+                  title={item.status === "published" ? "Move to drafts" : "Publish"}
+                  onClick={() => onStatus(item)}
+                >
+                  <Send size={14} />
+                </button>
+              </>
+            )}
+
+            {canDelete && (
+              <button
+                type="button"
+                className="aicon-btn is-danger"
+                title="Delete"
+                onClick={() => onDelete(item)}
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        </td>
       )}
-    </section>
+    </tr>
   );
 }
 
