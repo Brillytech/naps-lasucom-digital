@@ -17934,3 +17934,49 @@ a.arow:hover {
     transition: none;
   }
 }
+
+/* Preview now shows rasterised PDF pages rather than a CSS facsimile, so the
+   paper styling applies to the rendered image itself. */
+.apaper-page {
+  display: block;
+  width: 100%;
+  max-width: 660px;
+  height: auto;
+  background: #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(16, 32, 63, 0.1), 0 12px 40px rgba(16, 32, 63, 0.12);
+  transition: opacity 0.18s var(--ease);
+}
+
+/* Dimmed while a newer render is in flight, so it is clear the page on
+   screen is a moment behind the text being typed. */
+.apaper-page.is-stale {
+  opacity: 0.55;
+}
+
+.apaper--empty {
+  display: grid;
+  place-items: center;
+  min-height: 420px;
+  color: var(--muted);
+}
+
+.spin {
+  animation: aspin 0.9s linear infinite;
+}
+
+@keyframes aspin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apaper-page {
+    transition: none;
+  }
+
+  .spin {
+    animation: none;
+  }
+}

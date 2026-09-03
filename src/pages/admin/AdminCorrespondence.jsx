@@ -1,32 +1,27 @@
 import {
+  AlertCircle,
   Bold,
   Calendar,
+  CheckCircle2,
   Download,
-  FileText,
   Globe,
   Hash,
   Image as ImageIcon,
   Italic,
   List,
   ListOrdered,
+  Loader2,
   Save,
   Underline,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
-
-/**
- * Correspondence composer -- UI layout only.
- *
- * Nothing here persists yet and nothing exports yet: the officials are
- * placeholders rather than rows from `executives`, the shared contact values
- * are local state rather than an organisation setting, and the body uses a
- * contenteditable with execCommand so the toolbar can be seen working without
- * committing to an editor library before the layout is agreed.
- *
- * The preview is a CSS facsimile of the exported template -- same proportions,
- * type scale and furniture -- so typing shows the document forming. The
- * exported PDF remains the source of truth; see the note in the panel.
- */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "../../lib/supabase";
+import {
+  OFFICES,
+  pickOfficials,
+  renderCorrespondence,
+} from "../../utils/correspondencePdf";
+import { download, rasterisePdf, safeFileName } from "../../utils/pdfPreview";
 
 const TEMPLATES = [
   {
@@ -41,25 +36,10 @@ const TEMPLATES = [
   },
 ];
 
-/** Exactly these four. Constrained on purpose -- never free text. */
-const OFFICES = [
-  { id: "president", label: "President", holder: "Oluwaseun A. Adeyemi" },
-  { id: "vice_president", label: "Vice President", holder: "Chidinma U. Nwosu" },
-  { id: "general_secretary", label: "General Secretary", holder: "Adaeze N. Okonkwo" },
-  { id: "pro", label: "P.R.O", holder: "Tobi A. Balogun" },
-];
+const STARTER_BODY = `<p>We are pleased to inform all NAPSITES that registration for the <strong>2026 NAPS Health Week</strong> volunteer corps is now open to students across all levels.</p><p>Volunteers will assist with free blood pressure and blood sugar screening, the blood donation drive, and crowd coordination at the College Auditorium.</p>`;
 
-/** Stand-ins for rows from `executives`, so the footer can be seen laid out. */
-const OFFICIALS = [
-  ["Adaeze N. Okonkwo", "General Secretary", "0803 555 0142"],
-  ["Oluwaseun A. Adeyemi", "President", "0806 555 0198"],
-  ["Chidinma U. Nwosu", "Vice President", "0812 555 0177"],
-  ["Tobi A. Balogun", "P.R.O", "0809 555 0165"],
-];
-
-const STRIPES = ["#22a447", "#0752b8", "#dea414", "#082b63"];
-
-const STARTER_BODY = `<p>We are pleased to inform all NAPSITES that registration for the <strong>2026 NAPS Health Week</strong> volunteer corps is now open to students across all levels.</p><p>Volunteers will assist with free blood pressure and blood sugar screening, the blood donation drive, and crowd coordination at the College Auditorium.</p><p>The deadline for submission is <strong>20th September, 2026, 11:59 PM.</strong></p>`;
+/** Debounce for the preview. Long enough not to re-render mid-word. */
+const PREVIEW_DELAY = 300;
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -83,31 +63,220 @@ function longDate(value) {
   })}`;
 }
 
+async function loadImage(path) {
+  const response = await fetch(path);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 function AdminCorrespondence() {
   const editorRef = useRef(null);
+  const timerRef = useRef(null);
+  const runRef = useRef(0);
 
   const [template, setTemplate] = useState("memo");
   const [office, setOffice] = useState("general_secretary");
-  const [reference, setReference] = useState("NAPS/LASUCOM/GS/2026/041");
+  const [reference, setReference] = useState("");
   const [autoRef, setAutoRef] = useState(true);
   const [date, setDate] = useState(today());
-  const [subject, setSubject] = useState(
-    "2026 NAPS Health Week — Call for Volunteers!"
-  );
+  const [subject, setSubject] = useState("2026 NAPS Health Week — Call for Volunteers!");
   const [bodyHtml, setBodyHtml] = useState(STARTER_BODY);
 
-  // Shared, organisation-wide. Local state for now; these become a single
-  // stored row so the last saved value shows for every admin.
-  const [email, setEmail] = useState("napslasucom@gmail.com");
-  const [instagram, setInstagram] = useState("napslasucom");
+  const [officials, setOfficials] = useState([]);
+  const [email, setEmail] = useState("");
+  const [instagram, setInstagram] = useState("");
+
+  const [art, setArt] = useState({ logo: null, watermark: null });
+  const [pages, setPages] = useState([]);
+  const [rendering, setRendering] = useState(true);
+  const [busy, setBusy] = useState("");
+  const [notice, setNotice] = useState(null);
 
   const officeLabel = useMemo(
     () => OFFICES.find((o) => o.id === office)?.label ?? "",
     [office]
   );
 
-  function format(command) {
-    document.execCommand(command, false, null);
+  /* ---------------- load once ---------------- */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const [execResult, settingsResult, logo, watermark] = await Promise.all([
+        supabase
+          .from("executives")
+          .select("full_name, name, office, phone, is_active, display_order")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true }),
+        supabase.from("org_settings").select("email, instagram").maybeSingle(),
+        loadImage("/images/naps-logo.png").catch(() => null),
+        loadImage("/images/naps-logo-transparent.png").catch(() => null),
+      ]);
+
+      if (cancelled) return;
+
+      if (execResult.error) {
+        setNotice({ kind: "bad", text: `Executives: ${execResult.error.message}` });
+      }
+
+      setOfficials(pickOfficials(execResult.data || []));
+      setEmail(settingsResult.data?.email || "napslasucom@gmail.com");
+      setInstagram(settingsResult.data?.instagram || "@napslasucom");
+      setArt({ logo, watermark });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* ---------------- reference ---------------- */
+
+  const autoReference = useMemo(() => {
+    const code =
+      { president: "PRES", vice_president: "VP", general_secretary: "GS", pro: "PRO" }[
+        office
+      ] || "GS";
+    const year = (date || today()).slice(0, 4);
+    return `NAPS/LASUCOM/${code}/${year}/001`;
+  }, [office, date]);
+
+  const effectiveRef = autoRef ? autoReference : reference;
+
+  /* ---------------- preview ---------------- */
+
+  const build = useCallback(
+    () =>
+      renderCorrespondence({
+        office: officeLabel,
+        subject,
+        date: longDate(date),
+        reference: effectiveRef,
+        bodyHtml,
+        officials,
+        email,
+        instagram,
+        logo: art.logo,
+        watermark: art.watermark,
+      }),
+    [officeLabel, subject, date, effectiveRef, bodyHtml, officials, email, instagram, art]
+  );
+
+  useEffect(() => {
+    if (!officials.length) return undefined;
+
+    clearTimeout(timerRef.current);
+    setRendering(true);
+
+    timerRef.current = setTimeout(async () => {
+      // Renders overlap when typing quickly; only the newest may commit.
+      const run = ++runRef.current;
+
+      try {
+        const doc = await build();
+        const { pages: rendered } = await rasterisePdf(doc);
+        if (run === runRef.current) setPages(rendered);
+      } catch (error) {
+        if (run === runRef.current) {
+          setNotice({ kind: "bad", text: `Preview failed: ${error.message}` });
+        }
+      } finally {
+        if (run === runRef.current) setRendering(false);
+      }
+    }, PREVIEW_DELAY);
+
+    return () => clearTimeout(timerRef.current);
+  }, [build, officials.length]);
+
+  /* ---------------- actions ---------------- */
+
+  async function handleExportPdf() {
+    setBusy("pdf");
+    try {
+      const doc = await build();
+      doc.save(`${safeFileName(subject)}.pdf`);
+    } catch (error) {
+      setNotice({ kind: "bad", text: `Export failed: ${error.message}` });
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function handleExportPng() {
+    setBusy("png");
+    try {
+      const doc = await build();
+      const { pages: rendered } = await rasterisePdf(doc, 3);
+      rendered.forEach((dataUrl, i) =>
+        download(
+          dataUrl,
+          `${safeFileName(subject)}${rendered.length > 1 ? `-${i + 1}` : ""}.png`
+        )
+      );
+    } catch (error) {
+      setNotice({ kind: "bad", text: `Image export failed: ${error.message}` });
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function handleSaveDraft() {
+    setBusy("draft");
+    setNotice(null);
+
+    const { data: auth } = await supabase.auth.getUser();
+
+    const { error } = await supabase.from("correspondence_drafts").insert({
+      template,
+      office,
+      reference: effectiveRef,
+      subject,
+      body_html: bodyHtml,
+      document_date: date,
+      created_by: auth?.user?.id ?? null,
+    });
+
+    setBusy("");
+    setNotice(
+      error
+        ? { kind: "bad", text: `Could not save: ${error.message}` }
+        : { kind: "ok", text: "Draft saved. You can leave and come back to it." }
+    );
+  }
+
+  /** Shared across the secretariat, so this writes the single settings row. */
+  async function handleSaveContact() {
+    setBusy("contact");
+    setNotice(null);
+
+    const { data: auth } = await supabase.auth.getUser();
+
+    const { error } = await supabase
+      .from("org_settings")
+      .update({
+        email,
+        instagram,
+        updated_by: auth?.user?.id ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", true);
+
+    setBusy("");
+    setNotice(
+      error
+        ? { kind: "bad", text: `Could not save contact: ${error.message}` }
+        : { kind: "ok", text: "Contact details updated for everyone." }
+    );
+  }
+
+  function format(command, value) {
+    document.execCommand(command, false, value ?? null);
     editorRef.current?.focus();
     setBodyHtml(editorRef.current?.innerHTML ?? "");
   }
@@ -122,25 +291,47 @@ function AdminCorrespondence() {
         </div>
 
         <div className="apage-actions">
-          <button type="button" className="abtn" disabled>
-            <Save size={14} />
+          <button
+            type="button"
+            className="abtn"
+            onClick={handleSaveDraft}
+            disabled={busy !== ""}
+          >
+            {busy === "draft" ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             Save draft
           </button>
-          <button type="button" className="abtn" disabled>
-            <ImageIcon size={14} />
+
+          <button
+            type="button"
+            className="abtn"
+            onClick={handleExportPng}
+            disabled={busy !== ""}
+          >
+            {busy === "png" ? <Loader2 size={14} className="spin" /> : <ImageIcon size={14} />}
             PNG
           </button>
-          <button type="button" className="abtn abtn--primary" disabled>
-            <Download size={14} />
+
+          <button
+            type="button"
+            className="abtn abtn--primary"
+            onClick={handleExportPdf}
+            disabled={busy !== ""}
+          >
+            {busy === "pdf" ? <Loader2 size={14} className="spin" /> : <Download size={14} />}
             Export PDF
           </button>
         </div>
       </header>
 
-      <div className="anote is-bad" style={{ margin: "16px 0 0" }}>
-        Layout preview only — nothing saves or exports yet, and the officials
-        below are placeholders rather than live Executives data.
-      </div>
+      {notice && (
+        <div
+          className={notice.kind === "ok" ? "anote is-ok" : "anote is-bad"}
+          style={{ margin: "16px 0 0" }}
+        >
+          {notice.kind === "ok" ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
+          {notice.text}
+        </div>
+      )}
 
       <div className="acompose">
         <aside className="acompose-panel">
@@ -170,20 +361,23 @@ function AdminCorrespondence() {
             </div>
 
             <div className="aoffices">
-              {OFFICES.map((item) => (
-                <button
-                  type="button"
-                  key={item.id}
-                  className={office === item.id ? "aoffice is-on" : "aoffice"}
-                  onClick={() => setOffice(item.id)}
-                >
-                  <span className="aoffice-dot" />
-                  <span>
-                    {item.label}
-                    <small>{item.holder}</small>
-                  </span>
-                </button>
-              ))}
+              {OFFICES.map((item) => {
+                const holder = officials.find((o) => o.office === item.label);
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={office === item.id ? "aoffice is-on" : "aoffice"}
+                    onClick={() => setOffice(item.id)}
+                  >
+                    <span className="aoffice-dot" />
+                    <span>
+                      {item.label}
+                      <small>{holder?.name || "Not assigned"}</small>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -199,7 +393,10 @@ function AdminCorrespondence() {
                   type="button"
                   className="achip"
                   style={{ marginLeft: 8, padding: "2px 8px", fontSize: 10 }}
-                  onClick={() => setAutoRef((v) => !v)}
+                  onClick={() => {
+                    if (autoRef) setReference(autoReference);
+                    setAutoRef((v) => !v);
+                  }}
                 >
                   {autoRef ? "Auto" : "Manual"}
                 </button>
@@ -208,7 +405,7 @@ function AdminCorrespondence() {
                 <Hash size={14} />
                 <input
                   id="c-ref"
-                  value={reference}
+                  value={effectiveRef}
                   disabled={autoRef}
                   onChange={(e) => setReference(e.target.value)}
                 />
@@ -248,11 +445,7 @@ function AdminCorrespondence() {
                   <button type="button" onClick={() => format("italic")} title="Italic">
                     <Italic size={13} />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => format("underline")}
-                    title="Underline"
-                  >
+                  <button type="button" onClick={() => format("underline")} title="Underline">
                     <Underline size={13} />
                   </button>
 
@@ -260,7 +453,7 @@ function AdminCorrespondence() {
 
                   <button
                     type="button"
-                    onClick={() => format("formatBlock", "h3")}
+                    onClick={() => format("formatBlock", "<h3>")}
                     title="Heading"
                   >
                     H
@@ -303,27 +496,30 @@ function AdminCorrespondence() {
             </div>
 
             <p className="ashared-note">
-              One value for the whole secretariat. Changing it here changes it on
-              every future document, for every admin.
+              One value for the whole secretariat. Saving changes it on every
+              future document, for every admin.
             </p>
 
             <div className="afield">
               <label htmlFor="c-email">E-mail</label>
-              <input
-                id="c-email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+              <input id="c-email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
 
             <div className="afield">
               <label htmlFor="c-ig">Instagram</label>
-              <input
-                id="c-ig"
-                value={instagram}
-                onChange={(e) => setInstagram(e.target.value)}
-              />
+              <input id="c-ig" value={instagram} onChange={(e) => setInstagram(e.target.value)} />
             </div>
+
+            <button
+              type="button"
+              className="abtn"
+              onClick={handleSaveContact}
+              disabled={busy !== ""}
+              style={{ justifyContent: "center" }}
+            >
+              {busy === "contact" ? <Loader2 size={14} className="spin" /> : <Globe size={14} />}
+              Save for everyone
+            </button>
           </div>
         </aside>
 
@@ -333,69 +529,24 @@ function AdminCorrespondence() {
               Live preview · {TEMPLATES.find((t) => t.id === template)?.name} · A4
             </span>
             <span>
-              <FileText size={12} style={{ verticalAlign: "-2px" }} /> Page 1 of 1
+              {rendering ? "Rendering…" : `${pages.length} page${pages.length === 1 ? "" : "s"}`}
             </span>
           </div>
 
-          <div className="apaper">
-            <div className="apaper-stripes">
-              {STRIPES.map((c, i) => (
-                <i key={c} style={{ background: c, height: `${7 - i}cqw` }} />
-              ))}
+          {pages.length === 0 ? (
+            <div className="apaper apaper--empty">
+              <Loader2 size={22} className="spin" />
             </div>
-
-            <img className="apaper-mark" src="/images/naps-logo-transparent.png" alt="" />
-
-            <div className="apaper-inner">
-              <div className="apaper-head">
-                <img src="/images/naps-logo.png" alt="" />
-                <div>
-                  <div className="apaper-org">NAPS-LASUCOM</div>
-                  <div className="apaper-sub">
-                    Nigeria Association of Physiotherapy Students
-                    <br />
-                    Lagos State University College of Medicine
-                  </div>
-                  <div className="apaper-office">Office of the {officeLabel}</div>
-                </div>
-              </div>
-
-              <div className="apaper-rule" />
-
-              <div className="apaper-date">Date: {longDate(date)}</div>
-
-              <div className="apaper-title">{subject || "Subject line"}</div>
-
-              <div
-                className="apaper-body"
-                dangerouslySetInnerHTML={{ __html: bodyHtml }}
+          ) : (
+            pages.map((src, i) => (
+              <img
+                key={i}
+                className={rendering ? "apaper-page is-stale" : "apaper-page"}
+                src={src}
+                alt={`Page ${i + 1}`}
               />
-
-              <div className="apaper-foot">
-                {OFFICIALS.map(([name, role, phone]) => (
-                  <div className="apaper-official" key={name}>
-                    <b>{name}</b>
-                    <span>36th NAPS-LASUCOM</span>
-                    <em>{role}</em>
-                    <i>{phone}</i>
-                  </div>
-                ))}
-
-                <div className="apaper-official">
-                  <b className="lbl">E-mail:</b>
-                  <i>{email}</i>
-                  <b className="lbl" style={{ marginTop: "0.8cqw" }}>
-                    Instagram:
-                  </b>
-                  <i>{instagram}</i>
-                </div>
-              </div>
-            </div>
-
-            <div className="apaper-band">
-              Strength in Knowledge, Service to Humanity
-            </div>
-          </div>
+            ))
+          )}
         </div>
       </div>
     </main>
