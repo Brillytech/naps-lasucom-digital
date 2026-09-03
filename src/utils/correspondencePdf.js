@@ -14,11 +14,26 @@ import { PDF_FONTS, registerPdfFonts, normaliseText } from "./pdfFonts";
 
 const A4 = { w: 595.28, h: 841.89 };
 
+/*
+  White paper, blue brand, green used three times.
+
+  The palette was blue, navy, green, gold and red, which read as busy rather
+  than official. Gold and red are gone entirely. What replaces them is not a
+  substitute colour but two further tints of the same blue: a mark built from
+  one hue in four values reads as deliberate in a way four hues never do.
+
+  Green appears in exactly three places, all structural and all at the edges
+  of the page -- the head of the header rule, the flag on the subject band,
+  and the tail of the footer strip. That is enough to register as the
+  organisation's second colour without ever competing with the blue.
+*/
 const C = {
   blue: [7, 82, 184],
   deep: [8, 43, 99],
+  /** Mid and light tints of the same blue, carrying the work gold used to. */
+  sky: [92, 143, 214],
+  mist: [168, 196, 232],
   green: [34, 164, 71],
-  gold: [222, 164, 20],
   ink: [22, 24, 30],
   body: [28, 32, 40],
   muted: [108, 116, 130],
@@ -27,7 +42,6 @@ const C = {
   divider: [176, 184, 198],
   /** Edge rails. Pale enough to sit under the text without pulling focus. */
   rail: [211, 222, 240],
-  red: [190, 30, 45],
 };
 
 const M = 52;
@@ -110,11 +124,13 @@ function fitted(doc, text, family, style, max, floor, width) {
  * document looks the same rather than randomly generated.
  */
 function accentBars(doc, rightEdge, y) {
+  // One hue, four values, descending: the eye reads it as a single mark
+  // rather than four competing ones.
   const bars = [
-    { colour: C.green, h: 60 },
+    { colour: C.deep, h: 60 },
     { colour: C.blue, h: 45 },
-    { colour: C.gold, h: 31 },
-    { colour: C.deep, h: 20 },
+    { colour: C.sky, h: 31 },
+    { colour: C.mist, h: 20 },
   ];
 
   const w = 5.6;
@@ -165,9 +181,9 @@ function drawRails(doc) {
   let y = top;
 
   [
-    [C.green, 0.13],
+    [C.deep, 0.13],
     [C.blue, 0.15],
-    [C.gold, 0.045],
+    [C.sky, 0.045],
   ].forEach(([colour, share]) => {
     const h = height * share;
     doc.setFillColor(...colour);
@@ -200,7 +216,10 @@ function drawHead(doc, { office, logo }) {
   setType(doc, PDF_FONTS.SANS, "normal", 8.6, C.body);
   doc.text("Lagos State University College of Medicine", x, 86);
 
-  setType(doc, PDF_FONTS.SANS, "bold", 10, C.green);
+  // Blue, not green: the rule directly beneath already carries the green, and
+  // two greens stacked in the header is where the old palette started to
+  // scatter.
+  setType(doc, PDF_FONTS.SANS, "bold", 10, C.blue);
   doc.text(`OFFICE OF THE ${String(office || "").toUpperCase()}`, x, 101, {
     charSpace: 0.6,
   });
@@ -310,7 +329,7 @@ function drawFooter(doc, { officials, email, instagram, setName, office }) {
 
   let cy = y;
   for (const [label, value] of contact) {
-    setType(doc, PDF_FONTS.SANS, "bold", 6.6, C.red);
+    setType(doc, PDF_FONTS.SANS, "bold", 6.6, C.muted);
     doc.text(label.toUpperCase(), cx, cy, { charSpace: 0.5 });
 
     const v = normaliseText(value) || "—";
@@ -407,7 +426,7 @@ function drawLetterFoot(doc, { email, instagram, setName }) {
 
   const col = M + 200;
 
-  setType(doc, PDF_FONTS.SANS, "bold", 6.8, C.red);
+  setType(doc, PDF_FONTS.SANS, "bold", 6.8, C.muted);
   doc.text("E-MAIL", M, top + 17, { charSpace: 0.5 });
   doc.text("INSTAGRAM", col, top + 17, { charSpace: 0.5 });
 
@@ -427,11 +446,12 @@ function drawBand(doc, page, total) {
   doc.setFillColor(...C.deep);
   doc.rect(0, y, A4.w, BAND_H, "F");
 
-  const quarter = A4.w / 4;
-  [C.green, C.blue, C.gold, C.deep].forEach((colour, i) => {
-    doc.setFillColor(...colour);
-    doc.rect(i * quarter, y - 3, quarter, 3, "F");
-  });
+  // Mirrors the header rule -- blue across, green at one end -- so the sheet
+  // is closed by the same mark that opened it, reversed.
+  doc.setFillColor(...C.blue);
+  doc.rect(0, y - 3, A4.w, 3, "F");
+  doc.setFillColor(...C.green);
+  doc.rect(A4.w * 0.72, y - 3, A4.w * 0.28, 3, "F");
 
   setType(doc, PDF_FONTS.SANS, "normal", 7, [206, 224, 250]);
   doc.text("Strength in Knowledge, Service to Humanity", M, y + 16);
@@ -473,13 +493,22 @@ function drawWatermark(doc, mark, region) {
  * Echoes the rails and the header bars so it reads as part of the furniture.
  */
 function drawClosing(doc, y) {
-  const w = 26;
   const gap = 6;
   const h = 2.4;
-  const colours = [C.green, C.blue, C.gold];
-  let x = (A4.w - (colours.length * w + (colours.length - 1) * gap)) / 2;
 
-  colours.forEach((colour) => {
+  // Tapering rather than three equal marks: one hue stepping down in both
+  // value and length reads as a considered full stop.
+  const segments = [
+    [C.deep, 34],
+    [C.blue, 20],
+    [C.sky, 10],
+  ];
+
+  const total =
+    segments.reduce((sum, [, w]) => sum + w, 0) + gap * (segments.length - 1);
+  let x = (A4.w - total) / 2;
+
+  segments.forEach(([colour, w]) => {
     doc.setFillColor(...colour);
     doc.roundedRect(x, y, w, h, h / 2, h / 2, "F");
     x += w + gap;
@@ -784,7 +813,10 @@ export async function renderCorrespondence({
     doc.rect(M, titleY, CONTENT, titleH, "F");
     doc.setFillColor(...C.green);
     doc.rect(M, titleY, 5, titleH, "F");
-    doc.setFillColor(...C.gold);
+
+    // A lighter value of the band's own blue, not a second colour: it reads
+    // as the band having an edge rather than as another stripe.
+    doc.setFillColor(...C.blue);
     doc.rect(M, titleY + titleH, CONTENT, 2, "F");
 
     setType(doc, PDF_FONTS.SANS, "bold", TITLE_PT, [255, 255, 255]);
