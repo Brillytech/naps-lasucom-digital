@@ -173,7 +173,7 @@ function drawRails(doc) {
 /**
  * Masthead.
  *
- * Centred, and sized so the three lines read as one block: 25pt for the
+ * Centred, and sized so the three lines read as one block: 27pt for the
  * name is enough to carry the page without the drop to the lines beneath
  * becoming a cliff. Filling the full width had meant 40pt, which dominated
  * everything under it.
@@ -183,20 +183,20 @@ function drawRails(doc) {
  * the two read as one masthead rather than a mark with text next to it.
  */
 function drawHead(doc, { office, logo }) {
-  if (logo) doc.addImage(logo, "PNG", M, 34, 66, 66);
+  if (logo) doc.addImage(logo, "PNG", M, 33, 68, 68);
 
   const mid = A4.w / 2;
 
-  setType(doc, PDF_FONTS.SANS, "bold", 25, C.deep);
-  doc.text("NAPS-LASUCOM", mid, 62, { align: "center", charSpace: 1.4 });
+  setType(doc, PDF_FONTS.SANS, "bold", 27, C.deep);
+  doc.text("NAPS-LASUCOM", mid, 63, { align: "center", charSpace: 1.4 });
 
-  setType(doc, PDF_FONTS.SANS, "bold", 11.5, C.ink);
-  doc.text("Nigeria Association of Physiotherapy Students", mid, 80, {
+  setType(doc, PDF_FONTS.SANS, "bold", 12.5, C.ink);
+  doc.text("Nigeria Association of Physiotherapy Students", mid, 81, {
     align: "center",
   });
 
-  setType(doc, PDF_FONTS.SANS, "normal", 10.5, C.body);
-  doc.text("Lagos State University College of Medicine", mid, 95, {
+  setType(doc, PDF_FONTS.SANS, "normal", 11.5, C.body);
+  doc.text("Lagos State University College of Medicine", mid, 97, {
     align: "center",
   });
 
@@ -206,12 +206,12 @@ function drawHead(doc, { office, logo }) {
     gives the header a floor.
   */
   doc.setFillColor(...C.blue);
-  doc.rect(M, 108, CONTENT, 2.6, "F");
+  doc.rect(M, 109, CONTENT, 2.6, "F");
   doc.setFillColor(...C.green);
-  doc.rect(M, 108, CONTENT * 0.24, 2.6, "F");
+  doc.rect(M, 109, CONTENT * 0.24, 2.6, "F");
 
   doc.setFillColor(...C.sky);
-  doc.rect(M, 114, CONTENT, 0.8, "F");
+  doc.rect(M, 115, CONTENT, 0.8, "F");
 
   /*
     The issuing office sits below the rule, centred between two hairlines
@@ -222,14 +222,14 @@ function drawHead(doc, { office, logo }) {
   const label = `OFFICE OF THE ${String(office || "").toUpperCase()}`;
   const track = 0.9;
 
-  setType(doc, PDF_FONTS.SANS, "bold", 9.5, C.blue);
+  setType(doc, PDF_FONTS.SANS, "bold", 10.2, C.blue);
   const half = (doc.getTextWidth(label) + track * (label.length - 1)) / 2;
-  doc.text(label, mid, 133, { align: "center", charSpace: track });
+  doc.text(label, mid, 134, { align: "center", charSpace: track });
 
   doc.setDrawColor(...C.rail);
   doc.setLineWidth(0.9);
-  doc.line(M, 129.5, mid - half - 14, 129.5);
-  doc.line(mid + half + 14, 129.5, A4.w - M, 129.5);
+  doc.line(M, 130.5, mid - half - 14, 130.5);
+  doc.line(mid + half + 14, 130.5, A4.w - M, 130.5);
 }
 /**
  * Officials row plus contact column.
