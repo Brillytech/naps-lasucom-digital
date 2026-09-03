@@ -26,6 +26,8 @@ const C = {
    *  value sat too close to white to read as a division at all. */
   divider: [176, 184, 198],
   wash: [238, 244, 252],
+  /** Edge rails. Pale enough to sit under the text without pulling focus. */
+  rail: [211, 222, 240],
   red: [190, 30, 45],
 };
 
@@ -115,6 +117,58 @@ function accentBars(doc, x, y) {
   return bars.length * (w + gap) - gap;
 }
 
+/**
+ * Edge rails.
+ *
+ * A hairline down each side margin: a pale spine the full height of the page,
+ * with the brand sequence set into its head as separated segments. The gaps
+ * are deliberate -- butting the segments together at this width leaves a
+ * pinch where the rounded caps meet, and reading them as distinct marks is
+ * cleaner than trying to hide that.
+ *
+ * Kept to 2.6pt and out in the gutter beyond the text margin: at this weight
+ * it registers as letterhead furniture rather than decoration competing with
+ * the body.
+ */
+function drawRails(doc) {
+  const w = 2.6;
+  const r = w / 2;
+  const top = 40;
+  const bottom = A4.h - BAND_H - 20;
+  const height = bottom - top;
+
+  const left = 26;
+  const right = A4.w - 26 - w;
+
+  doc.setFillColor(...C.rail);
+  doc.roundedRect(left, top, w, height, r, r, "F");
+
+  // Shares rather than fixed lengths, so the rail keeps its proportions if
+  // the page format ever changes.
+  const gap = 5;
+  let y = top;
+
+  [
+    [C.green, 0.13],
+    [C.blue, 0.15],
+    [C.gold, 0.045],
+  ].forEach(([colour, share]) => {
+    const h = height * share;
+    doc.setFillColor(...colour);
+    doc.roundedRect(left, y, w, h, r, r, "F");
+    y += h + gap;
+  });
+
+  // The right edge answers the left, anchored at the foot so the page reads
+  // as framed rather than weighted down one side.
+  const tail = height * 0.2;
+  doc.setFillColor(...C.rail);
+  doc.roundedRect(right, bottom - tail, w, tail, r, r, "F");
+
+  doc.setFillColor(...C.deep);
+  doc.roundedRect(right, bottom - tail * 0.42, w, tail * 0.42, r, r, "F");
+}
+
 /** Header: crest, wordmark, issuing office, and the rule beneath. */
 function drawHead(doc, { office, logo }) {
   if (logo) doc.addImage(logo, "PNG", M, 40, 52, 52);
@@ -148,7 +202,7 @@ function drawHead(doc, { office, logo }) {
  * Brilliance" in a fifth of the page width, so every string fits itself to
  * its column rather than wrapping into the line below.
  */
-function drawFooter(doc, { officials, email, instagram }) {
+function drawFooter(doc, { officials, email, instagram, setName }) {
   const top = A4.h - FOOTER_H;
 
   doc.setDrawColor(...C.divider);
@@ -202,8 +256,12 @@ function drawFooter(doc, { officials, email, instagram }) {
     // two-line name pushes its own column down rather than colliding.
     const below = y + (nameLines.length - 1) * (nameSize + 2);
 
-    setType(doc, PDF_FONTS.SANS, "normal", 6.6, C.muted);
-    doc.text("36th NAPS-LASUCOM", x, below + 14);
+    // The DEC set is whichever one is marked current on the Executives page,
+    // not a fixed string -- it changes at every handover.
+    const tenure = normaliseText(setName) || "NAPS-LASUCOM";
+    fitted(doc, tenure, PDF_FONTS.SANS, "normal", 6.6, 5.2, inner);
+    doc.setTextColor(...C.muted);
+    doc.text(tenure, x, below + 14);
 
     fitted(doc, person.office, PDF_FONTS.SANS, "bold", 8.2, 6.4, inner);
     doc.setTextColor(...C.blue);
@@ -426,6 +484,7 @@ export async function renderCorrespondence({
   officials,
   email,
   instagram,
+  setName,
   logo,
   watermark,
 }) {
@@ -451,6 +510,7 @@ export async function renderCorrespondence({
   }
 
   drawWatermark(doc, watermark);
+  drawRails(doc);
   drawHead(doc, { office, logo });
 
   setType(doc, PDF_FONTS.SANS, "bold", 8.4, C.muted);
@@ -479,7 +539,9 @@ export async function renderCorrespondence({
   const total = doc.internal.getNumberOfPages();
   for (let page = 1; page <= total; page += 1) {
     doc.setPage(page);
-    drawFooter(doc, { officials, email, instagram });
+    // Page one is drawn above; later pages get the rails here.
+    if (page > 1) drawRails(doc);
+    drawFooter(doc, { officials, email, instagram, setName });
     drawBand(doc, page, total);
   }
 

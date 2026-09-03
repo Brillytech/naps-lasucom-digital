@@ -17980,3 +17980,16 @@ a.arow:hover {
     animation: none;
   }
 }
+
+/* Tenure badge in the composer's office panel. The DEC set comes from the
+   Executives page rather than being typed here, so it reads as a read-out. */
+.atenure {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--blue-ink);
+  background: rgba(7, 82, 184, 0.07);
+  border-radius: 999px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}

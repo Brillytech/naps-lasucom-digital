@@ -88,6 +88,7 @@ function AdminCorrespondence() {
   const [bodyHtml, setBodyHtml] = useState(STARTER_BODY);
 
   const [officials, setOfficials] = useState([]);
+  const [decSet, setDecSet] = useState(null);
   const [email, setEmail] = useState("");
   const [instagram, setInstagram] = useState("");
 
@@ -108,10 +109,14 @@ function AdminCorrespondence() {
     let cancelled = false;
 
     (async () => {
-      const [execResult, settingsResult, logo, watermark] = await Promise.all([
+      const [setsResult, execResult, settingsResult, logo, watermark] = await Promise.all([
+        supabase
+          .from("executive_sets")
+          .select("id, set_name, set_number, academic_session, is_current")
+          .order("set_number", { ascending: false }),
         supabase
           .from("executives")
-          .select("full_name, name, office, phone, is_active, display_order")
+          .select("full_name, name, office, phone, set_id, is_active, display_order")
           .eq("is_active", true)
           .order("display_order", { ascending: true }),
         supabase.from("org_settings").select("email, instagram").maybeSingle(),
@@ -125,7 +130,19 @@ function AdminCorrespondence() {
         setNotice({ kind: "bad", text: `Executives: ${execResult.error.message}` });
       }
 
-      setOfficials(pickOfficials(execResult.data || []));
+      // Whichever set is flagged current, falling back to the highest number
+      // so a database that has never had one marked still names a tenure.
+      const sets = setsResult.data || [];
+      const current = sets.find((row) => row.is_current) || sets[0] || null;
+      setDecSet(current);
+
+      // Older executive rows predate set_id and carry null. Filtering them out
+      // would empty the footer, so only narrow to the set when it actually
+      // matches somebody.
+      const active = execResult.data || [];
+      const scoped = current ? active.filter((e) => e.set_id === current.id) : [];
+
+      setOfficials(pickOfficials(scoped.length ? scoped : active));
       setEmail(settingsResult.data?.email || "napslasucom@gmail.com");
       setInstagram(settingsResult.data?.instagram || "@napslasucom");
       setArt({ logo, watermark });
@@ -162,10 +179,22 @@ function AdminCorrespondence() {
         officials,
         email,
         instagram,
+        setName: decSet?.set_name,
         logo: art.logo,
         watermark: art.watermark,
       }),
-    [officeLabel, subject, date, effectiveRef, bodyHtml, officials, email, instagram, art]
+    [
+      officeLabel,
+      subject,
+      date,
+      effectiveRef,
+      bodyHtml,
+      officials,
+      email,
+      instagram,
+      decSet,
+      art,
+    ]
   );
 
   useEffect(() => {
@@ -358,6 +387,12 @@ function AdminCorrespondence() {
           <div className="acompose-section">
             <div className="acompose-legend">
               <h3>Issuing office</h3>
+              {decSet && (
+                <span className="atenure">
+                  {decSet.set_name}
+                  {decSet.academic_session ? " · " + decSet.academic_session : ""}
+                </span>
+              )}
             </div>
 
             <div className="aoffices">
