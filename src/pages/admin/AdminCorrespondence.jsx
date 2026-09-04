@@ -120,6 +120,16 @@ function AdminCorrespondence() {
   const [draftId, setDraftId] = useState(null);
   const [drafts, setDrafts] = useState([]);
 
+  /*
+    Drawn signatures, keyed by storage path.
+
+    The bucket is private, so each one has to be downloaded with the
+    session and held as a data URL -- jsPDF embeds bytes, not URLs. Cached
+    because the preview re-renders on every keystroke and re-fetching a
+    signature per render would be absurd.
+  */
+  const [signatures, setSignatures] = useState({});
+
   /** The number the next export would take. Provisional until it allocates. */
   const [nextSeq, setNextSeq] = useState(1);
 
@@ -147,7 +157,7 @@ function AdminCorrespondence() {
           .order("set_number", { ascending: false }),
         supabase
           .from("executives")
-          .select("full_name, name, office, phone, set_id, is_active, display_order")
+          .select("full_name, name, office, phone, signature_path, set_id, is_active, display_order")
           .eq("is_active", true)
           .order("display_order", { ascending: true }),
         supabase.from("org_settings").select("email, instagram").maybeSingle(),
@@ -238,6 +248,47 @@ function AdminCorrespondence() {
     };
   }, [office, date]);
 
+  // Only the issuing office signs, so only that signature is fetched.
+  const signaturePath = useMemo(
+    () => officials.find((o) => o.office === officeLabel)?.signaturePath || "",
+    [officials, officeLabel]
+  );
+
+  useEffect(() => {
+    if (!signaturePath || signatures[signaturePath]) return undefined;
+
+    let cancelled = false;
+
+    (async () => {
+      const { data } = await supabase.storage
+        .from("signatures")
+        .download(signaturePath);
+
+      if (!data || cancelled) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (!cancelled) {
+          setSignatures((prev) => ({ ...prev, [signaturePath]: reader.result }));
+        }
+      };
+      reader.readAsDataURL(data);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [signaturePath, signatures]);
+
+  const signedOfficials = useMemo(
+    () =>
+      officials.map((o) => ({
+        ...o,
+        signature: signatures[o.signaturePath] || null,
+      })),
+    [officials, signatures]
+  );
+
   const loadDrafts = useCallback(async () => {
     const { data } = await supabase
       .from("correspondence_drafts")
@@ -279,7 +330,7 @@ function AdminCorrespondence() {
         // the database actually handed out.
         reference: referenceOverride || effectiveRef,
         bodyHtml,
-        officials,
+        officials: signedOfficials,
         email,
         instagram,
         setName: decSet?.set_name,
@@ -297,7 +348,7 @@ function AdminCorrespondence() {
       date,
       effectiveRef,
       bodyHtml,
-      officials,
+      signedOfficials,
       email,
       instagram,
       decSet,
@@ -799,7 +850,9 @@ function AdminCorrespondence() {
 
                   <small className="afield-hint">
                     {signed
-                      ? `${officeLabel} signs in script.`
+                      ? signaturePath
+                        ? `${officeLabel}'s saved signature is printed.`
+                        : `No signature saved for the ${officeLabel} — their name is set in script instead. Add one on Executives.`
                       : "A clear line, to be signed by hand."}
                   </small>
                 </div>

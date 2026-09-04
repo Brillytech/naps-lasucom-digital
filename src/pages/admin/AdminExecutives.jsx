@@ -8,12 +8,14 @@ import {
   Layers,
   Plus,
   ShieldCheck,
+  PenLine,
   Trash2,
   Upload,
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import SignaturePad from "../../components/SignaturePad";
 
 const offices = [
   "President",
@@ -36,6 +38,12 @@ function AdminExecutives() {
   const [selectedSetId, setSelectedSetId] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingSet, setSavingSet] = useState(false);
+
+  // The executive whose signature is being drawn, plus whatever they already
+  // have saved -- downloaded on open, since the bucket is private.
+  const [signatureFor, setSignatureFor] = useState(null);
+  const [signaturePreview, setSignaturePreview] = useState(null);
+  const [savingSignature, setSavingSignature] = useState(false);
   const [showSetForm, setShowSetForm] = useState(false);
   const [showExecForm, setShowExecForm] = useState(false);
   const [savingExecutive, setSavingExecutive] = useState(false);
@@ -272,6 +280,64 @@ const { error } = await supabase.from("executives").insert({
       setErrorMessage(error.message);
     } finally {
       setSavingExecutive(false);
+    }
+  }
+
+  /*
+    Signature capture.
+
+    The bucket is private, so an existing signature has to be downloaded
+    with the caller's session and turned into a data URL before it can be
+    shown -- there is no public URL to point an <img> at.
+  */
+  async function openSignature(item) {
+    setSignatureFor(item);
+    setSignaturePreview(null);
+
+    if (!item.signature_path) return;
+
+    const { data } = await supabase.storage
+      .from("signatures")
+      .download(item.signature_path);
+
+    if (!data) return;
+
+    const reader = new FileReader();
+    reader.onload = () => setSignaturePreview(reader.result);
+    reader.readAsDataURL(data);
+  }
+
+  async function saveSignature(dataUrl) {
+    setSavingSignature(true);
+    setErrorMessage("");
+
+    try {
+      const blob = await (await fetch(dataUrl)).blob();
+
+      // Overwritten in place per executive, so replacing a signature never
+      // leaves the previous one sitting in the bucket.
+      const path = `${signatureFor.set_id}/${signatureFor.id}.png`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("signatures")
+        .upload(path, blob, { contentType: "image/png", upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { error } = await supabase
+        .from("executives")
+        .update({ signature_path: path })
+        .eq("id", signatureFor.id);
+
+      if (error) throw error;
+
+      setSuccessMessage(`Signature saved for ${signatureFor.full_name}.`);
+      setSignatureFor(null);
+      await fetchData();
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setSavingSignature(false);
     }
   }
 
@@ -666,17 +732,39 @@ const { error } = await supabase.from("executives").insert({
                 <strong>{item.full_name}</strong>
                 <span>{item.office}</span>
 
-                <span
-                  className={
-                    item.is_active ? "abadge abadge--live" : "abadge abadge--draft"
-                  }
-                >
-                  <i />
-                  {item.is_active ? "Visible" : "Hidden"}
-                </span>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  <span
+                    className={
+                      item.is_active ? "abadge abadge--live" : "abadge abadge--draft"
+                    }
+                  >
+                    <i />
+                    {item.is_active ? "Visible" : "Hidden"}
+                  </span>
+
+                  {item.signature_path && (
+                    <span className="abadge abadge--soon">
+                      <PenLine size={9} />
+                      Signed
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="aroster-actions">
+                <button
+                  type="button"
+                  className={item.signature_path ? "aicon-btn is-set" : "aicon-btn"}
+                  title={
+                    item.signature_path
+                      ? "Replace signature"
+                      : "Add a signature"
+                  }
+                  onClick={() => openSignature(item)}
+                >
+                  <PenLine size={14} />
+                </button>
+
                 <button
                   type="button"
                   className="aicon-btn"
@@ -698,6 +786,16 @@ const { error } = await supabase.from("executives").insert({
             </article>
           ))}
         </div>
+      )}
+
+      {signatureFor && (
+        <SignaturePad
+          name={signatureFor.full_name}
+          existing={signaturePreview}
+          saving={savingSignature}
+          onCancel={() => setSignatureFor(null)}
+          onSave={saveSignature}
+        />
       )}
     </main>
   );

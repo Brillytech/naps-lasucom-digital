@@ -96,6 +96,7 @@ export function pickOfficials(executives = []) {
       office: office.label,
       name: row ? row.full_name || row.name || "" : "",
       phone: row?.phone || "",
+      signaturePath: row?.signature_path || "",
     };
   });
 }
@@ -378,9 +379,31 @@ function shortenName(name) {
  * what a letter going out on paper needs.
  */
 function drawSignature(doc, person, x, y, width, signed) {
-  if (signed) {
-    // Try the full name, fall back to initialised middle names, and only then
-    // shrink -- dropping to 11pt to fit a long name reads as a mistake.
+  if (signed && person.signature) {
+    /*
+      A drawn signature, sized to sit on the rule.
+
+      The stored PNG is cropped to its ink, so its own proportions are the
+      placement: fit it to a 34pt band and let the width follow, capped at
+      the rule so a wide flourish cannot run past it.
+    */
+    const props = doc.getImageProperties(person.signature);
+    const ratio = props.width / props.height;
+
+    let h = 34;
+    let w = h * ratio;
+
+    if (w > width - 8) {
+      w = width - 8;
+      h = w / ratio;
+    }
+
+    doc.addImage(person.signature, "PNG", x + 4, y + 7 - h, w, h);
+  } else if (signed) {
+    // No signature on file for this officer, so the name is set in the
+    // script face instead. Try it in full, fall back to initialised middle
+    // names, and only then shrink -- dropping to 11pt to fit reads as a
+    // mistake rather than as a mark.
     let mark = person.name;
     doc.setFont(PDF_FONTS.SCRIPT, "normal");
     doc.setFontSize(23);

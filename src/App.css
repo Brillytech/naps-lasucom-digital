@@ -18790,3 +18790,143 @@ tr:hover .aicon-btn { border-color: var(--rule); }
     display: grid;
   }
 }
+
+/* ============================================================
+   SIGNATURE PAD
+   ============================================================ */
+
+.asig-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+  background: rgba(8, 20, 42, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.asig {
+  width: 100%;
+  max-width: 560px;
+  padding: var(--sp-5);
+  background: #ffffff;
+  border-radius: var(--r-md);
+  box-shadow: 0 24px 60px rgba(10, 24, 51, 0.28);
+}
+
+.asig-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.asig-head h2 {
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--heading);
+}
+
+.asig-note {
+  margin: var(--sp-3) 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* The ruled surface reads as a place to sign rather than a drawing area. */
+.asig-surface {
+  position: relative;
+  margin-top: var(--sp-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: #fcfdff;
+  overflow: hidden;
+}
+
+.asig-surface canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.asig-rule {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 22%;
+  height: 1px;
+  background: var(--rule);
+  pointer-events: none;
+}
+
+.asig-hint {
+  position: absolute;
+  left: 8%;
+  bottom: 22%;
+  transform: translateY(-6px);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.asig-existing {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: var(--press);
+}
+
+.asig-existing span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.asig-existing img {
+  max-height: 34px;
+  width: auto;
+}
+
+.asig-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+
+@media (max-width: 480px) {
+  .asig {
+    padding: var(--sp-4);
+  }
+
+  .asig-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asig-backdrop {
+    backdrop-filter: none;
+  }
+}
+
+/* An action that is already done reads differently from one that is pending. */
+.aicon-btn.is-set {
+  color: var(--blue-ink);
+  border-color: color-mix(in srgb, var(--blue) 26%, transparent);
+  background: rgba(7, 82, 184, 0.07);
+}
