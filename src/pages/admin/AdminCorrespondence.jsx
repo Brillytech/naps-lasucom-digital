@@ -23,7 +23,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import {
   OFFICES,
-  SIGNING_OFFICES,
   pickOfficials,
   renderCorrespondence,
 } from "../../utils/correspondencePdf";
@@ -107,8 +106,8 @@ function AdminCorrespondence() {
   const [salutation, setSalutation] = useState("Dear Sir,");
   const [closing, setClosing] = useState("Yours faithfully,");
 
-  // One setting for the whole letter: either all three officers get a rendered
-  // script mark, or all three get a clear line to sign by hand.
+  // Rendered script mark, or a clear line for the issuing officer to sign by
+  // hand. One setting; the letter carries one signature either way.
   const [signed, setSigned] = useState(true);
 
   const [officials, setOfficials] = useState([]);
@@ -254,18 +253,17 @@ function AdminCorrespondence() {
   }, [loadDrafts]);
 
   /*
-    A letter is signed by three named officers. If the executives table has
-    not been filled in, signatories() drops the blanks and the letter prints
-    with fewer blocks -- or none -- and says nothing about it.
+    A letter is signed by the office issuing it. If that office has nobody
+    against it in the executives table, signatories() returns none and the
+    letter prints unsigned without saying so.
   */
   const missingSigners = useMemo(
     () =>
-      template === "letter"
-        ? SIGNING_OFFICES.filter(
-            (label) => !officials.find((o) => o.office === label)?.name
-          )
+      template === "letter" &&
+      !officials.find((o) => o.office === officeLabel)?.name
+        ? [officeLabel]
         : [],
-    [template, officials]
+    [template, officials, officeLabel]
   );
 
   /* ---------------- preview ---------------- */
@@ -600,8 +598,8 @@ function AdminCorrespondence() {
       {missingSigners.length > 0 && (
         <div className="anote is-warn" style={{ margin: "16px 0 0" }}>
           <AlertTriangle size={15} />
-          No {missingSigners.join(", ")} on the current DEC set — those
-          signature blocks will not be printed. Add them on Executives first.
+          No {missingSigners.join(", ")} on the current DEC set — this letter
+          will print unsigned. Add them on Executives first.
         </div>
       )}
 
@@ -801,8 +799,8 @@ function AdminCorrespondence() {
 
                   <small className="afield-hint">
                     {signed
-                      ? "President, Vice President and General Secretary sign in script."
-                      : "Clear lines for all three, to be signed by hand."}
+                      ? `${officeLabel} signs in script.`
+                      : "A clear line, to be signed by hand."}
                   </small>
                 </div>
               </>

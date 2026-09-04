@@ -344,23 +344,23 @@ function drawFooter(doc, { officials, email, instagram, setName, office }) {
 export const SIGNING_OFFICES = ["President", "Vice President", "General Secretary"];
 
 /**
- * Who signs a letter: the three principal officers, always in the same order
- * whichever office issued it. A letter to a Provost carries the executive,
- * not just its author.
+ * Who signs a letter: the officer whose office issued it, and only them.
+ *
+ * All three principal officers used to sign every letter. A letter carries
+ * one signature -- the person sending it -- and three blocks read as a
+ * petition rather than as correspondence from an office.
  */
-function signatories(officials) {
-  return SIGNING_OFFICES.map((label) =>
-    officials.find((o) => o.office === label)
-  ).filter((o) => o && o.name);
+function signatories(officials, officeLabel) {
+  const issuer = officials.find((o) => o.office === officeLabel);
+  return issuer && issuer.name ? [issuer] : [];
 }
 
 /**
  * First name, middle initials, surname.
  *
- * Three signature blocks leave about 148pt each, and a name like "Anibaba
- * Oluwadarasimi Brilliance" cannot be set in a script face at that width
- * without shrinking to something illegible. Initialising the middle names is
- * how the name is written on a signature anyway.
+ * A name like "Anibaba Oluwadarasimi Brilliance" cannot be set in a script
+ * face across a signature rule without shrinking to something illegible.
+ * Initialising the middle names is how a name is signed anyway.
  */
 function shortenName(name) {
   const parts = String(name).split(/\s+/).filter(Boolean);
@@ -410,9 +410,20 @@ function drawSignature(doc, person, x, y, width, signed) {
   doc.setTextColor(...C.ink);
   doc.text(person.name, x, y + 23);
 
-  fitted(doc, person.office, PDF_FONTS.SANS, "bold", 8.2, 6.6, width);
+  fitted(doc, person.office, PDF_FONTS.SANS, "bold", 8.6, 6.6, width);
   doc.setTextColor(...C.blue);
   doc.text(person.office, x, y + 35);
+
+  // A line the recipient can act on. The disc stands in for a handset --
+  // there is no icon face embedded, and a bare number under an office
+  // reads as a reference rather than as a way to reach someone.
+  if (person.phone) {
+    doc.setFillColor(...C.blue);
+    doc.circle(x + 3.4, y + 45.4, 3.4, "F");
+
+    setType(doc, PDF_FONTS.SANS, "normal", 8.4, C.ink);
+    doc.text(normaliseText(person.phone), x + 11, y + 48);
+  }
 }
 
 /** Slim foot for letters: contact details and the tenure, nothing more. */
@@ -745,7 +756,7 @@ export async function renderCorrespondence({
 
   // A letter must keep room under the body for the close and the two
   // signature blocks, or they would be pushed onto a page of their own.
-  const signSpace = isLetter ? 132 : 18;
+  const signSpace = isLetter ? 146 : 18;
   const available = footerTop - signSpace - bodyTop;
 
   const flow = { limit: footerTop - 24, resumeTop: 96, endY: 0 };
@@ -845,12 +856,12 @@ export async function renderCorrespondence({
     setType(doc, PDF_FONTS.SERIF, "normal", 11, C.ink);
     doc.text(normaliseText(closing) || "Yours faithfully,", M, closeY);
 
-    const signers = signatories(officials);
-    const gap = 24;
-    const colW = (CONTENT - gap * (signers.length - 1)) / Math.max(signers.length, 1);
+    // One block, at the left margin. Half the measure is wide enough for a
+    // long name and keeps the rule from running the width of the page.
+    const signers = signatories(officials, office);
 
-    signers.forEach((person, n) => {
-      drawSignature(doc, person, M + n * (colW + gap), closeY + 52, colW, signed);
+    signers.forEach((person) => {
+      drawSignature(doc, person, M, closeY + 52, CONTENT * 0.46, signed);
     });
   } else if (onePage) {
     drawClosing(doc, bodyEnd + 18);
