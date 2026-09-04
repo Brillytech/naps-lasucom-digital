@@ -97,11 +97,8 @@ function AdminExecutives() {
 
     setProfile(profileData);
 
-    if (profileData.role !== "president") {
-      setLoading(false);
-      return;
-    }
-
+    // Every executive loads the roster now -- they need to find their own card
+    // to sign on. What they may do with it is decided in the render.
     await fetchData();
     setLoading(false);
   }
@@ -324,14 +321,17 @@ const { error } = await supabase.from("executives").insert({
 
       if (uploadError) throw uploadError;
 
-      const { error } = await supabase
-        .from("executives")
-        .update({ signature_path: path })
-        .eq("id", signatureFor.id);
+      // Through a function, not a direct update: a policy loose enough to
+      // let an officer set their own signature_path would also let them
+      // rewrite their office or their name. This writes the one column and
+      // refuses a path belonging to anyone else.
+      const { error } = await supabase.rpc("set_my_signature", {
+        p_path: path,
+      });
 
       if (error) throw error;
 
-      setSuccessMessage(`Signature saved for ${signatureFor.full_name}.`);
+      setSuccessMessage("Your signature is saved.");
       setSignatureFor(null);
       await fetchData();
     } catch (error) {
@@ -405,6 +405,18 @@ const { error } = await supabase.from("executives").insert({
     return executives.filter((item) => item.set_id === selectedSetId);
   }, [executives, selectedSetId]);
 
+  /*
+    The President manages the roster. Everyone else may look at it and sign
+    for themselves -- nothing more. `isPresident` gates every control on the
+    page; `myExecutiveId` gates the one action that is not the President's.
+  */
+  const isPresident = profile?.role === "president";
+
+  const myExecutiveId = useMemo(
+    () => executives.find((e) => e.user_id && e.user_id === profile?.user_id)?.id,
+    [executives, profile]
+  );
+
   if (loading) {
     return (
       <main className="admin-dashboard-page">
@@ -413,13 +425,13 @@ const { error } = await supabase.from("executives").insert({
     );
   }
 
-  if (!profile || profile.role !== "president") {
+  if (!profile) {
     return (
       <main className="admin-page">
         <section className="admin-empty-panel">
           <ShieldCheck size={34} />
           <h3>Access denied</h3>
-          <p>Only the President can manage executive sets and profiles.</p>
+          <p>This page is for members of the executive council.</p>
         </section>
       </main>
     );
@@ -429,37 +441,45 @@ const { error } = await supabase.from("executives").insert({
     <main className="admin-page">
       <header className="apage-head">
         <div>
-          <p className="apage-eyebrow">President control</p>
+          <p className="apage-eyebrow">
+            {isPresident ? "President control" : "Executive council"}
+          </p>
           <h1>Executives</h1>
-          <p>DEC sets and the executive profiles students see.</p>
+          <p>
+            {isPresident
+              ? "DEC sets and the executive profiles students see."
+              : "The council as students see it. You can add your own signature here."}
+          </p>
         </div>
 
-        <div className="apage-actions">
-          <button
-            type="button"
-            className="abtn"
-            onClick={() => {
-              setShowSetForm((v) => !v);
-              setShowExecForm(false);
-            }}
-          >
-            <Layers size={14} />
-            New DEC set
-          </button>
+        {isPresident && (
+          <div className="apage-actions">
+            <button
+              type="button"
+              className="abtn"
+              onClick={() => {
+                setShowSetForm((v) => !v);
+                setShowExecForm(false);
+              }}
+            >
+              <Layers size={14} />
+              New DEC set
+            </button>
 
-          <button
-            type="button"
-            className="abtn abtn--primary"
-            disabled={!selectedSetId}
-            onClick={() => {
-              setShowExecForm((v) => !v);
-              setShowSetForm(false);
-            }}
-          >
-            <Plus size={14} />
-            Add executive
-          </button>
-        </div>
+            <button
+              type="button"
+              className="abtn abtn--primary"
+              disabled={!selectedSetId}
+              onClick={() => {
+                setShowExecForm((v) => !v);
+                setShowSetForm(false);
+              }}
+            >
+              <Plus size={14} />
+              Add executive
+            </button>
+          </div>
+        )}
       </header>
 
       {successMessage && (
@@ -696,7 +716,7 @@ const { error } = await supabase.from("executives").insert({
           </button>
         ))}
 
-        {selectedSet && !selectedSet.is_current && (
+        {isPresident && selectedSet && !selectedSet.is_current && (
           <button
             type="button"
             className="achip-f"
@@ -752,36 +772,47 @@ const { error } = await supabase.from("executives").insert({
               </div>
 
               <div className="aroster-actions">
-                <button
-                  type="button"
-                  className={item.signature_path ? "aicon-btn is-set" : "aicon-btn"}
-                  title={
-                    item.signature_path
-                      ? "Replace signature"
-                      : "Add a signature"
-                  }
-                  onClick={() => openSignature(item)}
-                >
-                  <Signature size={14} />
-                </button>
+                {/* Signing is the officer's own act, so the button appears
+                    only on their card. The President manages the roster but
+                    cannot sign in anyone else's hand. */}
+                {item.id === myExecutiveId && (
+                  <button
+                    type="button"
+                    className={item.signature_path ? "aicon-btn is-set" : "aicon-btn"}
+                    title={
+                      item.signature_path
+                        ? "Replace your signature"
+                        : "Add your signature"
+                    }
+                    onClick={() => openSignature(item)}
+                  >
+                    <Signature size={14} />
+                  </button>
+                )}
 
-                <button
-                  type="button"
-                  className="aicon-btn"
-                  title={item.is_active ? "Hide from students" : "Show to students"}
-                  onClick={() => toggleExecutiveStatus(item)}
-                >
-                  {item.is_active ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
+                {isPresident && (
+                  <>
+                    <button
+                      type="button"
+                      className="aicon-btn"
+                      title={
+                        item.is_active ? "Hide from students" : "Show to students"
+                      }
+                      onClick={() => toggleExecutiveStatus(item)}
+                    >
+                      {item.is_active ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
 
-                <button
-                  type="button"
-                  className="aicon-btn is-danger"
-                  title="Remove"
-                  onClick={() => deleteExecutive(item)}
-                >
-                  <Trash2 size={14} />
-                </button>
+                    <button
+                      type="button"
+                      className="aicon-btn is-danger"
+                      title="Remove"
+                      onClick={() => deleteExecutive(item)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </>
+                )}
               </div>
             </article>
           ))}

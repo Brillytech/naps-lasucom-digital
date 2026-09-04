@@ -188,9 +188,9 @@ function SignaturePad({ name, existing, onCancel, onSave, saving }) {
         </header>
 
         <p className="asig-note">
-          Sign with a finger on a phone, or hold the mouse button down and write.
-          It is stored as a transparent image and printed above the rule on
-          letters from this office.
+          Sign with a finger on a phone, or hold the mouse button down and
+          write. It is stored as a transparent image and printed above the rule
+          on letters issued from your office.
         </p>
 
         <div className="asig-surface">
