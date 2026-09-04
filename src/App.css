@@ -18619,21 +18619,27 @@ tr:hover .aicon-btn { border-color: var(--rule); }
   color: var(--muted);
 }
 
-/* Actions surface on hover so the roster reads as a roster, not a control
-   panel -- but stay reachable by keyboard. */
+/* Always visible. Hiding them until hover left the two actions that matter
+   -- signing and removing -- undiscoverable, and unreachable by touch without
+   a hover state to trigger. */
 .aroster-actions {
   position: absolute;
   top: 8px;
   right: 8px;
   display: flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.14s var(--ease);
+  gap: 3px;
 }
 
-.aroster-card:hover .aroster-actions,
-.aroster-actions:focus-within {
-  opacity: 1;
+/* Resting outline, since they no longer arrive with the hover that used to
+   announce them. */
+.aroster-actions .aicon-btn {
+  border-color: var(--rule);
+  background: #ffffff;
+}
+
+/* Room for three buttons, so a long name never runs beneath them. */
+.aroster-body {
+  padding-right: 96px;
 }
 
 /* File input styled as a drop target, spanning the form grid. */

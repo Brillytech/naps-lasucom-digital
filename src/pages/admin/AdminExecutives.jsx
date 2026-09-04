@@ -8,7 +8,7 @@ import {
   Layers,
   Plus,
   ShieldCheck,
-  PenLine,
+  Signature,
   Trash2,
   Upload,
   Users,
@@ -744,7 +744,7 @@ const { error } = await supabase.from("executives").insert({
 
                   {item.signature_path && (
                     <span className="abadge abadge--soon">
-                      <PenLine size={9} />
+                      <Signature size={9} />
                       Signed
                     </span>
                   )}
@@ -762,7 +762,7 @@ const { error } = await supabase.from("executives").insert({
                   }
                   onClick={() => openSignature(item)}
                 >
-                  <PenLine size={14} />
+                  <Signature size={14} />
                 </button>
 
                 <button
