@@ -4131,6 +4131,200 @@ a:focus-visible {
   padding: 4px;
 }
 
+/* ===== Student review prompt =====
+   A floating card, not a blocking modal: the layer ignores pointer events,
+   so the page behind stays fully usable. */
+.review-prompt-layer {
+  position: fixed;
+  inset: auto 0 92px;
+  z-index: 510;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+
+/* Wide screens have a side rail instead of a bottom bar: tuck the card into
+   the corner rather than over the middle of the content. */
+@media (min-width: 900px) {
+  .review-prompt-layer {
+    inset: auto 24px 24px auto;
+    padding: 0;
+  }
+
+  .review-prompt {
+    width: 340px;
+  }
+}
+
+.review-prompt {
+  --rp-surface: #ffffff;
+  --rp-star: #d6dce8;
+  --rp-star-on: #f5a524;
+
+  pointer-events: auto;
+  width: 100%;
+  max-width: 340px;
+  padding: 20px 20px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  background: var(--rp-surface);
+  color: var(--text);
+  box-shadow: 0 18px 48px rgba(8, 43, 99, 0.18), var(--sh-1);
+  text-align: center;
+  outline: none;
+  animation: review-prompt-in 0.32s var(--ease);
+}
+
+.dark .review-prompt {
+  --rp-surface: #0c1a2e;
+  --rp-star: #2a3a52;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+}
+
+@keyframes review-prompt-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.review-prompt h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.35;
+  color: var(--heading);
+}
+
+.review-prompt-sub {
+  margin: 6px 0 0;
+  min-height: 17px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.review-stars {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.review-star {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 32px;
+  line-height: 1;
+  color: var(--rp-star);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: color 0.15s var(--ease), transform 0.15s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.review-star.is-on {
+  color: var(--rp-star-on);
+}
+
+.review-star:active {
+  transform: scale(0.9);
+}
+
+.review-star:focus-visible,
+.review-prompt-cta:focus-visible,
+.review-prompt-link:focus-visible {
+  outline: 2px solid var(--blue-ink);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .review-star:hover {
+    transform: scale(1.08);
+  }
+}
+
+.review-prompt-input {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--press);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px; /* 16px stops iOS zooming on focus */
+  line-height: 1.4;
+  resize: none;
+}
+
+.review-prompt-input::placeholder {
+  color: var(--muted);
+}
+
+.review-prompt-input:focus {
+  outline: none;
+  border-color: var(--blue-ink);
+}
+
+.review-prompt-cta {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 14px;
+  border: none;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--blue), var(--deep-blue));
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.16s var(--ease);
+}
+
+.review-prompt-cta:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.review-prompt-link {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.review-prompt-thanks {
+  margin: 8px 0 4px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--heading);
+}
+
+.review-prompt-credit {
+  margin: 6px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  opacity: 0.6;
+}
+
 /* Immersive fullscreen reader mode — covers the whole viewport,
    hides the bottom nav and any chrome above/below it, and lets the
    device rotate freely (no fixed orientation) so wide pages like
@@ -16600,6 +16794,214 @@ a.arow:hover {
 
 .arow-chev {
   color: var(--muted);
+}
+
+/* --- student reviews page --- */
+
+.areview-error {
+  margin: var(--sp-4) 0 0;
+  font-size: 12.5px;
+  color: #b91c1c;
+}
+
+.areview-summary {
+  display: grid;
+  grid-template-columns: minmax(150px, 200px) minmax(0, 1fr);
+  gap: var(--sp-6);
+  align-items: center;
+  padding: var(--sp-4) var(--sp-6);
+}
+
+.areview-score {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.areview-score strong {
+  font-size: 40px;
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.areview-stars {
+  font-size: 17px;
+  letter-spacing: 2px;
+  color: #d6dce8;
+}
+
+.areview-stars .is-on {
+  color: #f5a524;
+}
+
+.areview-score small {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.areview-bars {
+  display: grid;
+  gap: 2px;
+}
+
+/* Each bar doubles as the rating filter. */
+.areview-bar {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.14s var(--ease);
+}
+
+.areview-bar:hover {
+  background: var(--press);
+}
+
+.areview-bar.is-on {
+  background: color-mix(in srgb, var(--blue) 8%, transparent);
+  color: var(--blue-ink);
+}
+
+.areview-track {
+  height: 7px;
+  border-radius: var(--r-full);
+  background: #eef1f6;
+  overflow: hidden;
+}
+
+.areview-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #f5a524;
+  transition: width 0.3s var(--ease);
+}
+
+.areview-bar em {
+  font-style: normal;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.areview-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.areview-item {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.areview-item + .areview-item {
+  border-top: 1px solid var(--rule);
+}
+
+.areview-item-stars {
+  padding-top: 1px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: #f5a524;
+  white-space: nowrap;
+}
+
+.areview-item-stars .is-off {
+  color: #d6dce8;
+}
+
+.areview-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.areview-text.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.areview-text.is-empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.areview-meta {
+  padding-top: 1px;
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.areview-comment button {
+  margin-top: 4px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue);
+  cursor: pointer;
+}
+
+/* .atoolbar's own margin uses --sp-5, which the scale never defines. */
+.areview-summary + .atoolbar {
+  margin-top: var(--sp-4);
+}
+
+.areview-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-3);
+  border-top: 1px solid var(--rule);
+}
+
+@media (max-width: 640px) {
+  .areview-summary {
+    grid-template-columns: 1fr;
+    gap: var(--sp-3);
+    padding: var(--sp-4);
+  }
+
+  /* Stars and date share the top line; the comment gets the full width. */
+  .areview-item {
+    grid-template-columns: 1fr auto;
+    gap: 6px var(--sp-3);
+  }
+
+  .areview-item .areview-text,
+  .areview-item .areview-comment {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .areview-meta {
+    grid-row: 1;
+    grid-column: 2;
+  }
 }
 
 /* --- status pill --- */

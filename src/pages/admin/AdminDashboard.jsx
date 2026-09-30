@@ -8,10 +8,12 @@ import {
   Users,
   UserCog,
   PenLine,
+  Star,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import { canViewReviews } from "../../utils/reviewCampaign";
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -150,6 +152,14 @@ function AdminDashboard() {
         color: "blue",
         allowed: true,
       },
+      {
+        title: "Student Reviews",
+        text: "Ratings and feedback from students, and the review popup switch.",
+        to: "/naps-admin/reviews",
+        icon: <Star size={18} />,
+        color: "green",
+        allowed: canViewReviews(role),
+      },
     ];
 
     return allActions.filter((item) => item.allowed);
@@ -279,8 +289,7 @@ function AdminDashboard() {
             </Link>
           ))
         )}
-      </section>
-    </main>
+      </section>    </main>
   );
 }
 

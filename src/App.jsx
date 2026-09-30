@@ -19,6 +19,7 @@ import {
   Moon,
   MoreHorizontal,
   PenLine,
+  Star,
   Sun,
   Users,
 } from "lucide-react";
@@ -40,6 +41,7 @@ import Notifications from "./pages/Notifications";
 import Favorites from "./pages/Favorites";
 import MaterialExplanation from "./pages/MaterialExplanation";
 import InstallPrompt from "./components/InstallPrompt";
+import ReviewPrompt from "./components/ReviewPrompt";
 
 /* ADMIN PAGES - ACTIVE */
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -53,6 +55,8 @@ import AdminSetPassword from "./pages/admin/AdminSetPassword";
 import AdminRecords from "./pages/admin/AdminRecords";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminCorrespondence from "./pages/admin/AdminCorrespondence";
+import AdminReviews from "./pages/admin/AdminReviews";
+import { canViewReviews } from "./utils/reviewCampaign";
 
 /* ADMIN PAGES - FUTURE */
 // import AdminHandover from "./pages/admin/AdminHandover";
@@ -248,6 +252,15 @@ useEffect(() => {
           />
 
           <Route
+            path="/naps-admin/reviews"
+            element={
+              <RequireAdmin>
+                <AdminReviews />
+              </RequireAdmin>
+            }
+          />
+
+          <Route
             path="/naps-admin/more"
             element={
               <RequireAdmin>
@@ -295,6 +308,7 @@ useEffect(() => {
         {showAdminNav && <AdminConsoleNav />}
 
         {!isAdminRoute && <InstallPrompt />}
+        {!isAdminRoute && <ReviewPrompt />}
       </div>
     </div>
   );
@@ -382,7 +396,7 @@ function AdminConsoleNav() {
 
       supabase
         .from("admin_profiles")
-        .select("full_name, office")
+        .select("full_name, office, role")
         .eq("user_id", data.user.id)
         .single()
         .then(({ data: row }) => {
@@ -457,6 +471,14 @@ function AdminConsoleNav() {
         label="Resource list"
         secondary
       />
+      {canViewReviews(profile?.role) && (
+        <AdminNavItem
+          to="/naps-admin/reviews"
+          icon={<Star size={19} />}
+          label="Reviews"
+          secondary
+        />
+      )}
 
       {/* Small screens only: the rail shows these destinations directly. */}
       <AdminNavItem
