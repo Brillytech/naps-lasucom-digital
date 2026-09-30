@@ -14,6 +14,19 @@ const SHOW_DELAY_MS = 6000;
 const THANKS_MS = 1800;
 const LABELS = ["Poor", "Fair", "Good", "Very good", "Excellent"];
 
+const FONT_HREF =
+  "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap";
+
+// Only visitors who are about to see the card pay for its fonts. Fetched at
+// eligibility, so they are in by the time the delay runs out.
+function loadCardFonts() {
+  if (document.querySelector(`link[href="${FONT_HREF}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = FONT_HREF;
+  document.head.appendChild(link);
+}
+
 // Reading a resource is the one place an interruption really costs something.
 function isReadingRoute(pathname) {
   return pathname.startsWith("/resource-viewer");
@@ -36,6 +49,7 @@ function ReviewPrompt() {
       const campaign = Array.isArray(data) ? data[0] : data;
       if (cancelled || error || !campaign?.active || !campaign.campaign_id) return;
       if (!shouldShowReview(readReviewState(campaign.campaign_id))) return;
+      loadCardFonts();
       setCampaignId(campaign.campaign_id);
     }
 
