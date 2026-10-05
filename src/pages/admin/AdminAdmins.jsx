@@ -213,7 +213,28 @@ function AdminAdmins() {
         throw new Error(data.message || "Unable to send invite.");
       }
 
-      setSuccessMessage("Executive invite sent successfully.");
+      // Supabase will not re-invite an email that already has an account, so
+      // the function links the profile but sends nothing. Saying "sent" here
+      // left people clicking an old, spent invite link. Send a fresh
+      // set-password link instead.
+      if (data && data.invite_sent === false) {
+        const { data: resetData, error: resetError } =
+          await supabase.functions.invoke("reset-admin-password", {
+            body: { email },
+          });
+
+        if (resetError || resetData?.success === false) {
+          throw new Error(
+            "This email already has an account, so no invite was sent, and a fresh set-password link could not be sent either. Try Reset password on their row."
+          );
+        }
+
+        setSuccessMessage(
+          "This email already had an account, so a fresh set-password link was sent instead. Ask them to use the newest email only."
+        );
+      } else {
+        setSuccessMessage("Executive invite sent successfully.");
+      }
 
       setForm((prev) => ({
         full_name: "",
