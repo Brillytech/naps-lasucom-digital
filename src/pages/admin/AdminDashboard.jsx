@@ -9,11 +9,14 @@ import {
   UserCog,
   PenLine,
   Star,
+  Wallet,
+  GraduationCap,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { canViewReviews } from "../../utils/reviewCampaign";
+import { FINANCE_ROLES, REGISTER_ROLES } from "../../utils/finance";
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -159,6 +162,22 @@ function AdminDashboard() {
         icon: <Star size={18} />,
         color: "green",
         allowed: canViewReviews(role),
+      },
+      {
+        title: "Finance",
+        text: "Record and verify dues payments, ledgers, reports and receipts.",
+        to: "/naps-admin/finance",
+        icon: <Wallet size={18} />,
+        color: "blue",
+        allowed: FINANCE_ROLES.includes(role),
+      },
+      {
+        title: "Students",
+        text: "The student register that dues are charged to.",
+        to: "/naps-admin/students",
+        icon: <GraduationCap size={18} />,
+        color: "green",
+        allowed: FINANCE_ROLES.includes(role) || REGISTER_ROLES.includes(role),
       },
     ];
 

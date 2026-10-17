@@ -46,8 +46,43 @@ const FILES = [
   { file: "AlexBrush-Regular.ttf", family: PDF_FONTS.SCRIPT, style: "normal" },
 ];
 
-/** Base64 payloads, keyed by filename. Populated once per page load. */
-let cache = null;
+/**
+ * Italic faces, registered only for documents that use them.
+ *
+ * jsPDF embeds every font it is given, used or not -- each Noto face adds
+ * roughly half a megabyte to the file. A letter with no italic text should
+ * not carry four unused faces, so these are added on demand.
+ */
+const ITALIC_FILES = [
+  { file: "NotoSerif-Italic.ttf", family: PDF_FONTS.SERIF, style: "italic" },
+  { file: "NotoSerif-BoldItalic.ttf", family: PDF_FONTS.SERIF, style: "bolditalic" },
+  { file: "NotoSans-Italic.ttf", family: PDF_FONTS.SANS, style: "italic" },
+  { file: "NotoSans-BoldItalic.ttf", family: PDF_FONTS.SANS, style: "bolditalic" },
+];
+
+/**
+ * Register the italic faces. Returns false (and the caller sets upright
+ * text instead) if they cannot be loaded, rather than failing the export.
+ */
+export async function registerItalicFonts(doc, families = [PDF_FONTS.SERIF, PDF_FONTS.SANS]) {
+  try {
+    await registerFontFiles(doc, ITALIC_FILES.filter((f) => families.includes(f.family)));
+    return true;
+  } catch (error) {
+    console.warn("Italic fonts unavailable, setting upright:", error.message);
+    return false;
+  }
+}
+
+/** jsPDF style name for a run. */
+export function fontStyle(bold, italic) {
+  if (bold && italic) return "bolditalic";
+  if (italic) return "italic";
+  return bold ? "bold" : "normal";
+}
+
+/** Base64 payload promises, keyed by filename. Each file is fetched once. */
+const cache = {};
 
 function toBase64(buffer) {
   const bytes = new Uint8Array(buffer);
@@ -66,23 +101,35 @@ function toBase64(buffer) {
   return btoa(binary);
 }
 
-async function loadAll() {
-  if (cache) return cache;
-
-  const entries = await Promise.all(
-    FILES.map(async (entry) => {
-      const response = await fetch(`${FONT_DIR}/${entry.file}`);
-
+function loadFile(file) {
+  if (!cache[file]) {
+    cache[file] = fetch(`${FONT_DIR}/${file}`).then(async (response) => {
       if (!response.ok) {
-        throw new Error(`Could not load ${entry.file} (HTTP ${response.status})`);
+        delete cache[file];
+        throw new Error(`Could not load ${file} (HTTP ${response.status})`);
       }
+      return toBase64(await response.arrayBuffer());
+    });
+  }
+  return cache[file];
+}
 
-      return [entry.file, toBase64(await response.arrayBuffer())];
-    })
-  );
+/**
+ * Register any set of font files ({ file, family, style }) on a document.
+ * Throws if a file cannot be loaded; registerPdfFonts() below is the
+ * forgiving wrapper the letters use.
+ */
+export async function registerFontFiles(doc, files) {
+  const payloads = await Promise.all(files.map((entry) => loadFile(entry.file)));
+  files.forEach((entry, i) => {
+    doc.addFileToVFS(entry.file, payloads[i]);
+    doc.addFont(entry.file, entry.family, entry.style);
+  });
+}
 
-  cache = Object.fromEntries(entries);
-  return cache;
+async function loadAll() {
+  const payloads = await Promise.all(FILES.map((entry) => loadFile(entry.file)));
+  return Object.fromEntries(FILES.map((entry, i) => [entry.file, payloads[i]]));
 }
 
 /**

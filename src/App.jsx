@@ -20,6 +20,8 @@ import {
   MoreHorizontal,
   PenLine,
   Star,
+  Wallet,
+  GraduationCap,
   Sun,
   Users,
 } from "lucide-react";
@@ -40,6 +42,7 @@ import Constitution from "./pages/constitution";
 import Notifications from "./pages/Notifications";
 import Favorites from "./pages/Favorites";
 import MaterialExplanation from "./pages/MaterialExplanation";
+import VerifyReceipt from "./pages/VerifyReceipt";
 import InstallPrompt from "./components/InstallPrompt";
 import ReviewPrompt from "./components/ReviewPrompt";
 
@@ -56,12 +59,14 @@ import AdminRecords from "./pages/admin/AdminRecords";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminCorrespondence from "./pages/admin/AdminCorrespondence";
 import AdminReviews from "./pages/admin/AdminReviews";
+import AdminFinance from "./pages/admin/AdminFinance";
+import AdminStudents from "./pages/admin/AdminStudents";
 import { canViewReviews } from "./utils/reviewCampaign";
+import { REGISTER_ROLES } from "./utils/finance";
 
 /* ADMIN PAGES - FUTURE */
 // import AdminHandover from "./pages/admin/AdminHandover";
 // import AdminEvents from "./pages/admin/AdminEvents";
-// import AdminFinance from "./pages/admin/AdminFinance";
 // import AdminSports from "./pages/admin/AdminSports";
 // import AdminProfile from "./pages/admin/AdminProfile";
 
@@ -166,6 +171,7 @@ useEffect(() => {
           <Route path="/constitution" element={<Constitution />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/favorites" element={<Favorites />} />
+          <Route path="/verify" element={<VerifyReceipt />} />
           <Route
             path="/material-explanation"
             element={<MaterialExplanation />}
@@ -252,6 +258,24 @@ useEffect(() => {
           />
 
           <Route
+            path="/naps-admin/finance/:tab?"
+            element={
+              <RequireAdmin>
+                <AdminFinance />
+              </RequireAdmin>
+            }
+          />
+
+          <Route
+            path="/naps-admin/students"
+            element={
+              <RequireAdmin>
+                <AdminStudents />
+              </RequireAdmin>
+            }
+          />
+
+          <Route
             path="/naps-admin/reviews"
             element={
               <RequireAdmin>
@@ -272,7 +296,6 @@ useEffect(() => {
           {/* ADMIN ROUTES - FUTURE */}
           {/* <Route path="/naps-admin/handover" element={<AdminHandover />} /> */}
           {/* <Route path="/naps-admin/events" element={<AdminEvents />} /> */}
-          {/* <Route path="/naps-admin/finance" element={<AdminFinance />} /> */}
           {/* <Route path="/naps-admin/sports" element={<AdminSports />} /> */}
           {/* <Route path="/naps-admin/profile" element={<AdminProfile />} /> */}
         </Routes>
@@ -387,12 +410,18 @@ function RequireAdmin({ children }) {
 function AdminConsoleNav() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
+  const [canReadFinance, setCanReadFinance] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     supabase.auth.getUser().then(({ data }) => {
       if (cancelled || !data?.user) return;
+
+      // Asked of the database, so "President shared finance" is included.
+      supabase.rpc("can_read_finance").then(({ data: ok }) => {
+        if (!cancelled) setCanReadFinance(Boolean(ok));
+      });
 
       supabase
         .from("admin_profiles")
@@ -471,6 +500,22 @@ function AdminConsoleNav() {
         label="Resource list"
         secondary
       />
+      {canReadFinance && (
+        <AdminNavItem
+          to="/naps-admin/finance"
+          icon={<Wallet size={19} />}
+          label="Finance"
+          secondary
+        />
+      )}
+      {(canReadFinance || REGISTER_ROLES.includes(profile?.role)) && (
+        <AdminNavItem
+          to="/naps-admin/students"
+          icon={<GraduationCap size={19} />}
+          label="Students"
+          secondary
+        />
+      )}
       {canViewReviews(profile?.role) && (
         <AdminNavItem
           to="/naps-admin/reviews"

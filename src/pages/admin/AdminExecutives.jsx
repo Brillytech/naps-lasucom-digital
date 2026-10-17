@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import SignaturePad from "../../components/SignaturePad";
+import LetterheadEmailField from "../../components/LetterheadEmailField";
 
 const offices = [
   "President",
@@ -42,6 +43,11 @@ function AdminExecutives() {
   // The executive whose signature is being drawn, plus whatever they already
   // have saved -- downloaded on open, since the bucket is private.
   const [signatureFor, setSignatureFor] = useState(null);
+
+  // Typed letterhead emails (President and General Secretary): executive
+  // id -> email. A typed email always prints on the Formal Letterhead,
+  // ahead of the linked admin account's email.
+  const [contacts, setContacts] = useState({});
   const [signaturePreview, setSignaturePreview] = useState(null);
   const [savingSignature, setSavingSignature] = useState(false);
   const [showSetForm, setShowSetForm] = useState(false);
@@ -131,6 +137,15 @@ function AdminExecutives() {
 
     setSets(allSets);
     setExecutives(allExecutives);
+
+    // Readable only by the President and General Secretary; anyone else
+    // (or a database without the table yet) simply gets none.
+    const { data: contactRows } = await supabase
+      .from("executive_contacts")
+      .select("executive_id, letterhead_email");
+    setContacts(
+      Object.fromEntries((contactRows || []).map((r) => [r.executive_id, r.letterhead_email || ""]))
+    );
 
     const currentSet = allSets.find((item) => item.is_current);
     const firstSet = allSets[0];
@@ -411,6 +426,7 @@ const { error } = await supabase.from("executives").insert({
     page; `myExecutiveId` gates the one action that is not the President's.
   */
   const isPresident = profile?.role === "president";
+  const canEditEmails = isPresident || profile?.role === "general_secretary";
 
   const myExecutiveId = useMemo(
     () => executives.find((e) => e.user_id && e.user_id === profile?.user_id)?.id,
@@ -770,6 +786,15 @@ const { error } = await supabase.from("executives").insert({
                   )}
                 </div>
               </div>
+
+              {/* Full width under the photo and name, so the address is readable. */}
+              {canEditEmails && (
+                <LetterheadEmailField
+                  executiveId={item.id}
+                  value={contacts[item.id] || ""}
+                  onSaved={(value) => setContacts((c) => ({ ...c, [item.id]: value }))}
+                />
+              )}
 
               <div className="aroster-actions">
                 {/* Signing is the officer's own act, so the button appears

@@ -21,8 +21,11 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import LetterheadEmailField from "../../components/LetterheadEmailField";
 import {
+  LH_SIGN_OFFICES,
   OFFICES,
+  loadTrimmedImage,
   pickOfficials,
   renderCorrespondence,
 } from "../../utils/correspondencePdf";
@@ -44,7 +47,43 @@ const TEMPLATES = [
     name: "Official Letter",
     note: "Addressed correspondence with signature blocks.",
   },
+  {
+    id: "letterhead",
+    name: "Formal Letterhead",
+    note: "Branded letterhead with the executive council down the side. One to three signatories.",
+  },
 ];
+
+const EMPTY_LH_FIELDS = {
+  from: "",
+  patrons: "",
+  advisers: "",
+  bankName: "",
+  accountName: "",
+  accountNumber: "",
+};
+
+/** Draft JSON <-> composer fields for the letterhead's per-letter extras. */
+const lhFieldsFromRow = (json) => ({
+  from: json?.from || "",
+  patrons: json?.patrons || "",
+  advisers: json?.advisers || "",
+  bankName: json?.bank_name || "",
+  accountName: json?.account_name || "",
+  accountNumber: json?.account_number || "",
+});
+const lhFieldsToRow = (fields) => ({
+  from: fields.from.trim(),
+  patrons: fields.patrons.trim(),
+  advisers: fields.advisers.trim(),
+  bank_name: fields.bankName.trim(),
+  account_name: fields.accountName.trim(),
+  account_number: fields.accountNumber.replace(/\D/g, ""),
+});
+
+/** Office label -> id, for saving signatories on a draft. */
+const OFFICE_ID = Object.fromEntries(OFFICES.map((o) => [o.label, o.id]));
+const OFFICE_LABEL = Object.fromEntries(OFFICES.map((o) => [o.id, o.label]));
 
 const STARTER_BODY = `<p>We are pleased to inform all NAPSITES that registration for the <strong>2026 NAPS Health Week</strong> volunteer corps is now open to students across all levels.</p><p>Volunteers will assist with free blood pressure and blood sugar screening, the blood donation drive, and crowd coordination at the College Auditorium.</p>`;
 
@@ -115,6 +154,22 @@ function AdminCorrespondence() {
   const [email, setEmail] = useState("");
   const [instagram, setInstagram] = useState("");
 
+  // Formal letterhead. Signers default to the issuing office.
+  const [signers, setSigners] = useState(["General Secretary"]);
+  const [directory, setDirectory] = useState([]);
+  // The President and General Secretary may type letterhead emails here.
+  const [canEditEmails, setCanEditEmails] = useState(false);
+
+  const refreshDirectory = useCallback(async () => {
+    const { data } = await supabase.rpc("letterhead_directory");
+    setDirectory(Array.isArray(data) ? data : []);
+  }, []);
+  // Formal letterhead, per letter: an optional From line, patrons and
+  // advisers (one per line) and account details. Pre-filled from the last
+  // exported letterhead; saved with each draft.
+  const [lhFields, setLhFields] = useState(EMPTY_LH_FIELDS);
+  const [lhInfo, setLhInfo] = useState(null);
+
   // The draft currently open, if any. Null means this is a new document and
   // saving will create a row rather than overwrite one.
   const [draftId, setDraftId] = useState(null);
@@ -133,7 +188,7 @@ function AdminCorrespondence() {
   /** The number the next export would take. Provisional until it allocates. */
   const [nextSeq, setNextSeq] = useState(1);
 
-  const [art, setArt] = useState({ logo: null, watermark: null });
+  const [art, setArt] = useState({ logo: null, watermark: null, partnerLogo: null });
   const [pages, setPages] = useState([]);
   const [rendering, setRendering] = useState(true);
   const [busy, setBusy] = useState("");
@@ -164,6 +219,7 @@ function AdminCorrespondence() {
         loadImage("/images/naps-logo.png").catch(() => null),
         loadImage("/images/naps-logo-transparent.png").catch(() => null),
       ]);
+      const partnerLogo = await loadTrimmedImage("/icons/lasucomlo.png");
 
       if (cancelled) return;
 
@@ -186,7 +242,45 @@ function AdminCorrespondence() {
       setOfficials(pickOfficials(scoped.length ? scoped : active));
       setEmail(settingsResult.data?.email || "napslasucom@gmail.com");
       setInstagram(settingsResult.data?.instagram || "@napslasucom");
-      setArt({ logo, watermark });
+      setArt({ logo, watermark, partnerLogo });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const [dir, role, last] = await Promise.all([
+        supabase.rpc("letterhead_directory"),
+        supabase.rpc("current_admin_role"),
+        // Patrons, staff advisers and account details carry over from the last
+        // letterhead that was actually issued. The From line does not: it
+        // belongs to the letter it was written for.
+        supabase
+          .from("correspondence_drafts")
+          .select("letterhead")
+          .eq("template", "letterhead")
+          .eq("status", "issued")
+          .not("letterhead", "is", null)
+          .order("issued_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      if (cancelled) return;
+      setDirectory(Array.isArray(dir.data) ? dir.data : []);
+      setCanEditEmails(role.data === "president" || role.data === "general_secretary");
+      if (last.data?.letterhead) {
+        setLhFields((current) =>
+          Object.values(current).some(Boolean)
+            ? current
+            : { ...lhFieldsFromRow(last.data.letterhead), from: "" }
+        );
+      }
     })();
 
     return () => {
@@ -248,37 +342,46 @@ function AdminCorrespondence() {
     };
   }, [office, date]);
 
-  // Only the issuing office signs, so only that signature is fetched.
+  // The issuing office on a letter; the chosen signers on a letterhead.
+  // Each signature is the officer's own, from the private bucket.
+  const signerLabels = useMemo(
+    () => (template === "letterhead" ? LH_SIGN_OFFICES.filter((o) => signers.includes(o)) : [officeLabel]),
+    [template, signers, officeLabel]
+  );
+
   const signaturePath = useMemo(
     () => officials.find((o) => o.office === officeLabel)?.signaturePath || "",
     [officials, officeLabel]
   );
 
+  const neededPaths = useMemo(
+    () =>
+      signerLabels
+        .map((label) => officials.find((o) => o.office === label)?.signaturePath)
+        .filter((p) => p && !signatures[p]),
+    [signerLabels, officials, signatures]
+  );
+
   useEffect(() => {
-    if (!signaturePath || signatures[signaturePath]) return undefined;
+    if (!neededPaths.length) return undefined;
 
     let cancelled = false;
 
-    (async () => {
-      const { data } = await supabase.storage
-        .from("signatures")
-        .download(signaturePath);
-
+    neededPaths.forEach(async (path) => {
+      const { data } = await supabase.storage.from("signatures").download(path);
       if (!data || cancelled) return;
 
       const reader = new FileReader();
       reader.onload = () => {
-        if (!cancelled) {
-          setSignatures((prev) => ({ ...prev, [signaturePath]: reader.result }));
-        }
+        if (!cancelled) setSignatures((prev) => ({ ...prev, [path]: reader.result }));
       };
       reader.readAsDataURL(data);
-    })();
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [signaturePath, signatures]);
+  }, [neededPaths]);
 
   const signedOfficials = useMemo(
     () =>
@@ -292,7 +395,7 @@ function AdminCorrespondence() {
   const loadDrafts = useCallback(async () => {
     const { data } = await supabase
       .from("correspondence_drafts")
-      .select("id, template, office, subject, reference, status, document_date, updated_at, body_html, recipient, salutation, closing")
+      .select("*")
       .order("updated_at", { ascending: false })
       .limit(25);
 
@@ -310,12 +413,21 @@ function AdminCorrespondence() {
   */
   const missingSigners = useMemo(
     () =>
-      template === "letter" &&
-      !officials.find((o) => o.office === officeLabel)?.name
-        ? [officeLabel]
-        : [],
-    [template, officials, officeLabel]
+      template === "memo"
+        ? []
+        : signerLabels.filter((label) => !officials.find((o) => o.office === label)?.name),
+    [template, officials, signerLabels]
   );
+
+  // A formal letterhead is never issued with a signatory nobody holds.
+  const exportBlock =
+    template !== "letterhead"
+      ? ""
+      : !signerLabels.length
+        ? "Choose at least one signatory."
+        : missingSigners.length
+          ? `No ${missingSigners.join(", ")} on the current executive set.`
+          : "";
 
   /* ---------------- preview ---------------- */
 
@@ -340,8 +452,25 @@ function AdminCorrespondence() {
         signed,
         logo: art.logo,
         watermark: art.watermark,
+        directory,
+        partnerLogo: art.partnerLogo,
+        fromText: lhFields.from,
+        patrons: lhFields.patrons,
+        advisers: lhFields.advisers,
+        account: {
+          bankName: lhFields.bankName,
+          accountName: lhFields.accountName,
+          accountNumber: lhFields.accountNumber,
+        },
+        signatories: signerLabels.map((label) => {
+          const o = signedOfficials.find((x) => x.office === label);
+          return o ? { name: o.name, office: label, signature: o.signature } : null;
+        }),
       }),
     [
+      directory,
+      lhFields,
+      signerLabels,
       template,
       officeLabel,
       subject,
@@ -373,7 +502,10 @@ function AdminCorrespondence() {
       try {
         const doc = await build();
         const { pages: rendered } = await rasterisePdf(doc);
-        if (run === runRef.current) setPages(rendered);
+        if (run === runRef.current) {
+          setPages(rendered);
+          setLhInfo(doc.letterhead || null);
+        }
       } catch (error) {
         if (run === runRef.current) {
           setNotice({ kind: "bad", text: `Preview failed: ${error.message}` });
@@ -418,9 +550,12 @@ function AdminCorrespondence() {
       subject,
       body_html: bodyHtml,
       document_date: date,
-      recipient: template === "letter" ? recipient : null,
-      salutation: template === "letter" ? salutation : null,
-      closing: template === "letter" ? closing : null,
+      recipient: template !== "memo" ? recipient : null,
+      salutation: template !== "memo" ? salutation : null,
+      closing: template !== "memo" ? closing : null,
+      ...(template === "letterhead"
+        ? { signatories: signerLabels.map((l) => OFFICE_ID[l]), letterhead: lhFieldsToRow(lhFields) }
+        : {}),
       status: "issued",
       issued_at: new Date().toISOString(),
       created_by: auth?.user?.id ?? null,
@@ -433,6 +568,10 @@ function AdminCorrespondence() {
   }
 
   async function handleExportPdf() {
+    if (exportBlock) {
+      setNotice({ kind: "bad", text: `Not exported: ${exportBlock}` });
+      return;
+    }
     setBusy("pdf");
     try {
       const reference = await issue();
@@ -447,11 +586,16 @@ function AdminCorrespondence() {
   }
 
   async function handleExportPng() {
+    if (exportBlock) {
+      setNotice({ kind: "bad", text: `Not exported: ${exportBlock}` });
+      return;
+    }
     setBusy("png");
     try {
       const reference = await issue();
       const doc = await build(reference);
-      const { pages: rendered } = await rasterisePdf(doc, 3);
+      // 5x is about 360 dpi: crisp when shared or printed as an image.
+      const { pages: rendered } = await rasterisePdf(doc, 5);
 
       download(await stitchPages(rendered), `${safeFileName(subject)}.png`);
       setNotice({ kind: "ok", text: `Issued as ${reference}.` });
@@ -476,9 +620,12 @@ function AdminCorrespondence() {
       body_html: bodyHtml,
       document_date: date,
       // Null on a memo, which is how a reader tells the two apart.
-      recipient: template === "letter" ? recipient : null,
-      salutation: template === "letter" ? salutation : null,
-      closing: template === "letter" ? closing : null,
+      recipient: template !== "memo" ? recipient : null,
+      salutation: template !== "memo" ? salutation : null,
+      closing: template !== "memo" ? closing : null,
+      ...(template === "letterhead"
+        ? { signatories: signerLabels.map((l) => OFFICE_ID[l]), letterhead: lhFieldsToRow(lhFields) }
+        : {}),
       created_by: auth?.user?.id ?? null,
       updated_at: new Date().toISOString(),
     };
@@ -518,6 +665,15 @@ function AdminCorrespondence() {
     setRecipient(row.recipient || "");
     setSalutation(row.salutation || "Dear Sir,");
     setClosing(row.closing || "Yours faithfully,");
+    if (row.template === "letterhead") setLhFields(lhFieldsFromRow(row.letterhead));
+    const issuer = OFFICE_LABEL[row.office];
+    setSigners(
+      Array.isArray(row.signatories) && row.signatories.length
+        ? row.signatories.map((id) => OFFICE_LABEL[id]).filter(Boolean)
+        : LH_SIGN_OFFICES.includes(issuer)
+          ? [issuer]
+          : []
+    );
 
     // A reference already allocated is kept verbatim rather than renumbered.
     setAutoRef(row.status !== "issued");
@@ -561,6 +717,14 @@ function AdminCorrespondence() {
         ? { kind: "bad", text: `Could not save contact: ${error.message}` }
         : { kind: "ok", text: "Contact details updated for everyone." }
     );
+  }
+
+  function setLh(field, value) {
+    setLhFields((prev) => ({
+      ...prev,
+      // Account numbers are digits only.
+      [field]: field === "accountNumber" ? value.replace(/\D/g, "").slice(0, 20) : value,
+    }));
   }
 
   /**
@@ -646,12 +810,20 @@ function AdminCorrespondence() {
         </div>
       )}
 
-      {missingSigners.length > 0 && (
+      {template === "letterhead" && exportBlock ? (
         <div className="anote is-warn" style={{ margin: "16px 0 0" }}>
           <AlertTriangle size={15} />
-          No {missingSigners.join(", ")} on the current DEC set — this letter
-          will print unsigned. Add them on Executives first.
+          {exportBlock} Export is blocked until every signatory is on the current
+          set. Add them on Executives, or untick them.
         </div>
+      ) : (
+        missingSigners.length > 0 && (
+          <div className="anote is-warn" style={{ margin: "16px 0 0" }}>
+            <AlertTriangle size={15} />
+            No {missingSigners.join(", ")} on the current DEC set — this letter
+            will print unsigned. Add them on Executives first.
+          </div>
+        )
       )}
 
       <div className="acompose">
@@ -731,7 +903,10 @@ function AdminCorrespondence() {
                     type="button"
                     key={item.id}
                     className={office === item.id ? "aoffice is-on" : "aoffice"}
-                    onClick={() => setOffice(item.id)}
+                    onClick={() => {
+                      setOffice(item.id);
+                      if (LH_SIGN_OFFICES.includes(item.label)) setSigners([item.label]);
+                    }}
                   >
                     <span className="aoffice-dot" />
                     <span>
@@ -793,7 +968,7 @@ function AdminCorrespondence() {
               </div>
             </div>
 
-            {template === "letter" && (
+            {template !== "memo" && (
               <>
                 <div className="afield">
                   <label htmlFor="c-recipient">Addressed to</label>
@@ -805,6 +980,20 @@ function AdminCorrespondence() {
                   />
                   <small className="afield-hint">One line each, as it should print.</small>
                 </div>
+
+                {template === "letterhead" && (
+                  <div className="afield">
+                    <label htmlFor="c-from">From</label>
+                    <input
+                      id="c-from"
+                      value={lhFields.from}
+                      maxLength={200}
+                      onChange={(e) => setLh("from", e.target.value)}
+                      placeholder={`Office of the ${officeLabel}, NAPS-LASUCOM`}
+                    />
+                    <small className="afield-hint">Leave empty to print the text shown.</small>
+                  </div>
+                )}
 
                 <div className="afield-pair">
                   <div className="afield">
@@ -825,6 +1014,34 @@ function AdminCorrespondence() {
                     />
                   </div>
                 </div>
+
+                {template === "letterhead" && (
+                  <div className="afield">
+                    <label>Signatories</label>
+                    <div className="asigners">
+                      {LH_SIGN_OFFICES.map((label) => {
+                        const holder = officials.find((o) => o.office === label);
+                        const on = signers.includes(label);
+                        return (
+                          <label key={label} className={on ? "asigner is-on" : "asigner"}>
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={() =>
+                                setSigners((prev) => (on ? prev.filter((x) => x !== label) : [...prev, label]))
+                              }
+                            />
+                            <span>
+                              {label}
+                              <small>{holder?.name || "Nobody on the current set"}</small>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <small className="afield-hint">One to three. They sign side by side.</small>
+                  </div>
+                )}
 
                 <div className="afield">
                   <label>Signatures</label>
@@ -849,11 +1066,21 @@ function AdminCorrespondence() {
                   </div>
 
                   <small className="afield-hint">
-                    {signed
-                      ? signaturePath
-                        ? `${officeLabel}'s saved signature is printed.`
-                        : `No signature saved for the ${officeLabel} — their name is set in script instead. Add one on Executives.`
-                      : "A clear line, to be signed by hand."}
+                    {!signed
+                      ? template === "letterhead"
+                        ? "Clear lines for every signatory, to be signed by hand."
+                        : "A clear line, to be signed by hand."
+                      : template === "letterhead"
+                        ? signerLabels
+                            .map((label) =>
+                              officials.find((o) => o.office === label)?.signaturePath
+                                ? `${label}: saved signature`
+                                : `${label}: name in script (no signature saved)`
+                            )
+                            .join(" · ") || "Choose a signatory."
+                        : signaturePath
+                          ? `${officeLabel}'s saved signature is printed.`
+                          : `No signature saved for the ${officeLabel} — their name is set in script instead. Add one on Executives.`}
                   </small>
                 </div>
               </>
@@ -972,6 +1199,125 @@ function AdminCorrespondence() {
               Save for everyone
             </button>
           </div>
+          {template === "letterhead" && (
+            <div className="acompose-section">
+              {!art.partnerLogo && (
+                <p className="ashared-note">
+                  LASUCOM logo not found at public/icons/lasucomlo.png. A labelled placeholder is
+                  shown in its place.
+                </p>
+              )}
+
+              <div className="acompose-legend">
+                <h3>This letter</h3>
+              </div>
+              <p className="ashared-note">
+                Optional. Anything left empty is not printed. Patrons, staff advisers and
+                account details start from the last exported letterhead.
+              </p>
+
+              <div className="afield">
+                <label htmlFor="lh-patrons">Patron(s)</label>
+                <textarea
+                  id="lh-patrons"
+                  rows={2}
+                  maxLength={1200}
+                  value={lhFields.patrons}
+                  onChange={(e) => setLh("patrons", e.target.value)}
+                  placeholder="One per line, e.g. Name, title or qualifications"
+                />
+              </div>
+
+              <div className="afield">
+                <label htmlFor="lh-advisers">Staff Adviser(s)</label>
+                <textarea
+                  id="lh-advisers"
+                  rows={2}
+                  maxLength={1200}
+                  value={lhFields.advisers}
+                  onChange={(e) => setLh("advisers", e.target.value)}
+                  placeholder="One per line, e.g. Name, title or qualifications"
+                />
+                <small className="afield-hint">Printed in two columns at the foot of page 1.</small>
+              </div>
+
+              {[
+                ["bankName", "Bank name", 80, "text"],
+                ["accountName", "Account name", 120, "text"],
+                ["accountNumber", "Account number", 20, "numeric"],
+              ].map(([key, label, max, mode]) => (
+                <div className="afield" key={key}>
+                  <label htmlFor={`lh-${key}`}>{label}</label>
+                  <input
+                    id={`lh-${key}`}
+                    value={lhFields[key]}
+                    maxLength={max}
+                    inputMode={mode}
+                    onChange={(e) => setLh(key, e.target.value)}
+                  />
+                </div>
+              ))}
+              <small className="afield-hint">Printed in the footer band when any account field is filled.</small>
+
+              <div className="acompose-legend" style={{ marginTop: 16 }}>
+                <h3>Sidebar</h3>
+              </div>
+              <p className="ashared-note">
+                {directory.length} executive{directory.length === 1 ? "" : "s"} from the current set, in display order.{" "}
+                {lhInfo
+                  ? lhInfo.emailsShown
+                    ? "Emails are shown."
+                    : lhInfo.emailBlock === "none"
+                      ? "No executive has an email yet."
+                      : "Emails are left off for everyone: with them the list would not fit at 8pt."
+                  : ""}
+              </p>
+              <ul className="lh-emails">
+                {directory.map((d) => (
+                  <li key={d.id || d.name}>
+                    <div className="lh-emails-head">
+                      <strong>{d.name}</strong>
+                      <span>{d.office}</span>
+                    </div>
+                    {d.email ? (
+                      <div className="lh-emails-line">
+                        <span className="lh-emails-addr">{d.email}</span>
+                        <span className={`lh-src lh-src--${d.email_source}`}>
+                          {d.email_source === "typed" ? "typed" : "account"}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="lh-emails-line is-missing">
+                        No email printed:{" "}
+                        {{
+                          not_in_current_set: "executive not in current set",
+                          not_linked: "no linked admin account",
+                          account_missing: "no linked admin account",
+                          account_disabled: "account disabled",
+                          account_has_no_email: "account has no email",
+                        }[d.account_issue] || "no email"}
+                        .
+                      </div>
+                    )}
+                    {canEditEmails && d.id && (
+                      <LetterheadEmailField
+                        compact
+                        executiveId={d.id}
+                        value={d.typed_email || ""}
+                        onSaved={refreshDirectory}
+                      />
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {canEditEmails && (
+                <small className="afield-hint">
+                  A typed email always prints, ahead of the account email. Clear it to fall back
+                  to the account.
+                </small>
+              )}
+            </div>
+          )}
         </aside>
 
         <div className="apreview-stage">
