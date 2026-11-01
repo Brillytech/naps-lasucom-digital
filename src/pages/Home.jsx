@@ -30,6 +30,58 @@ function saveReadIds(ids) {
   localStorage.setItem(READ_KEY, JSON.stringify(ids));
 }
 
+
+// Turns URLs in announcement text into safe, clickable links.
+function LinkifiedText({ text = "" }) {
+  const urlPattern = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = urlPattern.exec(text)) !== null) {
+    let url = match[0];
+    let trailing = "";
+
+    // Keep punctuation outside the clickable URL.
+    while (/[.,!?;:)\]}]$/.test(url)) {
+      trailing = url.slice(-1) + trailing;
+      url = url.slice(0, -1);
+    }
+
+    if (!url) continue;
+
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+
+    parts.push(
+      <a
+        key={`url-${key++}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="announcement-link"
+        style={{ color: "#2563eb", textDecoration: "underline", fontWeight: 600 }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {url}
+      </a>
+    );
+
+    if (trailing) parts.push(trailing);
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return <>{parts}</>;
+}
+
 function HomePage() {
   const [announcements, setAnnouncements] = useState([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
@@ -262,14 +314,22 @@ function AnnouncementSkeleton() {
 
 function AnnouncementRow({ announcement, isRead, onOpen }) {
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       className={
         isRead
           ? "row home-arow"
           : "row home-arow is-unread"
       }
       onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
     >
       {announcement.image_url ? (
         <img
@@ -292,14 +352,14 @@ function AnnouncementRow({ announcement, isRead, onOpen }) {
           )}
         </div>
 
-        <p>{announcement.body}</p>
+        <p><LinkifiedText text={announcement.body || ""} /></p>
       </div>
 
       <div className="home-arow-meta">
         <span>{formatNoticeTime(announcement.published_at)}</span>
         {!isRead && <i className="home-arow-dot" />}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -336,7 +396,7 @@ function AnnouncementModal({ announcement, onClose }) {
 
           <h2>{announcement.title}</h2>
 
-          <p>{announcement.body}</p>
+          <p><LinkifiedText text={announcement.body || ""} /></p>
 
           <div className="home-announcement-modal-footer">
             <small>{announcement.audience || "All NAPSITES"}</small>
