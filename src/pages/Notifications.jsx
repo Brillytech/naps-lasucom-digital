@@ -39,6 +39,87 @@ function saveReadIds(ids) {
   localStorage.setItem(READ_KEY, JSON.stringify(ids));
 }
 
+/* =========================================================
+   LINK DETECTION
+   Automatically identifies URLs and renders them as links.
+========================================================= */
+
+function LinkifiedText({ text }) {
+  if (!text) return null;
+
+  const urlRegex = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = urlRegex.exec(text)) !== null) {
+    const originalUrl = match[0];
+
+    // Keep common trailing punctuation outside the link.
+    const trailingMatch = originalUrl.match(/[.,!?;:]+$/);
+    const trailing = trailingMatch ? trailingMatch[0] : "";
+    const url = trailing
+      ? originalUrl.slice(0, -trailing.length)
+      : originalUrl;
+
+    if (!url) continue;
+
+    // Preserve normal text before the URL.
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    const href = url.startsWith("www.")
+      ? `https://${url}`
+      : url;
+
+    parts.push(
+      <a
+        key={`link-${match.index}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          color: "#60A5FA",
+          textDecoration: "underline",
+          overflowWrap: "anywhere",
+          cursor: "pointer",
+        }}
+      >
+        {url}
+      </a>
+    );
+
+    if (trailing) {
+      parts.push(trailing);
+    }
+
+    lastIndex = match.index + originalUrl.length;
+  }
+
+  // Preserve remaining text after the last URL.
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return (
+    <span style={{ whiteSpace: "pre-wrap" }}>
+      {parts.map((part, index) =>
+        typeof part === "string" ? (
+          <span key={index}>{part}</span>
+        ) : (
+          part
+        )
+      )}
+    </span>
+  );
+}
+
+/* =========================================================
+   NOTIFICATIONS PAGE
+========================================================= */
+
 function Notifications() {
   const [announcements, setAnnouncements] = useState([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
@@ -88,7 +169,9 @@ function Notifications() {
     }
 
     const dismissed = getDismissedIds();
-    const visible = (data || []).filter((item) => !dismissed.includes(item.id));
+    const visible = (data || []).filter(
+      (item) => !dismissed.includes(item.id)
+    );
 
     setAnnouncements(visible);
     setLoading(false);
@@ -196,7 +279,9 @@ function Notifications() {
 
         <button
           type="button"
-          className={notificationsEnabled ? "nt-push-btn is-on" : "nt-push-btn"}
+          className={
+            notificationsEnabled ? "nt-push-btn is-on" : "nt-push-btn"
+          }
           onClick={handleEnablePush}
           disabled={enablingPush || notificationsEnabled}
         >
@@ -215,7 +300,11 @@ function Notifications() {
           <span>{announcements.length} shown</span>
 
           {announcements.length > 0 && (
-            <button type="button" className="nt-clear" onClick={requestClearAll}>
+            <button
+              type="button"
+              className="nt-clear"
+              onClick={requestClearAll}
+            >
               Clear all
             </button>
           )}
@@ -249,10 +338,12 @@ function Notifications() {
           <div className="ico ico-md ico--tint tone-amber">
             <Megaphone size={24} />
           </div>
+
           <h3>Nothing yet</h3>
+
           <p>
-            Official announcements from the association will show up here once
-            they are published.
+            Official announcements from the association will show up here
+            once they are published.
           </p>
         </section>
       )}
@@ -275,6 +366,10 @@ function Notifications() {
   );
 }
 
+/* =========================================================
+   CLEAR ALL CONFIRMATION MODAL
+========================================================= */
+
 function ConfirmModal({ count, onCancel, onConfirm }) {
   return (
     <div className="confirm-modal-backdrop" onClick={onCancel}>
@@ -291,11 +386,19 @@ function ConfirmModal({ count, onCancel, onConfirm }) {
         </p>
 
         <div className="confirm-modal-actions">
-          <button type="button" className="confirm-modal-cancel" onClick={onCancel}>
+          <button
+            type="button"
+            className="confirm-modal-cancel"
+            onClick={onCancel}
+          >
             Cancel
           </button>
 
-          <button type="button" className="confirm-modal-confirm" onClick={onConfirm}>
+          <button
+            type="button"
+            className="confirm-modal-confirm"
+            onClick={onConfirm}
+          >
             <Trash2 size={15} />
             Clear all
           </button>
@@ -305,10 +408,19 @@ function ConfirmModal({ count, onCancel, onConfirm }) {
   );
 }
 
+/* =========================================================
+   SWIPEABLE NOTIFICATION
+========================================================= */
+
 const SWIPE_OPEN_X = -84;
 const SWIPE_THRESHOLD = -42;
 
-function SwipeableNotification({ announcement, isRead, onOpen, onDismiss }) {
+function SwipeableNotification({
+  announcement,
+  isRead,
+  onOpen,
+  onDismiss,
+}) {
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
 
@@ -394,10 +506,17 @@ function SwipeableNotification({ announcement, isRead, onOpen, onDismiss }) {
   );
 }
 
+/* =========================================================
+   NOTIFICATION SKELETON
+========================================================= */
+
 function NotificationSkeleton() {
   return (
     <div className="row nt-row" aria-hidden="true">
-      <span className="skel skel-box" style={{ width: 36, height: 36 }} />
+      <span
+        className="skel skel-box"
+        style={{ width: 36, height: 36 }}
+      />
 
       <span>
         <span className="skel skel-line" style={{ width: "66%" }} />
@@ -406,6 +525,10 @@ function NotificationSkeleton() {
     </div>
   );
 }
+
+/* =========================================================
+   NOTIFICATION CARD
+========================================================= */
 
 function NotificationCard({ announcement, isRead, onOpen }) {
   return (
@@ -425,7 +548,10 @@ function NotificationCard({ announcement, isRead, onOpen }) {
       <span>
         <span className="nt-row-top">
           <h3>{announcement.title}</h3>
-          {announcement.is_pinned && <Pin size={13} className="nt-pin" />}
+
+          {announcement.is_pinned && (
+            <Pin size={13} className="nt-pin" />
+          )}
         </span>
 
         <p>{announcement.body}</p>
@@ -433,16 +559,27 @@ function NotificationCard({ announcement, isRead, onOpen }) {
 
       <span className="nt-meta">
         <span>{formatNoticeTime(announcement.published_at)}</span>
+
         {!isRead && <i className="nt-dot" />}
       </span>
     </button>
   );
 }
 
+/* =========================================================
+   FULL ANNOUNCEMENT MODAL
+========================================================= */
+
 function NotificationModal({ announcement, onClose }) {
   return (
-    <div className="notification-modal-backdrop">
-      <section className="notification-modal">
+    <div
+      className="notification-modal-backdrop"
+      onClick={onClose}
+    >
+      <section
+        className="notification-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
           className="notification-modal-close"
@@ -461,7 +598,9 @@ function NotificationModal({ announcement, onClose }) {
 
         <div className="notification-modal-content">
           <div className="notification-modal-tags">
-            <span>{announcement.category || "General Notice"}</span>
+            <span>
+              {announcement.category || "General Notice"}
+            </span>
 
             {announcement.is_pinned && (
               <span>
@@ -473,17 +612,29 @@ function NotificationModal({ announcement, onClose }) {
 
           <h2>{announcement.title}</h2>
 
-          <p>{announcement.body}</p>
+          {/* URLs in announcement bodies are now clickable. */}
+          <div className="notification-modal-body">
+            <LinkifiedText text={announcement.body} />
+          </div>
 
           <div className="notification-modal-footer">
-            <small>{announcement.audience || "All NAPSITES"}</small>
-            <small>{formatNoticeTime(announcement.published_at)}</small>
+            <small>
+              {announcement.audience || "All NAPSITES"}
+            </small>
+
+            <small>
+              {formatNoticeTime(announcement.published_at)}
+            </small>
           </div>
         </div>
       </section>
     </div>
   );
 }
+
+/* =========================================================
+   DATE FORMATTING
+========================================================= */
 
 function formatNoticeTime(dateValue) {
   if (!dateValue) return "New";
