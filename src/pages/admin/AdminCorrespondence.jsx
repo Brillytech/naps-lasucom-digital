@@ -22,6 +22,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import LetterheadEmailField from "../../components/LetterheadEmailField";
+import RichField from "../../components/RichField";
 import {
   LH_SIGN_OFFICES,
   OFFICES,
@@ -35,6 +36,7 @@ import {
   safeFileName,
   stitchPages,
 } from "../../utils/pdfPreview";
+import { htmlToPlain } from "../../utils/richText";
 
 const TEMPLATES = [
   {
@@ -134,7 +136,7 @@ function AdminCorrespondence() {
   const [reference, setReference] = useState("");
   const [autoRef, setAutoRef] = useState(true);
   const [date, setDate] = useState(today());
-  const [subject, setSubject] = useState("2026 NAPS Health Week — Call for Volunteers!");
+  const [subject, setSubject] = useState("<b><u>2026 NAPS Health Week — Call for Volunteers!</u></b>");
   const [bodyHtml, setBodyHtml] = useState(STARTER_BODY);
 
   // Letters only. Kept in state regardless of the active template so that
@@ -142,6 +144,8 @@ function AdminCorrespondence() {
   const [recipient, setRecipient] = useState(
     "The Provost,\nLagos State University College of Medicine,\nIkeja, Lagos."
   );
+  // Optional, formal letterhead only: printed directly under "To".
+  const [through, setThrough] = useState("");
   const [salutation, setSalutation] = useState("Dear Sir,");
   const [closing, setClosing] = useState("Yours faithfully,");
 
@@ -436,7 +440,9 @@ function AdminCorrespondence() {
       renderCorrespondence({
         template,
         office: officeLabel,
-        subject,
+        // The short fields are formattable on the formal letterhead only; the
+        // memo and the official letter print them as plain text.
+        subject: template === "letterhead" ? subject : htmlToPlain(subject),
         date: longDate(date),
         // The preview shows the provisional number; an export passes the one
         // the database actually handed out.
@@ -446,9 +452,10 @@ function AdminCorrespondence() {
         email,
         instagram,
         setName: decSet?.set_name,
-        recipient,
-        salutation,
-        closing,
+        recipient: template === "letterhead" ? recipient : htmlToPlain(recipient),
+        through: template === "letterhead" ? through : "",
+        salutation: template === "letterhead" ? salutation : htmlToPlain(salutation),
+        closing: template === "letterhead" ? closing : htmlToPlain(closing),
         signed,
         logo: art.logo,
         watermark: art.watermark,
@@ -482,6 +489,7 @@ function AdminCorrespondence() {
       instagram,
       decSet,
       recipient,
+      through,
       salutation,
       closing,
       signed,
@@ -551,6 +559,7 @@ function AdminCorrespondence() {
       body_html: bodyHtml,
       document_date: date,
       recipient: template !== "memo" ? recipient : null,
+      through: template === "letterhead" ? through : null,
       salutation: template !== "memo" ? salutation : null,
       closing: template !== "memo" ? closing : null,
       ...(template === "letterhead"
@@ -576,7 +585,7 @@ function AdminCorrespondence() {
     try {
       const reference = await issue();
       const doc = await build(reference);
-      doc.save(`${safeFileName(subject)}.pdf`);
+      doc.save(`${safeFileName(htmlToPlain(subject))}.pdf`);
       setNotice({ kind: "ok", text: `Issued as ${reference}.` });
     } catch (error) {
       setNotice({ kind: "bad", text: `Export failed: ${error.message}` });
@@ -597,7 +606,7 @@ function AdminCorrespondence() {
       // 5x is about 360 dpi: crisp when shared or printed as an image.
       const { pages: rendered } = await rasterisePdf(doc, 5);
 
-      download(await stitchPages(rendered), `${safeFileName(subject)}.png`);
+      download(await stitchPages(rendered), `${safeFileName(htmlToPlain(subject))}.png`);
       setNotice({ kind: "ok", text: `Issued as ${reference}.` });
     } catch (error) {
       setNotice({ kind: "bad", text: `Image export failed: ${error.message}` });
@@ -621,6 +630,7 @@ function AdminCorrespondence() {
       document_date: date,
       // Null on a memo, which is how a reader tells the two apart.
       recipient: template !== "memo" ? recipient : null,
+      through: template === "letterhead" ? through : null,
       salutation: template !== "memo" ? salutation : null,
       closing: template !== "memo" ? closing : null,
       ...(template === "letterhead"
@@ -663,6 +673,7 @@ function AdminCorrespondence() {
     setSubject(row.subject || "");
     setDate(row.document_date || today());
     setRecipient(row.recipient || "");
+    setThrough(row.through || "");
     setSalutation(row.salutation || "Dear Sir,");
     setClosing(row.closing || "Yours faithfully,");
     if (row.template === "letterhead") setLhFields(lhFieldsFromRow(row.letterhead));
@@ -682,13 +693,14 @@ function AdminCorrespondence() {
     setBodyHtml(row.body_html || "");
     if (editorRef.current) editorRef.current.innerHTML = row.body_html || "";
 
-    setNotice({ kind: "ok", text: `Opened “${row.subject || "Untitled"}”.` });
+    setNotice({ kind: "ok", text: `Opened “${htmlToPlain(row.subject) || "Untitled"}”.` });
   }
 
   function newDocument() {
     setDraftId(null);
     setAutoRef(true);
     setSubject("");
+    setThrough("");
     setBodyHtml("");
     if (editorRef.current) editorRef.current.innerHTML = "";
     setNotice(null);
@@ -852,7 +864,7 @@ function AdminCorrespondence() {
                   >
                     <FileText size={13} />
                     <span>
-                      <strong>{row.subject || "Untitled"}</strong>
+                      <strong>{htmlToPlain(row.subject) || "Untitled"}</strong>
                       <small>
                         {row.reference || "No reference"}
                         {row.status === "issued" ? " · Issued" : " · Draft"}
@@ -969,51 +981,141 @@ function AdminCorrespondence() {
             </div>
 
             {template !== "memo" && (
+              <RichField
+                label="Addressed to"
+                value={recipient}
+                onChange={setRecipient}
+                formatting={template === "letterhead"}
+                multiline
+                minHeight={72}
+                hint="One line each, as it should print."
+              />
+            )}
+
+            {template === "letterhead" && (
+              <RichField
+                label={
+                  <>
+                    Through <span style={{ opacity: 0.6, fontWeight: 400 }}>(optional)</span>
+                  </>
+                }
+                value={through}
+                onChange={setThrough}
+                multiline
+                minHeight={44}
+                placeholder="e.g. The Head of Department, Physiotherapy"
+                hint="Printed directly under To. Leave empty to leave it out."
+              />
+            )}
+
+            {template === "letterhead" && (
+              <RichField
+                label="From"
+                value={lhFields.from}
+                onChange={(html) => setLh("from", html)}
+                placeholder={`Office of the ${officeLabel}, NAPS-LASUCOM`}
+                hint="Leave empty to print the text shown."
+              />
+            )}
+
+            {template !== "memo" && (
+              <RichField
+                label="Salutation"
+                value={salutation}
+                onChange={setSalutation}
+                formatting={template === "letterhead"}
+                placeholder="Dear Sir,"
+                hint={template === "letterhead" ? "Printed above the subject." : undefined}
+              />
+            )}
+
+            <RichField
+              label={template === "letterhead" ? "Subject line" : "Subject"}
+              value={subject}
+              onChange={setSubject}
+              formatting={template === "letterhead"}
+              boldUnderline
+              placeholder="Heading of the letter"
+              hint={template === "letterhead" ? "Printed as a centred heading, with no “Subject:” label." : undefined}
+            />
+
+            <div className="afield">
+              <label>Body</label>
+
+              <div className="aeditor">
+                <div className="aeditor-bar">
+                  <button
+                    type="button"
+                    onMouseDown={keepSelection}
+                    onClick={() => format("bold")} title="Bold">
+                    <Bold size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={keepSelection}
+                    onClick={() => format("italic")} title="Italic">
+                    <Italic size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={keepSelection}
+                    onClick={() => format("underline")} title="Underline">
+                    <Underline size={13} />
+                  </button>
+
+                  <span className="sep" />
+
+                  <button
+                    type="button"
+                    onMouseDown={keepSelection}
+                    onClick={() => format("formatBlock", "<h3>")}
+                    title="Heading"
+                  >
+                    H
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={keepSelection}
+                    onClick={() => format("insertUnorderedList")}
+                    title="Bulleted list"
+                  >
+                    <List size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={keepSelection}
+                    onClick={() => format("insertOrderedList")}
+                    title="Numbered list"
+                  >
+                    <ListOrdered size={13} />
+                  </button>
+                </div>
+
+                {/*
+                  No children and no dangerouslySetInnerHTML: React must not
+                  own what is inside this node. The initial content is written
+                  once by ref below -- see the effect for why.
+                */}
+                <div
+                  ref={editorRef}
+                  className="aeditor-area"
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={(e) => setBodyHtml(e.currentTarget.innerHTML)}
+                  onPaste={handlePaste}
+                />
+              </div>
+            </div>
+
+            {template !== "memo" && (
               <>
-                <div className="afield">
-                  <label htmlFor="c-recipient">Addressed to</label>
-                  <textarea
-                    id="c-recipient"
-                    rows={3}
-                    value={recipient}
-                    onChange={(e) => setRecipient(e.target.value)}
-                  />
-                  <small className="afield-hint">One line each, as it should print.</small>
-                </div>
-
-                {template === "letterhead" && (
-                  <div className="afield">
-                    <label htmlFor="c-from">From</label>
-                    <input
-                      id="c-from"
-                      value={lhFields.from}
-                      maxLength={200}
-                      onChange={(e) => setLh("from", e.target.value)}
-                      placeholder={`Office of the ${officeLabel}, NAPS-LASUCOM`}
-                    />
-                    <small className="afield-hint">Leave empty to print the text shown.</small>
-                  </div>
-                )}
-
-                <div className="afield-pair">
-                  <div className="afield">
-                    <label htmlFor="c-salutation">Salutation</label>
-                    <input
-                      id="c-salutation"
-                      value={salutation}
-                      onChange={(e) => setSalutation(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="afield">
-                    <label htmlFor="c-closing">Closing</label>
-                    <input
-                      id="c-closing"
-                      value={closing}
-                      onChange={(e) => setClosing(e.target.value)}
-                    />
-                  </div>
-                </div>
+                <RichField
+                  label="Closing"
+                  value={closing}
+                  onChange={setClosing}
+                  formatting={template === "letterhead"}
+                  placeholder="Yours faithfully,"
+                />
 
                 {template === "letterhead" && (
                   <div className="afield">
@@ -1085,83 +1187,6 @@ function AdminCorrespondence() {
                 </div>
               </>
             )}
-
-            <div className="afield">
-              <label htmlFor="c-subject">Subject</label>
-              <input
-                id="c-subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-              />
-            </div>
-
-            <div className="afield">
-              <label>Body</label>
-
-              <div className="aeditor">
-                <div className="aeditor-bar">
-                  <button
-                    type="button"
-                    onMouseDown={keepSelection}
-                    onClick={() => format("bold")} title="Bold">
-                    <Bold size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={keepSelection}
-                    onClick={() => format("italic")} title="Italic">
-                    <Italic size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={keepSelection}
-                    onClick={() => format("underline")} title="Underline">
-                    <Underline size={13} />
-                  </button>
-
-                  <span className="sep" />
-
-                  <button
-                    type="button"
-                    onMouseDown={keepSelection}
-                    onClick={() => format("formatBlock", "<h3>")}
-                    title="Heading"
-                  >
-                    H
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={keepSelection}
-                    onClick={() => format("insertUnorderedList")}
-                    title="Bulleted list"
-                  >
-                    <List size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={keepSelection}
-                    onClick={() => format("insertOrderedList")}
-                    title="Numbered list"
-                  >
-                    <ListOrdered size={13} />
-                  </button>
-                </div>
-
-                {/*
-                  No children and no dangerouslySetInnerHTML: React must not
-                  own what is inside this node. The initial content is written
-                  once by ref below -- see the effect for why.
-                */}
-                <div
-                  ref={editorRef}
-                  className="aeditor-area"
-                  contentEditable
-                  suppressContentEditableWarning
-                  onInput={(e) => setBodyHtml(e.currentTarget.innerHTML)}
-                  onPaste={handlePaste}
-                />
-              </div>
-            </div>
           </div>
 
           <div className="acompose-section">

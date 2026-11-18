@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import { PDF_FONTS, fontStyle, normaliseText, registerItalicFonts, registerPdfFonts } from "./pdfFonts";
+import { richLines } from "./richText";
 
 /**
  * Renders NAPS-LASUCOM correspondence to PDF.
@@ -1733,6 +1734,34 @@ function drawPatrons(doc, laid, x, top, width) {
   });
 }
 
+const hasItalic = (value) => /<(i|em)[\s>]|font-style:\s*italic/i.test(String(value || ""));
+
+/**
+ * Plan a short rich-text field (To, Through, From, salutation, subject,
+ * closing) as wrapped lines. `plain` is the look an older, plain-text value
+ * always printed with.
+ */
+function richPlan(doc, value, width, size, italics, plain = {}) {
+  const blocks = richLines(value, plain).map((runs) => ({ type: "p", runs }));
+  const plan = planBlocks(doc, blocks, width, size, { family: PDF_FONTS.SANS, italics }).map((p) => ({
+    ...p,
+    ragged: true,
+  }));
+  return { plan, count: plan.reduce((n, p) => n + p.lines.length, 0) };
+}
+
+/** Draw a planned field with its first baseline at `top`; centred in `centerWidth` when given. */
+function drawRich(doc, rp, left, top, lead, centerWidth = 0) {
+  let y = top;
+  for (const p of rp.plan) {
+    p.lines.forEach((l, index) => {
+      const x = centerWidth ? left + (centerWidth - l.width) / 2 : left;
+      drawPlannedLine(doc, p, l, index, x, y);
+      y += lead;
+    });
+  }
+}
+
 async function renderLetterhead({
   office,
   subject,
@@ -1744,6 +1773,7 @@ async function renderLetterhead({
   email,
   instagram,
   recipient,
+  through,
   salutation,
   closing,
   signatories = [],
@@ -1761,49 +1791,66 @@ async function renderLetterhead({
 
   const blocks = htmlToBlocks(bodyHtml);
   const bodyItalic = blocks.some((b) => b.runs.some((r) => r.italic));
+  const usesItalic =
+    bodyItalic || [recipient, through, fromText, salutation, subject, closing].some(hasItalic);
   // Serif italic sets the motto; Sans italic only if the letter uses italics.
   const italics = await registerItalicFonts(
     doc,
-    bodyItalic ? [PDF_FONTS.SERIF, PDF_FONTS.SANS] : [PDF_FONTS.SERIF]
+    usesItalic ? [PDF_FONTS.SERIF, PDF_FONTS.SANS] : [PDF_FONTS.SERIF]
   );
 
   const g = lhGeo();
   // Per letter: printed whenever any of the three fields is filled.
   const accountOn = accountLine(account) ? account : null;
 
-  // ---- Page 1 above the body: Ref / Date, then TO / FROM / SUBJECT.
+  // ---- Page 1 above the body, top to bottom:
+  //      Ref / Date, To, Through (optional), From, rule, salutation, subject.
   const refY = g.sideTop + 30;
   const labelX = g.bodyX;
-  const valueX = g.bodyX + 58;
+  const valueX = g.bodyX + 62;
   const valueW = g.W - LG.margin - valueX;
 
-  setType(doc, PDF_FONTS.SANS, "normal", 10.5, LH.ink);
-  const toLines = normaliseText(recipient)
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .flatMap((line) => doc.splitTextToSize(line, valueW));
-  const fromLines = doc.splitTextToSize(
-    normaliseText(fromText) || `Office of the ${office || "Secretariat"}, NAPS-LASUCOM`,
-    valueW
-  );
-  setType(doc, PDF_FONTS.SANS, "bold", 10.5, LH.ink);
-  const subjectLines = doc.splitTextToSize(normaliseText(subject) || "Subject", valueW);
+  const FIELD_PT = 10.5;
+  const FIELD_LEAD = 14.5;
+  const SAL_PT = 11;
+  const SAL_LEAD = 15;
+  const SUBJ_PT = 11.5;
+  const SUBJ_LEAD = 16;
 
-  const lead = 14.5;
-  const rows = [
-    ["To:", toLines.length ? toLines : ["—"], "normal"],
-    ["From:", fromLines, "normal"],
-    ["Subject:", subjectLines, "bold"],
-  ];
+  const planned = (value, fallback) => {
+    const rp = richPlan(doc, value, valueW, FIELD_PT, italics);
+    return rp.count ? rp : richPlan(doc, fallback, valueW, FIELD_PT, italics);
+  };
+
+  const rows = [["To:", planned(recipient, "—")]];
+  const throughRp = richPlan(doc, through, valueW, FIELD_PT, italics);
+  if (throughRp.count) rows.push(["Through:", throughRp]);
+  rows.push(["From:", planned(fromText, `Office of the ${office || "Secretariat"}, NAPS-LASUCOM`)]);
+
   let ry = refY + 34;
-  const rowTops = rows.map(([, lines]) => {
+  const rowTops = rows.map(([, rp]) => {
     const top = ry;
-    ry += lines.length * lead + 7;
+    ry += rp.count * FIELD_LEAD + 7;
     return top;
   });
   const blockRule = ry + 2;
+
+  const salRp = richPlan(doc, salutation, g.bodyW, SAL_PT, italics);
+  const salFinal = salRp.count ? salRp : richPlan(doc, "Dear Sir/Ma,", g.bodyW, SAL_PT, italics);
   const salutationY = blockRule + 26;
-  const bodyTop = salutationY + 26;
+  const salEnd = salutationY + (salFinal.count - 1) * SAL_LEAD;
+
+  // The subject carries no label: it is the letter's heading, centred. An
+  // older plain-text subject keeps the bold, underlined look it printed with.
+  const subjRp = richPlan(doc, subject, g.bodyW, SUBJ_PT, italics, { bold: true, underline: true });
+  const subjectY = salEnd + 26;
+  const subjEnd = subjRp.count ? subjectY + (subjRp.count - 1) * SUBJ_LEAD : salEnd;
+  const bodyTop = subjEnd + 26;
+
+  // The closing may be formatted and run to more than one line; the signatures
+  // sit below it, so the room kept for them grows with it.
+  const closeEstimate = richPlan(doc, closing || "Yours faithfully,", g.bodyW, SAL_PT, italics);
+  const tailH = LH_TAIL_H + Math.max(0, closeEstimate.count - 1) * SAL_LEAD;
 
   // Patrons strip reserves the foot of page 1's body column.
   const laid = measurePatrons(doc, patronColumns({ patrons, advisers }), g.bodyW);
@@ -1821,7 +1868,7 @@ async function renderLetterhead({
     // The tail may run a little into the margin, but never into the
     // patrons strip on page 1.
     const slack = f.lastPage === 0 && laid.height ? 0 : 12;
-    return lastBaseline(f) + LH_TAIL_H <= limit + slack;
+    return lastBaseline(f) + tailH <= limit + slack;
   };
 
   // Largest size, 12pt down to 11pt, that keeps the letter and its
@@ -1913,28 +1960,19 @@ async function renderLetterhead({
       doc.setLineWidth(0.7);
       doc.line(g.bodyX, refY + 11, g.W - LG.margin, refY + 11);
 
-      // TO / FROM / SUBJECT, labels and values on two fixed columns.
-      rows.forEach(([label, lines, weight], i) => {
+      // To / Through / From: labels and values on two fixed columns.
+      rows.forEach(([label, rp], i) => {
         const top = rowTops[i];
-        setType(doc, PDF_FONTS.SANS, "bold", 10.5, LH.ink);
+        setType(doc, PDF_FONTS.SANS, "bold", FIELD_PT, LH.ink);
         doc.text(label, labelX, top);
-        setType(doc, PDF_FONTS.SANS, weight, 10.5, LH.ink);
-        lines.forEach((line, n) => {
-          doc.text(line, valueX, top + n * lead);
-          // The subject keeps its underline.
-          if (label === "Subject:") {
-            doc.setDrawColor(...LH.ink);
-            doc.setLineWidth(0.7);
-            doc.line(valueX, top + n * lead + 2.2, valueX + doc.getTextWidth(line), top + n * lead + 2.2);
-          }
-        });
+        drawRich(doc, rp, valueX, top, FIELD_LEAD);
       });
       doc.setDrawColor(...LH.hair);
       doc.setLineWidth(0.7);
       doc.line(g.bodyX, blockRule, g.W - LG.margin, blockRule);
 
-      setType(doc, PDF_FONTS.SANS, "normal", 11, LH.ink);
-      doc.text(normaliseText(salutation) || "Dear Sir/Ma,", g.bodyX, salutationY);
+      drawRich(doc, salFinal, g.bodyX, salutationY, SAL_LEAD);
+      drawRich(doc, subjRp, g.bodyX, subjectY, SUBJ_LEAD, g.bodyW);
 
       if (laid.height) drawPatrons(doc, laid, g.bodyX, page1Bottom + 10, g.bodyW);
     } else {
@@ -1953,9 +1991,16 @@ async function renderLetterhead({
   doc.setPage(tailPage + 1);
   const frame = frames(tailPage);
   const closeY = tailOnNewPage ? frame.top : lastBaseline(flow) + 30;
-  setType(doc, PDF_FONTS.SANS, "normal", 11, LH.ink);
-  doc.text(normaliseText(closing) || "Yours faithfully,", frame.left, closeY);
-  lhSignatures(doc, people, frame.left, closeY + 56, frame.width, signed);
+  const closePlan = richPlan(doc, closing || "Yours faithfully,", frame.width, SAL_PT, italics);
+  drawRich(doc, closePlan, frame.left, closeY, SAL_LEAD);
+  lhSignatures(
+    doc,
+    people,
+    frame.left,
+    closeY + 56 + Math.max(0, closePlan.count - 1) * SAL_LEAD,
+    frame.width,
+    signed
+  );
 
   // What the sidebar did, for the composer to explain.
   doc.letterhead = {

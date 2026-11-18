@@ -20362,3 +20362,19 @@ tr:hover .aicon-btn { border-color: var(--rule); }
   border-color: color-mix(in srgb, var(--blue) 26%, transparent);
   background: rgba(7, 82, 184, 0.07);
 }
+/* Add to the end of src/index.css (or App.css). Styles the short formattable fields. */
+.rich-area:empty::before {
+  content: attr(data-placeholder);
+  color: #8a94a8;
+  pointer-events: none;
+}
+
+.aeditor.rich-plain {
+  border: 1px solid #d5dbe6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.aeditor.rich-plain .aeditor-area {
+  border-top: 0;
+}
