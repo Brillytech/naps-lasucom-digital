@@ -1,6 +1,5 @@
 import {
   AlertCircle,
-  Calendar,
   CheckCircle2,
   Clock,
   Edit3,
@@ -8,16 +7,15 @@ import {
   Megaphone,
   Pin,
   Plus,
-  Save,
   Search,
   Send,
   Trash2,
-  X,
   XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { sendPushNotification } from "../../utils/sendPushNotification";
+import FormWizard, { clearWizardDraft } from "../../components/FormWizard";
 
 const categories = [
   "General Notice",
@@ -229,7 +227,7 @@ function AdminAnnouncements() {
   }
 
   async function saveAnnouncement(e) {
-    e.preventDefault();
+    e?.preventDefault?.();
 
     if (!canManageAnnouncements()) {
       setErrorMessage("Only PRO and President can manage announcements.");
@@ -352,6 +350,7 @@ function AdminAnnouncements() {
           : "Announcement saved successfully."
       );
 
+      clearWizardDraft("announcement");
       closeForm();
       await fetchAnnouncements();
     } catch (error) {
@@ -716,6 +715,7 @@ function AdminAnnouncements() {
           updateField={updateField}
           closeForm={closeForm}
           saveAnnouncement={saveAnnouncement}
+          error={errorMessage}
         />
       )}
     </main>
@@ -873,48 +873,89 @@ function AnnouncementModal({
   updateField,
   closeForm,
   saveAnnouncement,
+  error,
 }) {
-  const imagePreview = imageFile
-    ? URL.createObjectURL(imageFile)
-    : form.image_url;
+  const imagePreview = useMemo(
+    () => (imageFile ? URL.createObjectURL(imageFile) : form.image_url),
+    [imageFile, form.image_url]
+  );
 
-  return (
-    <div className="record-modal-backdrop">
-      <section className="record-modal announcement-modal">
-        <div className="record-modal-header">
-          <div>
-            <p>{editing ? "Edit Announcement" : "New Announcement"}</p>
-            <h2>{editing ? "Update notice" : "Create public notice"}</h2>
-          </div>
+  const isScheduled =
+    form.status === "published" && form.publish_mode === "scheduled";
 
-          <button type="button" onClick={closeForm}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <form className="record-form" onSubmit={saveAnnouncement}>
-          <label className="announcement-image-picker">
+  const steps = [
+    {
+      key: "title",
+      short: "Title",
+      label: "What is the notice about?",
+      hint: "A short, clear headline.",
+      type: "text",
+      required: true,
+      placeholder: "Important notice to all NAPSITES",
+      value: form.title,
+      onChange: (v) => updateField("title", v),
+    },
+    {
+      key: "category",
+      short: "Category",
+      label: "What kind of notice is it?",
+      type: "choice",
+      options: categories.map((c) => ({ value: c, label: c })),
+      value: form.category,
+      onChange: (v) => updateField("category", v),
+    },
+    {
+      key: "body",
+      short: "Message",
+      label: "Write the announcement",
+      hint: "Say it clearly. Students read this on their phones.",
+      type: "textarea",
+      required: true,
+      placeholder: "Write the announcement clearly...",
+      value: form.body,
+      onChange: (v) => updateField("body", v),
+    },
+    {
+      key: "audience",
+      short: "Audience",
+      label: "Who is it for?",
+      hint: "Leave it as All NAPSITES for everyone, or name a group.",
+      type: "text",
+      placeholder: "All NAPSITES",
+      value: form.audience,
+      onChange: (v) => updateField("audience", v),
+    },
+    {
+      key: "image",
+      short: "Image",
+      label: "Add a flyer or image?",
+      hint: "Optional. Skip if the notice is text only.",
+      type: "custom",
+      value: imagePreview || "",
+      format: () => (imagePreview ? "Image attached" : "No image"),
+      onChange: () => {},
+      render: () => (
+        <>
+          <label className="fw-image">
             <input
               type="file"
               accept="image/*"
               onChange={(e) => setImageFile(e.target.files?.[0] || null)}
             />
-
             {imagePreview ? (
               <img src={imagePreview} alt="" />
             ) : (
-              <div>
-                <ImagePlus size={25} />
-                <strong>Add announcement image</strong>
-                <span>Optional flyer, notice graphic or event image</span>
+              <div className="fw-image-empty">
+                <ImagePlus size={26} />
+                <strong>Tap to choose an image</strong>
+                <span>Flyer, notice graphic or event image</span>
               </div>
             )}
           </label>
-
           {imagePreview && (
             <button
               type="button"
-              className="announcement-remove-image"
+              className="fw-link-btn"
               onClick={() => {
                 setImageFile(null);
                 updateField("image_url", "");
@@ -923,151 +964,99 @@ function AnnouncementModal({
               Remove image
             </button>
           )}
+        </>
+      ),
+    },
+    {
+      key: "status",
+      short: "Status",
+      label: "Publish it or keep it as a draft?",
+      type: "choice",
+      options: [
+        { value: "published", label: "Publish", desc: "Goes out to NAPSITES" },
+        { value: "draft", label: "Save as draft", desc: "Only admins can see it" },
+      ],
+      value: form.status,
+      onChange: (v) => updateField("status", v),
+    },
+    {
+      key: "publish_mode",
+      short: "When",
+      label: "When should it go out?",
+      type: "choice",
+      hidden: form.status !== "published",
+      options: [
+        { value: "now", label: "Publish now", desc: "Sends a notification straight away" },
+        { value: "scheduled", label: "Schedule for later", desc: "Pick a date and time (Lagos time)" },
+      ],
+      value: form.publish_mode,
+      onChange: (v) => updateField("publish_mode", v),
+    },
+    {
+      key: "scheduled_date",
+      short: "Date",
+      label: "Which day?",
+      type: "date",
+      required: true,
+      hidden: !isScheduled,
+      value: form.scheduled_date,
+      onChange: (v) => updateField("scheduled_date", v),
+    },
+    {
+      key: "scheduled_time",
+      short: "Time",
+      label: "What time?",
+      hint: "Africa/Lagos (WAT, GMT+1)",
+      type: "time",
+      required: true,
+      hidden: !isScheduled,
+      value: form.scheduled_time,
+      onChange: (v) => updateField("scheduled_time", v),
+    },
+    {
+      key: "is_pinned",
+      short: "Pinned",
+      label: "Pin it as important?",
+      hint: "Pinned notices stay at the top.",
+      type: "choice",
+      options: [
+        { value: "no", label: "No, normal notice" },
+        { value: "yes", label: "Yes, pin it" },
+      ],
+      value: form.is_pinned ? "yes" : "no",
+      onChange: (v) => updateField("is_pinned", v === "yes"),
+    },
+  ];
 
-          <div className="request-form-group">
-            <label>Title</label>
-            <input
-              type="text"
-              placeholder="Important notice to all NAPSITES"
-              value={form.title}
-              onChange={(e) => updateField("title", e.target.value)}
-            />
-          </div>
+  const submitLabel = isScheduled
+    ? "Schedule announcement"
+    : editing
+    ? "Update announcement"
+    : form.status === "draft"
+    ? "Save draft"
+    : "Publish announcement";
 
-          <div className="record-form-grid">
-            <div className="request-form-group">
-              <label>Category</label>
-              <select
-                value={form.category}
-                onChange={(e) => updateField("category", e.target.value)}
-              >
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="request-form-group">
-              <label>Status</label>
-              <select
-                value={form.status}
-                onChange={(e) => updateField("status", e.target.value)}
-              >
-                <option value="published">Published</option>
-                <option value="draft">Draft</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="request-form-group">
-            <label>Audience</label>
-            <input
-              type="text"
-              placeholder="All NAPSITES"
-              value={form.audience}
-              onChange={(e) => updateField("audience", e.target.value)}
-            />
-          </div>
-
-          <div className="request-form-group">
-            <label>Announcement body</label>
-            <textarea
-              rows="7"
-              placeholder="Write the announcement clearly..."
-              value={form.body}
-              onChange={(e) => updateField("body", e.target.value)}
-            />
-          </div>
-
-          {form.status === "published" && (
-            <div className="publish-schedule-block">
-              <label>Publish</label>
-
-              <div className="publish-mode-switch">
-                <button
-                  type="button"
-                  className={form.publish_mode === "now" ? "active" : ""}
-                  onClick={() => updateField("publish_mode", "now")}
-                >
-                  <Send size={14} />
-                  Publish Now
-                </button>
-
-                <button
-                  type="button"
-                  className={
-                    form.publish_mode === "scheduled" ? "active" : ""
-                  }
-                  onClick={() => updateField("publish_mode", "scheduled")}
-                >
-                  <Clock size={14} />
-                  Schedule for Later
-                </button>
-              </div>
-
-              {form.publish_mode === "scheduled" && (
-                <div className="schedule-picker-grid">
-                  <div className="request-form-group">
-                    <label>
-                      <Calendar size={12} /> Date
-                    </label>
-                    <input
-                      type="date"
-                      value={form.scheduled_date}
-                      onChange={(e) =>
-                        updateField("scheduled_date", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="request-form-group">
-                    <label>
-                      <Clock size={12} /> Time
-                    </label>
-                    <input
-                      type="time"
-                      value={form.scheduled_time}
-                      onChange={(e) =>
-                        updateField("scheduled_time", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="request-form-group timezone-field">
-                    <label>Timezone</label>
-                    <div className="timezone-display">
-                      Africa/Lagos (WAT, GMT+1)
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <label className="record-pin-toggle">
-            <input
-              type="checkbox"
-              checked={form.is_pinned}
-              onChange={(e) => updateField("is_pinned", e.target.checked)}
-            />
-            <span>Pin as important announcement</span>
-          </label>
-
-          <button type="submit" className="record-save-btn" disabled={saving}>
-            <Save size={17} />
-            {saving
-              ? "Saving..."
-              : form.publish_mode === "scheduled" && form.status === "published"
-              ? "Schedule Announcement"
-              : editing
-              ? "Update Announcement"
-              : "Save Announcement"}
-          </button>
-        </form>
-      </section>
-    </div>
+  return (
+    <FormWizard
+      eyebrow={editing ? "Edit announcement" : "New announcement"}
+      title={editing ? "Update notice" : "Create public notice"}
+      steps={steps}
+      saving={saving}
+      error={error}
+      submitLabel={submitLabel}
+      onClose={closeForm}
+      onSubmit={saveAnnouncement}
+      draft={
+        editing
+          ? null
+          : {
+              key: "announcement",
+              values: form,
+              onRestore: (saved) =>
+                Object.entries(saved).forEach(([k, v]) => updateField(k, v)),
+            }
+      }
+    />
   );
 }
 

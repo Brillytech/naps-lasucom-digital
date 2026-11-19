@@ -14,11 +14,9 @@ import {
   Pencil,
   Pin,
   Plus,
-  Save,
   Search,
   Trash2,
   Trophy,
-  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
@@ -34,6 +32,7 @@ import {
   downloadRecordAsExcel,
   downloadRecordsAsExcel,
 } from "../../utils/recordExport";
+import FormWizard, { clearWizardDraft } from "../../components/FormWizard";
 
 const recordCategories = [
   {
@@ -400,7 +399,7 @@ function AdminRecords() {
   }
 
   async function saveRecord(e) {
-    e.preventDefault();
+    e?.preventDefault?.();
 
     if (!canWriteCategory(form.category)) {
       setErrorMessage("This office cannot save records in this category.");
@@ -488,6 +487,7 @@ function AdminRecords() {
       editingRecord ? "Record updated successfully." : "Record saved successfully."
     );
 
+    clearWizardDraft("record");
     closeForm();
     await fetchRecords();
     setSaving(false);
@@ -908,6 +908,7 @@ function AdminRecords() {
           updateField={updateField}
           closeForm={closeForm}
           saveRecord={saveRecord}
+          error={errorMessage}
         />
       )}
     </main>
@@ -957,6 +958,13 @@ function DownloadMenu({ record, setLabel, open, onToggle }) {
   );
 }
 
+const OFFICE_LABELS = {
+  "Financial Records": ["Source office", "Financial Secretary"],
+  "Event Records": ["Responsible office", "Social Director"],
+  "Sports Records": ["Responsible office", "Sports Director"],
+  "Handover Notes": ["Office / handover source", "General Secretary"],
+};
+
 function RecordFormModal({
   form,
   sets,
@@ -968,295 +976,205 @@ function RecordFormModal({
   updateField,
   closeForm,
   saveRecord,
+  error,
 }) {
   const showWritten = form.record_type === "written" || form.record_type === "mixed";
   const showDrive = form.record_type === "drive" || form.record_type === "mixed";
+  const hasAmount =
+    form.category === "Financial Records" || form.category === "Event Records";
+  const [officeLabel, officePlaceholder] = OFFICE_LABELS[form.category] || [
+    "Source office",
+    "Office or committee responsible",
+  ];
+
+  const setLabelOf = (set) =>
+    set.academic_session ? `${set.set_name} • ${set.academic_session}` : set.set_name;
+
+  const steps = [
+    {
+      key: "category",
+      short: "Category",
+      label: "What kind of record is this?",
+      type: "choice",
+      options: recordCategories.map((c) => ({
+        value: c.key,
+        label: c.title,
+        desc: c.description,
+        disabled: !canWriteCategory(c.key),
+      })),
+      value: form.category,
+      onChange: (v) => {
+        if (v === form.category) return;
+        updateField("category", v);
+        updateField("content_fields", buildEmptyContentFields(v));
+      },
+    },
+    {
+      key: "title",
+      short: "Title",
+      label: "What should we call it?",
+      type: "text",
+      required: true,
+      placeholder: "CEC Meeting Minutes - July",
+      value: form.title,
+      onChange: (v) => updateField("title", v),
+    },
+    {
+      key: "record_type",
+      short: "Type",
+      label: "How will it be stored?",
+      type: "choice",
+      options: recordTypes.map((t) => ({
+        value: t.value,
+        label: t.label,
+        desc:
+          t.value === "written"
+            ? "Type the record details here"
+            : t.value === "drive"
+            ? "Attach a link to a Drive document"
+            : "Both: details here plus a Drive link",
+      })),
+      value: form.record_type,
+      onChange: (v) => updateField("record_type", v),
+    },
+    {
+      key: "dec_set_id",
+      short: "DEC set",
+      label: "Which DEC set does it belong to?",
+      type: "choice",
+      options: [
+        { value: "", label: "No DEC set" },
+        ...sets.map((s) => ({ value: s.id, label: setLabelOf(s) })),
+      ],
+      value: form.dec_set_id,
+      onChange: (v) => updateField("dec_set_id", v),
+    },
+    {
+      key: "record_date",
+      short: "Date",
+      label: "What date is the record for?",
+      type: "date",
+      value: form.record_date,
+      onChange: (v) => updateField("record_date", v),
+    },
+    {
+      key: "amount",
+      short: form.category === "Event Records" ? "Proceeds" : "Amount",
+      label:
+        form.category === "Event Records"
+          ? "Proceeds or amount involved?"
+          : "How much money is involved?",
+      hint: "Optional.",
+      type: "text",
+      hidden: !hasAmount,
+      placeholder: form.category === "Event Records" ? "₦20,000 or Not applicable" : "₦50,000",
+      value: form.amount,
+      onChange: (v) => updateField("amount", v),
+    },
+    {
+      key: "source_office",
+      short: "Office",
+      label: `${officeLabel}?`,
+      hint: "Optional.",
+      type: "text",
+      placeholder: officePlaceholder,
+      value: form.source_office,
+      onChange: (v) => updateField("source_office", v),
+    },
+    {
+      key: "summary",
+      short: "Summary",
+      label: "Give a short summary",
+      hint: "Optional. One or two lines.",
+      type: "textarea",
+      placeholder: "Briefly describe this record...",
+      value: form.summary,
+      onChange: (v) => updateField("summary", v),
+    },
+    ...(showWritten
+      ? getSchemaForCategory(form.category).map((field) => ({
+          key: `cf_${field.key}`,
+          short: field.label,
+          label: field.label,
+          hint: "Optional. Skip it if it does not apply.",
+          type: field.type === "textarea" ? "textarea" : "text",
+          placeholder: field.label,
+          value: form.content_fields?.[field.key] || "",
+          onChange: (v) =>
+            updateField("content_fields", {
+              ...form.content_fields,
+              [field.key]: v,
+            }),
+        }))
+      : []),
+    {
+      key: "drive_link",
+      short: "Drive link",
+      label: "Paste the Google Drive link",
+      type: "url",
+      required: true,
+      hidden: !showDrive,
+      placeholder: "https://drive.google.com/...",
+      validate: (v) =>
+        /^https?:\/\//i.test(v.trim()) ? "" : "Paste the full link, starting with https://",
+      value: form.drive_link,
+      onChange: (v) => updateField("drive_link", v),
+    },
+    {
+      key: "prepared_by",
+      short: "Prepared by",
+      label: "Who prepared it?",
+      type: "text",
+      placeholder: profile?.full_name || "Prepared by",
+      value: form.prepared_by,
+      onChange: (v) => updateField("prepared_by", v),
+    },
+    {
+      key: "reviewed_by",
+      short: "Reviewed by",
+      label: "Who reviewed it?",
+      hint: "Optional.",
+      type: "text",
+      placeholder: "Reviewer name",
+      value: form.reviewed_by,
+      onChange: (v) => updateField("reviewed_by", v),
+    },
+    {
+      key: "is_pinned",
+      short: "Pinned",
+      label: "Pin as an important record?",
+      type: "choice",
+      hidden: !canPinRecord(),
+      options: [
+        { value: "no", label: "No" },
+        { value: "yes", label: "Yes, pin it" },
+      ],
+      value: form.is_pinned ? "yes" : "no",
+      onChange: (v) => updateField("is_pinned", v === "yes"),
+    },
+  ];
 
   return (
-    <div className="record-modal-backdrop">
-      <section className="record-modal">
-        <div className="record-modal-header">
-          <div>
-            <p>{editingRecord ? "Edit Record" : "New Record"}</p>
-            <h2>{form.category}</h2>
-          </div>
-
-          <button type="button" onClick={closeForm}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <form className="record-form" onSubmit={saveRecord}>
-          <div className="request-form-group">
-            <label>Record title</label>
-            <input
-              type="text"
-              placeholder="CEC Meeting Minutes - July"
-              value={form.title}
-              onChange={(e) => updateField("title", e.target.value)}
-            />
-          </div>
-
-          <div className="record-form-grid">
-            <div className="request-form-group">
-              <label>Category</label>
-              <select
-                value={form.category}
-                onChange={(e) => {
-                  const nextCategory = e.target.value;
-                  updateField("category", nextCategory);
-                  updateField("content_fields", buildEmptyContentFields(nextCategory));
-                }}
-              >
-                {recordCategories.map((category) => (
-                  <option
-                    key={category.key}
-                    value={category.key}
-                    disabled={!canWriteCategory(category.key)}
-                  >
-                    {category.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="request-form-group">
-              <label>Record type</label>
-              <select
-                value={form.record_type}
-                onChange={(e) => updateField("record_type", e.target.value)}
-              >
-                {recordTypes.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="record-form-grid">
-            <div className="request-form-group">
-              <label>DEC set</label>
-              <select
-                value={form.dec_set_id}
-                onChange={(e) => updateField("dec_set_id", e.target.value)}
-              >
-                <option value="">No DEC set</option>
-                {sets.map((set) => (
-                  <option key={set.id} value={set.id}>
-                    {set.set_name}{" "}
-                    {set.academic_session ? `• ${set.academic_session}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="request-form-group">
-              <label>Record date</label>
-              <input
-                type="date"
-                value={form.record_date}
-                onChange={(e) => updateField("record_date", e.target.value)}
-              />
-            </div>
-          </div>
-
-          <CategoryFields form={form} updateField={updateField} />
-
-          <div className="request-form-group">
-            <label>Short summary</label>
-            <textarea
-              rows="3"
-              placeholder="Briefly describe this record..."
-              value={form.summary}
-              onChange={(e) => updateField("summary", e.target.value)}
-            />
-          </div>
-
-          {showWritten && (
-            <div className="record-structured-fields">
-              <p className="record-structured-fields-title">Written Record Details</p>
-
-              {getSchemaForCategory(form.category).map((field) => (
-                <div className="request-form-group" key={field.key}>
-                  <label>{field.label}</label>
-                  {field.type === "textarea" ? (
-                    <textarea
-                      rows="3"
-                      placeholder={field.label}
-                      value={form.content_fields[field.key] || ""}
-                      onChange={(e) =>
-                        updateField("content_fields", {
-                          ...form.content_fields,
-                          [field.key]: e.target.value,
-                        })
-                      }
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      placeholder={field.label}
-                      value={form.content_fields[field.key] || ""}
-                      onChange={(e) =>
-                        updateField("content_fields", {
-                          ...form.content_fields,
-                          [field.key]: e.target.value,
-                        })
-                      }
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {showDrive && (
-            <div className="request-form-group">
-              <label>Google Drive link</label>
-              <input
-                type="url"
-                placeholder="Paste Google Drive document link"
-                value={form.drive_link}
-                onChange={(e) => updateField("drive_link", e.target.value)}
-              />
-            </div>
-          )}
-
-          <div className="record-form-grid">
-            <div className="request-form-group">
-              <label>Prepared by</label>
-              <input
-                type="text"
-                placeholder={profile?.full_name || "Prepared by"}
-                value={form.prepared_by}
-                onChange={(e) => updateField("prepared_by", e.target.value)}
-              />
-            </div>
-
-            <div className="request-form-group">
-              <label>Reviewed by</label>
-              <input
-                type="text"
-                placeholder="Reviewer name optional"
-                value={form.reviewed_by}
-                onChange={(e) => updateField("reviewed_by", e.target.value)}
-              />
-            </div>
-          </div>
-
-          {canPinRecord() && (
-            <label className="record-pin-toggle">
-              <input
-                type="checkbox"
-                checked={form.is_pinned}
-                onChange={(e) => updateField("is_pinned", e.target.checked)}
-              />
-              <span>Pin as important record</span>
-            </label>
-          )}
-
-          <button type="submit" className="record-save-btn" disabled={saving}>
-            <Save size={17} />
-            {saving ? "Saving..." : editingRecord ? "Update Record" : "Save Record"}
-          </button>
-        </form>
-      </section>
-    </div>
-  );
-}
-
-function CategoryFields({ form, updateField }) {
-  if (form.category === "Financial Records") {
-    return (
-      <div className="record-form-grid">
-        <div className="request-form-group">
-          <label>Amount involved</label>
-          <input
-            type="text"
-            placeholder="₦50,000"
-            value={form.amount}
-            onChange={(e) => updateField("amount", e.target.value)}
-          />
-        </div>
-
-        <div className="request-form-group">
-          <label>Source office</label>
-          <input
-            type="text"
-            placeholder="Financial Secretary"
-            value={form.source_office}
-            onChange={(e) => updateField("source_office", e.target.value)}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (form.category === "Event Records") {
-    return (
-      <div className="record-form-grid">
-        <div className="request-form-group">
-          <label>Proceeds / amount involved</label>
-          <input
-            type="text"
-            placeholder="₦20,000 or Not applicable"
-            value={form.amount}
-            onChange={(e) => updateField("amount", e.target.value)}
-          />
-        </div>
-
-        <div className="request-form-group">
-          <label>Responsible office</label>
-          <input
-            type="text"
-            placeholder="Social Director"
-            value={form.source_office}
-            onChange={(e) => updateField("source_office", e.target.value)}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (form.category === "Sports Records") {
-    return (
-      <div className="request-form-group">
-        <label>Responsible office</label>
-        <input
-          type="text"
-          placeholder="Sports Director"
-          value={form.source_office}
-          onChange={(e) => updateField("source_office", e.target.value)}
-        />
-      </div>
-    );
-  }
-
-  if (form.category === "Handover Notes") {
-    return (
-      <div className="request-form-group">
-        <label>Office / handover source</label>
-        <input
-          type="text"
-          placeholder="General Secretary"
-          value={form.source_office}
-          onChange={(e) => updateField("source_office", e.target.value)}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="request-form-group">
-      <label>Source office</label>
-      <input
-        type="text"
-        placeholder="Office or committee responsible"
-        value={form.source_office}
-        onChange={(e) => updateField("source_office", e.target.value)}
-      />
-    </div>
+    <FormWizard
+      eyebrow={editingRecord ? "Edit record" : "New record"}
+      title={form.category}
+      steps={steps}
+      saving={saving}
+      error={error}
+      submitLabel={editingRecord ? "Update record" : "Save record"}
+      onClose={closeForm}
+      onSubmit={saveRecord}
+      draft={
+        editingRecord
+          ? null
+          : {
+              key: "record",
+              values: form,
+              onRestore: (saved) =>
+                Object.entries(saved).forEach(([k, v]) => updateField(k, v)),
+            }
+      }
+    />
   );
 }
 
