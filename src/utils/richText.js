@@ -16,7 +16,8 @@ const escapeHtml = (text) =>
     .replace(/>/g, "&gt;");
 
 /** Plain text (one line per row) -> editor HTML, optionally bold and/or underlined. */
-export function plainToHtml(text, { bold = false, underline = false } = {}) {
+export function plainToHtml(text, style) {
+  const { bold = false, underline = false } = style || {};
   const lines = String(text ?? "")
     .split(/\r?\n/)
     .map((line) => line.trim())
