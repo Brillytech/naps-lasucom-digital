@@ -993,8 +993,7 @@ function RecordFormModal({
   const steps = [
     {
       key: "category",
-      short: "Category",
-      label: "What kind of record is this?",
+      label: "Category",
       type: "choice",
       options: recordCategories.map((c) => ({
         value: c.key,
@@ -1011,8 +1010,7 @@ function RecordFormModal({
     },
     {
       key: "title",
-      short: "Title",
-      label: "What should we call it?",
+      label: "Record title",
       type: "text",
       required: true,
       placeholder: "CEC Meeting Minutes - July",
@@ -1021,8 +1019,7 @@ function RecordFormModal({
     },
     {
       key: "record_type",
-      short: "Type",
-      label: "How will it be stored?",
+      label: "Record type",
       type: "choice",
       options: recordTypes.map((t) => ({
         value: t.value,
@@ -1039,8 +1036,7 @@ function RecordFormModal({
     },
     {
       key: "dec_set_id",
-      short: "DEC set",
-      label: "Which DEC set does it belong to?",
+      label: "DEC set",
       type: "choice",
       options: [
         { value: "", label: "No DEC set" },
@@ -1051,20 +1047,17 @@ function RecordFormModal({
     },
     {
       key: "record_date",
-      short: "Date",
-      label: "What date is the record for?",
+      label: "Record date",
       type: "date",
       value: form.record_date,
       onChange: (v) => updateField("record_date", v),
     },
     {
       key: "amount",
-      short: form.category === "Event Records" ? "Proceeds" : "Amount",
       label:
         form.category === "Event Records"
-          ? "Proceeds or amount involved?"
-          : "How much money is involved?",
-      hint: "Optional.",
+          ? "Proceeds / amount involved"
+          : "Amount involved",
       type: "text",
       hidden: !hasAmount,
       placeholder: form.category === "Event Records" ? "₦20,000 or Not applicable" : "₦50,000",
@@ -1073,9 +1066,7 @@ function RecordFormModal({
     },
     {
       key: "source_office",
-      short: "Office",
-      label: `${officeLabel}?`,
-      hint: "Optional.",
+      label: officeLabel,
       type: "text",
       placeholder: officePlaceholder,
       value: form.source_office,
@@ -1083,9 +1074,8 @@ function RecordFormModal({
     },
     {
       key: "summary",
-      short: "Summary",
-      label: "Give a short summary",
-      hint: "Optional. One or two lines.",
+      label: "Short summary",
+      hint: "One or two lines describing this record.",
       type: "textarea",
       placeholder: "Briefly describe this record...",
       value: form.summary,
@@ -1094,9 +1084,7 @@ function RecordFormModal({
     ...(showWritten
       ? getSchemaForCategory(form.category).map((field) => ({
           key: `cf_${field.key}`,
-          short: field.label,
           label: field.label,
-          hint: "Optional. Skip it if it does not apply.",
           type: field.type === "textarea" ? "textarea" : "text",
           placeholder: field.label,
           value: form.content_fields?.[field.key] || "",
@@ -1109,8 +1097,7 @@ function RecordFormModal({
       : []),
     {
       key: "drive_link",
-      short: "Drive link",
-      label: "Paste the Google Drive link",
+      label: "Google Drive link",
       type: "url",
       required: true,
       hidden: !showDrive,
@@ -1122,8 +1109,7 @@ function RecordFormModal({
     },
     {
       key: "prepared_by",
-      short: "Prepared by",
-      label: "Who prepared it?",
+      label: "Prepared by",
       type: "text",
       placeholder: profile?.full_name || "Prepared by",
       value: form.prepared_by,
@@ -1131,9 +1117,7 @@ function RecordFormModal({
     },
     {
       key: "reviewed_by",
-      short: "Reviewed by",
-      label: "Who reviewed it?",
-      hint: "Optional.",
+      label: "Reviewed by",
       type: "text",
       placeholder: "Reviewer name",
       value: form.reviewed_by,
@@ -1141,8 +1125,7 @@ function RecordFormModal({
     },
     {
       key: "is_pinned",
-      short: "Pinned",
-      label: "Pin as an important record?",
+      label: "Pin as important record",
       type: "choice",
       hidden: !canPinRecord(),
       options: [

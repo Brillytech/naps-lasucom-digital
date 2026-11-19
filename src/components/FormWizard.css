@@ -16,6 +16,7 @@
 }
 
 .fw-card {
+  position: relative;
   width: 100%;
   height: var(--fw-vh, 100dvh);
   background: #fff;
@@ -112,3 +113,18 @@
 .fw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .fw-btn--ghost { flex: 0 0 auto; padding: 0 18px; background: #fff; border-color: var(--fw-line); color: var(--fw-ink); }
 .fw-btn--primary { background: var(--fw-accent); color: #fff; }
+
+.fw-head-btns { display: flex; gap: 8px; }
+.fw-ov { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; }
+.fw-ov button { box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid var(--fw-line); border-radius: 12px; background: #fff; font: inherit; text-align: left; cursor: pointer; color: var(--fw-ink); }
+.fw-ov button.is-now { border-color: var(--fw-accent); background: var(--fw-accent-soft); }
+.fw-ov-n { flex: none; width: 24px; height: 24px; border-radius: 99px; background: var(--fw-line); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+.fw-ov-l { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; }
+.fw-ov-t { flex: none; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; }
+.fw-ov-t.is-done { background: #dcfce7; color: #166534; }
+.fw-ov-t.is-req { background: #fee2e2; color: #b91c1c; }
+.fw-ov-t.is-opt { background: #f1f5f9; color: var(--fw-muted); }
+.fw-sheet { position: absolute; inset: 0; z-index: 5; background: #fff; display: flex; flex-direction: column; animation: fw-in-fwd 0.2s both; }
+.fw-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: max(14px, env(safe-area-inset-top)) 18px 10px; border-bottom: 1px solid var(--fw-line); }
+.fw-sheet-body { flex: 1; overflow-y: auto; padding: 0 18px max(18px, env(safe-area-inset-bottom)); }
+.fw-missing { color: #b91c1c; font-weight: 600; }

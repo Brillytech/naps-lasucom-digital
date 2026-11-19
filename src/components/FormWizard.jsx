@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  List,
   Pencil,
   X,
 } from "lucide-react";
@@ -71,6 +72,32 @@ function reviewText(step) {
   return isEmpty(v) ? "—" : String(v);
 }
 
+function OverviewList({ visible, onPick, current }) {
+  return (
+    <ol className="fw-ov">
+      {visible.map((s, i) => {
+        const filled = !isEmpty(s.value);
+        const tag = filled ? "done" : s.required ? "req" : "opt";
+        return (
+          <li key={s.key}>
+            <button
+              type="button"
+              className={i === current ? "is-now" : ""}
+              onClick={() => onPick(i)}
+            >
+              <span className="fw-ov-n">{i + 1}</span>
+              <span className="fw-ov-l">{s.short || s.label}</span>
+              <span className={`fw-ov-t is-${tag}`}>
+                {filled ? "Filled" : s.required ? "Required" : "Optional"}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export default function FormWizard({
   eyebrow,
   title,
@@ -85,7 +112,8 @@ export default function FormWizard({
   const visible = useMemo(() => steps.filter((s) => !s.hidden), [steps]);
   const total = visible.length;
 
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(-1); // -1 = overview screen
+  const [showOv, setShowOv] = useState(false);
   const [dir, setDir] = useState("fwd");
   const [fromReview, setFromReview] = useState(false);
   const [localError, setLocalError] = useState("");
@@ -96,6 +124,7 @@ export default function FormWizard({
   const initialJson = useRef(draft ? JSON.stringify(draft.values) : "");
   const timer = useRef(null);
 
+  const isIntro = index < 0;
   const isReview = index >= total;
   const step = visible[index];
 
@@ -148,7 +177,7 @@ export default function FormWizard({
 
   // Focus the field on each text step.
   useEffect(() => {
-    if (pending) return;
+    if (pending || isIntro) return;
     const t = setTimeout(() => {
       const el = bodyRef.current?.querySelector(
         "input:not([type=file]):not([type=hidden]), textarea"
@@ -156,7 +185,7 @@ export default function FormWizard({
       if (el && step?.type !== "choice") el.focus({ preventScroll: true });
     }, 260);
     return () => clearTimeout(t);
-  }, [index, pending, step?.type]);
+  }, [index, pending, isIntro, step?.type]);
 
   const go = useCallback((to, direction) => {
     setLocalError("");
@@ -166,11 +195,7 @@ export default function FormWizard({
 
   function next() {
     if (!step) return;
-    const msg = problemWith(step);
-    if (msg) {
-      setLocalError(msg);
-      return;
-    }
+    setLocalError("");
     if (fromReview) {
       setFromReview(false);
       go(total, "fwd");
@@ -185,7 +210,13 @@ export default function FormWizard({
       go(total, "back");
       return;
     }
-    if (index > 0) go(index - 1, "back");
+    if (index >= 0) go(index - 1, "back");
+  }
+
+  function jump(i) {
+    setShowOv(false);
+    setFromReview(false);
+    go(i, i < index ? "back" : "fwd");
   }
 
   function editStep(i) {
@@ -234,7 +265,7 @@ export default function FormWizard({
 
   function resume() {
     draft.onRestore(pending.values);
-    const i = Math.max(0, Math.min(pending.index || 0, 60));
+    const i = Math.max(-1, Math.min(pending.index ?? -1, 60));
     setIndex(i);
     setPending(null);
   }
@@ -244,9 +275,9 @@ export default function FormWizard({
     setPending(null);
   }
 
-  const progress = Math.round(((Math.min(index, total) + (isReview ? 0 : 1)) / (total + 1)) * 100);
+  const progress = isIntro ? 0 : Math.round(((Math.min(index, total) + (isReview ? 0 : 1)) / (total + 1)) * 100);
   const shownError = localError || error;
-  const optionalEmpty = step && !step.required && isEmpty(step.value);
+  const emptyNow = step && isEmpty(step.value);
 
   const body = (
     <div
@@ -263,16 +294,28 @@ export default function FormWizard({
               {eyebrow && <p>{eyebrow}</p>}
               <h2>{title}</h2>
             </div>
+            <div className="fw-head-btns">
+              {!pending && (
+                <button
+                  type="button"
+                  className="fw-x"
+                  onClick={() => setShowOv(true)}
+                  aria-label="Overview of all fields"
+                >
+                  <List size={18} />
+                </button>
+              )}
             <button type="button" className="fw-x" onClick={onClose} aria-label="Close">
               <X size={18} />
             </button>
+            </div>
           </div>
 
           <div className="fw-progress" aria-hidden="true">
             <span style={{ width: `${progress}%` }} />
           </div>
           <div className="fw-count">
-            {isReview ? "Review" : `Step ${index + 1} of ${total}`}
+            {isIntro ? "Overview" : isReview ? "Review" : `Step ${index + 1} of ${total}`}
           </div>
         </header>
 
@@ -294,6 +337,15 @@ export default function FormWizard({
                 </button>
               </div>
             </div>
+          ) : isIntro ? (
+            <div key="intro" className="fw-slide fw-fwd">
+              <h3 className="fw-q">What you will fill in</h3>
+              <p className="fw-hint">
+                {total} items. You can skip any of them and come back later. Only
+                items marked Required must be done before saving.
+              </p>
+              <OverviewList visible={visible} onPick={jump} current={-2} />
+            </div>
           ) : isReview ? (
             <div key="review" className={`fw-slide fw-${dir}`}>
               <h3 className="fw-q">Check everything</h3>
@@ -303,7 +355,13 @@ export default function FormWizard({
                   <li key={s.key}>
                     <div>
                       <span className="fw-review-l">{s.short || s.label}</span>
-                      <span className="fw-review-v">{reviewText(s)}</span>
+                      <span className="fw-review-v">
+                        {s.required && isEmpty(s.value) ? (
+                          <b className="fw-missing">Required - not filled yet</b>
+                        ) : (
+                          reviewText(s)
+                        )}
+                      </span>
                     </div>
                     <button type="button" onClick={() => editStep(i)}>
                       <Pencil size={12} /> Edit
@@ -376,6 +434,20 @@ export default function FormWizard({
           ) : null}
         </div>
 
+        {showOv && (
+          <div className="fw-sheet">
+            <div className="fw-sheet-head">
+              <strong>All fields</strong>
+              <button type="button" className="fw-x" onClick={() => setShowOv(false)} aria-label="Close overview">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="fw-sheet-body">
+              <OverviewList visible={visible} onPick={jump} current={index} />
+            </div>
+          </div>
+        )}
+
         {!pending && (
           <footer className="fw-foot">
             {shownError && (
@@ -390,13 +462,22 @@ export default function FormWizard({
                 type="button"
                 className="fw-btn fw-btn--ghost"
                 onClick={back}
-                disabled={index === 0 && !fromReview}
+                disabled={isIntro}
               >
                 <ArrowLeft size={16} />
                 Back
               </button>
 
-              {isReview ? (
+              {isIntro ? (
+                <button
+                  type="button"
+                  className="fw-btn fw-btn--primary"
+                  onClick={() => go(0, "fwd")}
+                >
+                  Start
+                  <ArrowRight size={16} />
+                </button>
+              ) : isReview ? (
                 <button
                   type="button"
                   className="fw-btn fw-btn--primary"
@@ -421,7 +502,7 @@ export default function FormWizard({
                   className="fw-btn fw-btn--primary"
                   onClick={next}
                 >
-                  {fromReview ? "Done" : optionalEmpty ? "Skip" : "Next"}
+                  {fromReview ? "Done" : emptyNow ? "Skip" : "Next"}
                   <ArrowRight size={16} />
                 </button>
               )}

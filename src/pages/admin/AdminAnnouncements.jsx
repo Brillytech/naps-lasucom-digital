@@ -886,8 +886,7 @@ function AnnouncementModal({
   const steps = [
     {
       key: "title",
-      short: "Title",
-      label: "What is the notice about?",
+      label: "Title",
       hint: "A short, clear headline.",
       type: "text",
       required: true,
@@ -897,8 +896,7 @@ function AnnouncementModal({
     },
     {
       key: "category",
-      short: "Category",
-      label: "What kind of notice is it?",
+      label: "Category",
       type: "choice",
       options: categories.map((c) => ({ value: c, label: c })),
       value: form.category,
@@ -906,8 +904,7 @@ function AnnouncementModal({
     },
     {
       key: "body",
-      short: "Message",
-      label: "Write the announcement",
+      label: "Announcement body",
       hint: "Say it clearly. Students read this on their phones.",
       type: "textarea",
       required: true,
@@ -917,8 +914,7 @@ function AnnouncementModal({
     },
     {
       key: "audience",
-      short: "Audience",
-      label: "Who is it for?",
+      label: "Audience",
       hint: "Leave it as All NAPSITES for everyone, or name a group.",
       type: "text",
       placeholder: "All NAPSITES",
@@ -927,8 +923,7 @@ function AnnouncementModal({
     },
     {
       key: "image",
-      short: "Image",
-      label: "Add a flyer or image?",
+      label: "Announcement image",
       hint: "Optional. Skip if the notice is text only.",
       type: "custom",
       value: imagePreview || "",
@@ -969,8 +964,7 @@ function AnnouncementModal({
     },
     {
       key: "status",
-      short: "Status",
-      label: "Publish it or keep it as a draft?",
+      label: "Status",
       type: "choice",
       options: [
         { value: "published", label: "Publish", desc: "Goes out to NAPSITES" },
@@ -981,8 +975,7 @@ function AnnouncementModal({
     },
     {
       key: "publish_mode",
-      short: "When",
-      label: "When should it go out?",
+      label: "Publish",
       type: "choice",
       hidden: form.status !== "published",
       options: [
@@ -994,8 +987,7 @@ function AnnouncementModal({
     },
     {
       key: "scheduled_date",
-      short: "Date",
-      label: "Which day?",
+      label: "Date",
       type: "date",
       required: true,
       hidden: !isScheduled,
@@ -1004,8 +996,7 @@ function AnnouncementModal({
     },
     {
       key: "scheduled_time",
-      short: "Time",
-      label: "What time?",
+      label: "Time",
       hint: "Africa/Lagos (WAT, GMT+1)",
       type: "time",
       required: true,
@@ -1015,8 +1006,7 @@ function AnnouncementModal({
     },
     {
       key: "is_pinned",
-      short: "Pinned",
-      label: "Pin it as important?",
+      label: "Pin as important announcement",
       hint: "Pinned notices stay at the top.",
       type: "choice",
       options: [
