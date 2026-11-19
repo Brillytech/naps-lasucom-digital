@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Megaphone, Pin, X } from "lucide-react";
+import { ChevronRight, Megaphone, Pin, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import "./NoticePopup.css";
 
@@ -52,6 +52,17 @@ function rank(a, b) {
   return t(b) - t(a);
 }
 
+function ago(value) {
+  if (!value) return "Now";
+  const m = Math.floor((Date.now() - new Date(value).getTime()) / 60000);
+  if (m < 1) return "Now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return d < 7 ? `${d}d ago` : "This week";
+}
+
 function portalRoot() {
   return document.querySelector(".app") || document.body;
 }
@@ -66,6 +77,7 @@ export default function NewNoticePopup() {
   const [drag, setDrag] = useState({ x: 0, y: 0, on: false });
 
   const start = useRef({ x: 0, y: 0 });
+  const moved = useRef(false);
   const hideTimer = useRef(null);
   const current = queue[i];
 
@@ -160,8 +172,9 @@ export default function NewNoticePopup() {
   }
 
   function down(e) {
-    if (e.target.closest("button")) return;
+    if (e.target.closest(".np-x")) return;
     start.current = { x: e.clientX, y: e.clientY };
+    moved.current = false;
     setPaused(true);
     setDrag({ x: 0, y: 0, on: true });
   }
@@ -169,6 +182,7 @@ export default function NewNoticePopup() {
     if (!drag.on) return;
     const x = e.clientX - start.current.x;
     const y = Math.min(0, e.clientY - start.current.y); // only upward
+    if (Math.abs(x) > 6 || y < -6) moved.current = true;
     setDrag({ x, y, on: true });
   }
   function up() {
@@ -176,7 +190,10 @@ export default function NewNoticePopup() {
     const gone = Math.abs(drag.x) > 90 || drag.y < -50;
     setPaused(false);
     if (gone) advance();
-    else setDrag({ x: 0, y: 0, on: false });
+    else {
+      setDrag({ x: 0, y: 0, on: false });
+      if (!moved.current) read(); // a tap opens the notice
+    }
   }
 
   if (!open || !current) return null;
@@ -190,61 +207,67 @@ export default function NewNoticePopup() {
       }
     : undefined;
 
+  const more = Math.max(0, queue.length - i - 1);
+
   return createPortal(
     <div className="np-wrap" role="status" aria-live="polite">
-      <section
-        className={`np-card${leaving ? " is-out" : ""}${urgent ? " is-urgent" : ""}`}
-        style={style}
-        onPointerDown={down}
-        onPointerMove={move}
-        onPointerUp={up}
-        onPointerCancel={up}
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => !drag.on && setPaused(false)}
-      >
-        <div className="np-inner" key={current.id}>
-          {current.image_url && (
-            <img className="np-img" src={current.image_url} alt="" draggable="false" />
-          )}
+      <div className="np-pile">
+        {more > 0 && !leaving && <span className="np-stack s1" aria-hidden="true" />}
+        {more > 1 && !leaving && <span className="np-stack s2" aria-hidden="true" />}
 
-          <div className="np-main">
-            {!current.image_url && (
-              <span className="np-ico">
-                <Megaphone size={18} />
-              </span>
-            )}
-
-            <div className="np-text">
-              <div className="np-tags">
-                <span className="np-tag">{urgent ? "Urgent" : "New notice"}</span>
-                {current.is_pinned && (
-                  <span className="np-pin">
-                    <Pin size={11} /> Pinned
-                  </span>
-                )}
-                {queue.length > 1 && (
-                  <span className="np-count">
-                    {i + 1} of {queue.length}
-                  </span>
-                )}
-              </div>
-              <h3>{current.title}</h3>
-              <p>{current.body}</p>
+        <section
+          className={`np-card${leaving ? " is-out" : ""}${urgent ? " is-urgent" : ""}`}
+          style={style}
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerCancel={up}
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => !drag.on && setPaused(false)}
+        >
+          <div className="np-inner" key={current.id}>
+            <div className="np-head">
+              <img
+                className="np-logo"
+                src="/images/naps-logo.png"
+                alt=""
+                onError={(e) => (e.currentTarget.style.display = "none")}
+              />
+              <span className="np-brand">NAPS LASUCOM</span>
+              <span className="np-dot" />
+              <span className="np-time">{ago(current.published_at || current.scheduled_for)}</span>
+              {queue.length > 1 && (
+                <span className="np-count">
+                  {i + 1}/{queue.length}
+                </span>
+              )}
+              <button type="button" className="np-x" onClick={finish} aria-label="Dismiss">
+                <X size={14} />
+              </button>
             </div>
 
-            <button type="button" className="np-x" onClick={finish} aria-label="Close">
-              <X size={16} />
-            </button>
-          </div>
+            <div className="np-body">
+              {current.image_url ? (
+                <img className="np-thumb" src={current.image_url} alt="" draggable="false" />
+              ) : (
+                <span className="np-thumb np-thumb--ico">
+                  <Megaphone size={22} />
+                </span>
+              )}
+              <div className="np-text">
+                <h3>{current.title}</h3>
+                <p>{current.body}</p>
+              </div>
+            </div>
 
-          <div className="np-actions">
-            <button type="button" className="np-btn np-btn--ghost" onClick={advance}>
-              {i < queue.length - 1 ? "Next" : "Later"}
-            </button>
-            <button type="button" className="np-btn np-btn--primary" onClick={read}>
-              Read notice
-              <ArrowRight size={15} />
-            </button>
+            <div className="np-foot">
+              <span className="np-chip">
+                {urgent ? "Urgent" : current.is_pinned ? (<><Pin size={11} /> Pinned</>) : "New notice"}
+              </span>
+              <span className="np-go">
+                Read notice <ChevronRight size={15} />
+              </span>
+            </div>
           </div>
 
           <span
@@ -255,8 +278,8 @@ export default function NewNoticePopup() {
             }}
             key={`t${current.id}`}
           />
-        </div>
-      </section>
+        </section>
+      </div>
     </div>,
     portalRoot()
   );
