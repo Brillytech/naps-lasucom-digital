@@ -118,7 +118,7 @@ export default function FormWizard({
   const [fromReview, setFromReview] = useState(false);
   const [localError, setLocalError] = useState("");
   const [pending, setPending] = useState(null);
-  const [vh, setVh] = useState(null);
+  const [vp, setVp] = useState(null); // visible area (shrinks with the keyboard)
 
   const bodyRef = useRef(null);
   const initialJson = useRef(draft ? JSON.stringify(draft.values) : "");
@@ -163,14 +163,23 @@ export default function FormWizard({
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const vv = window.visualViewport;
-    const onVv = () => vv && setVh(vv.height);
+    const onVv = () => {
+      if (!vv) return;
+      setVp({ top: vv.offsetTop, height: vv.height });
+      // Stop the browser scrolling the page behind us when a field is focused.
+      if (window.scrollY) window.scrollTo(0, 0);
+    };
     if (vv) {
       onVv();
       vv.addEventListener("resize", onVv);
+      vv.addEventListener("scroll", onVv);
     }
     return () => {
       document.body.style.overflow = prev;
-      if (vv) vv.removeEventListener("resize", onVv);
+      if (vv) {
+        vv.removeEventListener("resize", onVv);
+        vv.removeEventListener("scroll", onVv);
+      }
       clearTimeout(timer.current);
     };
   }, []);
@@ -286,8 +295,11 @@ export default function FormWizard({
       aria-modal="true"
       aria-label={title}
       onKeyDown={onKeyDown}
+      style={
+        vp ? { top: vp.top, height: vp.height, bottom: "auto" } : undefined
+      }
     >
-      <div className="fw-card" style={vh ? { "--fw-vh": `${vh}px` } : undefined}>
+      <div className="fw-card">
         <header className="fw-head">
           <div className="fw-head-row">
             <div className="fw-head-text">

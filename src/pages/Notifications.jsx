@@ -11,7 +11,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { enablePushNotifications } from "../utils/sendPushNotification";
-
 const DISMISSED_KEY = "napslasucom_dismissed_notifications";
 const READ_KEY = "napslasucom_read_notifications";
 
