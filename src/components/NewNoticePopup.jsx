@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, Megaphone, Pin, X } from "lucide-react";
+import { X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import "./NoticePopup.css";
 
 /*
-  A gentle "new notice" banner.
+  "New notice" popup.
 
-  - Slides in from the top a moment after the app opens (never blocks the page).
-  - Only shows notices this device has not seen, read or deleted, and only
-    recent ones, so a brand-new visitor is not buried in old notices.
-  - At most 3 per visit, one at a time. Urgent and pinned come first.
-  - Dismiss with Later, the X, or a swipe. Hides itself after a while.
+  - Appears in the middle of the screen a moment after the app opens.
+  - Only notices this device has not seen, read or deleted, and only recent
+    ones, so a first-time visitor is not buried in old notices.
+  - One at a time, at most 3 per visit. Urgent first, then pinned, then newest.
+  - Dismiss with Maybe later, the X, tapping outside, or Esc.
   - Each notice is shown once per device (tracked in localStorage).
 */
 
@@ -22,9 +22,8 @@ const DISMISSED_KEY = "napslasucom_dismissed_notifications";
 
 const RECENT_DAYS = 14;
 const MAX_QUEUE = 3;
-const SHOW_DELAY = 1600;
-const AUTO_HIDE = 12000;
-const EXIT_MS = 280;
+const SHOW_DELAY = 1500;
+const EXIT_MS = 260;
 
 function readIds(key) {
   try {
@@ -40,7 +39,7 @@ function markSeen(id) {
     const next = [...new Set([...readIds(SEEN_KEY), id])].slice(-200);
     localStorage.setItem(SEEN_KEY, JSON.stringify(next));
   } catch {
-    /* storage unavailable - the banner just may repeat */
+    /* storage unavailable - the popup may repeat */
   }
 }
 
@@ -52,19 +51,38 @@ function rank(a, b) {
   return t(b) - t(a);
 }
 
-function ago(value) {
-  if (!value) return "Now";
-  const m = Math.floor((Date.now() - new Date(value).getTime()) / 60000);
-  if (m < 1) return "Now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return d < 7 ? `${d}d ago` : "This week";
-}
-
 function portalRoot() {
   return document.querySelector(".app") || document.body;
+}
+
+/* A friendly megaphone, drawn here so there is no image to load. */
+function Megaphone() {
+  return (
+    <svg className="np-mega" viewBox="0 0 140 120" aria-hidden="true">
+      <defs>
+        <linearGradient id="npHorn" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffe08a" />
+          <stop offset="1" stopColor="#ff9f1c" />
+        </linearGradient>
+        <linearGradient id="npBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="1" stopColor="#c9dcff" />
+        </linearGradient>
+      </defs>
+      <g className="np-mega-lines" stroke="#fff" strokeWidth="5" strokeLinecap="round" fill="none">
+        <path className="l1" d="M112 22 L124 12" />
+        <path className="l2" d="M120 46 L135 44" />
+        <path className="l3" d="M112 72 L125 80" />
+      </g>
+      <g transform="rotate(-8 60 60)">
+        <rect x="52" y="64" width="18" height="38" rx="7" fill="#0b3d91" />
+        <rect x="14" y="44" width="30" height="30" rx="9" fill="url(#npBody)" />
+        <path d="M40 46 L98 16 Q112 58 98 100 L40 72 Z" fill="url(#npHorn)" />
+        <ellipse cx="99" cy="58" rx="11" ry="40" fill="#0b3d91" />
+        <ellipse cx="97" cy="58" rx="6" ry="31" fill="#1e6bff" opacity="0.7" />
+      </g>
+    </svg>
+  );
 }
 
 export default function NewNoticePopup() {
@@ -73,12 +91,6 @@ export default function NewNoticePopup() {
   const [i, setI] = useState(0);
   const [open, setOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [drag, setDrag] = useState({ x: 0, y: 0, on: false });
-
-  const start = useRef({ x: 0, y: 0 });
-  const moved = useRef(false);
-  const hideTimer = useRef(null);
   const current = queue[i];
 
   // Load once, on open.
@@ -137,32 +149,16 @@ export default function NewNoticePopup() {
     setTimeout(() => {
       setOpen(false);
       setLeaving(false);
-      setDrag({ x: 0, y: 0, on: false });
     }, EXIT_MS);
   }, []);
 
-  const advance = useCallback(() => {
-    if (i < queue.length - 1) {
-      setDrag({ x: 0, y: 0, on: false });
-      setI(i + 1);
-    } else {
-      finish();
-    }
-  }, [i, queue.length, finish]);
-
-  // Quietly leave after a while, unless the person is touching it.
-  useEffect(() => {
-    if (!open || leaving || paused) return undefined;
-    hideTimer.current = setTimeout(advance, AUTO_HIDE);
-    return () => clearTimeout(hideTimer.current);
-  }, [open, leaving, paused, i, advance]);
-
-  // Esc closes it.
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => e.key === "Escape" && finish();
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open, finish]);
 
   function read() {
@@ -171,115 +167,56 @@ export default function NewNoticePopup() {
     navigate("/notifications", { state: { openId: id } });
   }
 
-  function down(e) {
-    if (e.target.closest(".np-x")) return;
-    start.current = { x: e.clientX, y: e.clientY };
-    moved.current = false;
-    setPaused(true);
-    setDrag({ x: 0, y: 0, on: true });
-  }
-  function move(e) {
-    if (!drag.on) return;
-    const x = e.clientX - start.current.x;
-    const y = Math.min(0, e.clientY - start.current.y); // only upward
-    if (Math.abs(x) > 6 || y < -6) moved.current = true;
-    setDrag({ x, y, on: true });
-  }
-  function up() {
-    if (!drag.on) return;
-    const gone = Math.abs(drag.x) > 90 || drag.y < -50;
-    setPaused(false);
-    if (gone) advance();
-    else {
-      setDrag({ x: 0, y: 0, on: false });
-      if (!moved.current) read(); // a tap opens the notice
-    }
-  }
-
   if (!open || !current) return null;
 
   const urgent = /urgent/i.test(current.category || "");
-  const style = drag.on
-    ? {
-        transform: `translate(${drag.x}px, ${drag.y}px) rotate(${drag.x / 40}deg)`,
-        opacity: Math.max(0.35, 1 - Math.abs(drag.x) / 320),
-        transition: "none",
-      }
-    : undefined;
-
-  const more = Math.max(0, queue.length - i - 1);
+  const more = queue.length - i - 1;
 
   return createPortal(
-    <div className="np-wrap" role="status" aria-live="polite">
-      <div className="np-pile">
-        {more > 0 && !leaving && <span className="np-stack s1" aria-hidden="true" />}
-        {more > 1 && !leaving && <span className="np-stack s2" aria-hidden="true" />}
+    <div
+      className={`np-backdrop${leaving ? " is-out" : ""}`}
+      onClick={finish}
+    >
+      <section
+        className={`np-card${urgent ? " is-urgent" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="New notice"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="np-glow" aria-hidden="true" />
 
-        <section
-          className={`np-card${leaving ? " is-out" : ""}${urgent ? " is-urgent" : ""}`}
-          style={style}
-          onPointerDown={down}
-          onPointerMove={move}
-          onPointerUp={up}
-          onPointerCancel={up}
-          onMouseEnter={() => setPaused(true)}
-          onMouseLeave={() => !drag.on && setPaused(false)}
-        >
-          <div className="np-inner" key={current.id}>
-            <div className="np-head">
-              <img
-                className="np-logo"
-                src="/images/naps-logo.png"
-                alt=""
-                onError={(e) => (e.currentTarget.style.display = "none")}
-              />
-              <span className="np-brand">NAPS LASUCOM</span>
-              <span className="np-dot" />
-              <span className="np-time">{ago(current.published_at || current.scheduled_for)}</span>
-              {queue.length > 1 && (
-                <span className="np-count">
-                  {i + 1}/{queue.length}
-                </span>
-              )}
-              <button type="button" className="np-x" onClick={finish} aria-label="Dismiss">
-                <X size={14} />
-              </button>
-            </div>
+        <button type="button" className="np-x" onClick={finish} aria-label="Close">
+          <X size={15} />
+        </button>
 
-            <div className="np-body">
-              {current.image_url ? (
-                <img className="np-thumb" src={current.image_url} alt="" draggable="false" />
-              ) : (
-                <span className="np-thumb np-thumb--ico">
-                  <Megaphone size={22} />
-                </span>
-              )}
-              <div className="np-text">
-                <h3>{current.title}</h3>
-                <p>{current.body}</p>
-              </div>
-            </div>
+        <div className="np-art">
+          <Megaphone />
+        </div>
 
-            <div className="np-foot">
-              <span className="np-chip">
-                {urgent ? "Urgent" : current.is_pinned ? (<><Pin size={11} /> Pinned</>) : "New notice"}
-              </span>
-              <span className="np-go">
-                Read notice <ChevronRight size={15} />
-              </span>
-            </div>
+        <div className="np-content" key={current.id}>
+          <span className="np-tag">
+            {urgent ? "Urgent notice" : current.is_pinned ? "Pinned notice" : "New notice"}
+          </span>
+          <h2>{current.title}</h2>
+          <p>{current.body}</p>
+
+          <div className="np-actions">
+            <button type="button" className="np-btn np-btn--solid" onClick={read}>
+              Read now
+            </button>
+            <button type="button" className="np-btn np-btn--line" onClick={finish}>
+              Maybe later
+            </button>
           </div>
 
-          <span
-            className="np-timer"
-            style={{
-              animationDuration: `${AUTO_HIDE}ms`,
-              animationPlayState: paused ? "paused" : "running",
-            }}
-            key={`t${current.id}`}
-          />
-        </section>
-      </div>
+          {more > 0 && (
+            <button type="button" className="np-more" onClick={() => setI(i + 1)}>
+              {i + 1} of {queue.length} · Next notice →
+            </button>
+          )}
+        </div>
+      </section>
     </div>,
     portalRoot()
   );
