@@ -1,4 +1,6 @@
 import {
+  ChevronLeft,
+  ChevronRight,
   Crown,
   FileText,
   HeartHandshake,
@@ -9,9 +11,12 @@ import {
   Trophy,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
+import "../components/NoticePopup.css";
 
 const officeDetails = {
   President: {
@@ -76,6 +81,19 @@ function Executives() {
   const [executives, setExecutives] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [open, setOpen] = useState(null); // { index, origin }
+
+  function openSheet(index, e) {
+    // Where the tap happened, so the popup grows out of that card.
+    const r = e?.currentTarget?.getBoundingClientRect?.();
+    const origin = r
+      ? {
+          x: r.left + r.width / 2 - window.innerWidth / 2,
+          y: r.top + r.height / 2 - window.innerHeight / 2,
+        }
+      : { x: 0, y: 40 };
+    setOpen({ index, origin });
+  }
 
   useEffect(() => {
     fetchExecutives();
@@ -193,10 +211,24 @@ function Executives() {
 
       {!loading && !errorMessage && executives.length > 0 && (
         <section className="list">
-          {executives.map((exec) => (
-            <ExecutiveRow key={exec.id} exec={exec} />
+          {executives.map((exec, idx) => (
+            <ExecutiveRow
+              key={exec.id}
+              exec={exec}
+              onOpen={(e) => openSheet(idx, e)}
+            />
           ))}
         </section>
+      )}
+
+      {open && executives[open.index] && (
+        <ExecutiveSheet
+          list={executives}
+          index={open.index}
+          origin={open.origin}
+          onIndex={(index) => setOpen((o) => ({ ...o, index }))}
+          onClose={() => setOpen(null)}
+        />
       )}
     </>
   );
@@ -215,7 +247,7 @@ function ExecutiveSkeleton() {
   );
 }
 
-function ExecutiveRow({ exec }) {
+function ExecutiveRow({ exec, onOpen }) {
   const details = officeDetails[exec.office] || {
     role: "Executive council member.",
     icon: <Users size={22} />,
@@ -228,7 +260,19 @@ function ExecutiveRow({ exec }) {
   const showPhoto = exec.image_url && !imageFailed;
 
   return (
-    <article className={`row exec-row tone-${details.color}`}>
+    <article
+      className={`row exec-row is-tappable tone-${details.color}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`View ${exec.full_name}, ${exec.office}`}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(e);
+        }
+      }}
+    >
       <div className="exec-photo">
         {showPhoto && (
           <img
@@ -255,6 +299,8 @@ function ExecutiveRow({ exec }) {
           href={phoneLink}
           target="_blank"
           rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
           aria-label={`Message ${exec.full_name} on WhatsApp`}
           title="Message on WhatsApp"
         >
@@ -265,6 +311,7 @@ function ExecutiveRow({ exec }) {
           type="button"
           className="exec-contact"
           disabled
+          onClick={(e) => e.stopPropagation()}
           aria-label="No contact listed"
           title="No contact listed"
         >
@@ -272,6 +319,123 @@ function ExecutiveRow({ exec }) {
         </button>
       )}
     </article>
+  );
+}
+
+function ExecutiveSheet({ list, index, origin, onIndex, onClose }) {
+  const exec = list[index];
+  const [imageFailed, setImageFailed] = useState(false);
+  const touch = useRef(null);
+
+  const details = officeDetails[exec.office] || {
+    role: "Executive council member.",
+    icon: <Users size={22} />,
+    color: "blue",
+  };
+  const phoneLink = getPhoneLink(exec.phone);
+  const showPhoto = exec.image_url && !imageFailed;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [exec.id]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && index > 0) onIndex(index - 1);
+      if (e.key === "ArrowRight" && index < list.length - 1) onIndex(index + 1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [index, list.length, onClose, onIndex]);
+
+  function onTouchStart(e) {
+    touch.current = e.touches[0].clientX;
+  }
+  function onTouchEnd(e) {
+    if (touch.current == null) return;
+    const dx = e.changedTouches[0].clientX - touch.current;
+    touch.current = null;
+    if (dx < -60 && index < list.length - 1) onIndex(index + 1);
+    if (dx > 60 && index > 0) onIndex(index - 1);
+  }
+
+  return createPortal(
+    <div className="es-backdrop" onClick={onClose}>
+      <section
+        className="es-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={exec.full_name}
+        style={{ "--fx": `${origin.x}px`, "--fy": `${origin.y}px` }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="es-photo" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+          {showPhoto ? (
+            <img
+              key={exec.id}
+              src={exec.image_url}
+              alt={exec.full_name}
+              onError={() => setImageFailed(true)}
+            />
+          ) : (
+            <div className="es-photo-fallback">{details.icon}</div>
+          )}
+
+          <span className="es-count">
+            {index + 1} of {list.length}
+          </span>
+
+          <button type="button" className="es-x" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+          <button
+            type="button"
+            className="es-nav prev"
+            onClick={() => onIndex(index - 1)}
+            disabled={index === 0}
+            aria-label="Previous executive"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <button
+            type="button"
+            className="es-nav next"
+            onClick={() => onIndex(index + 1)}
+            disabled={index === list.length - 1}
+            aria-label="Next executive"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+
+        <div className="es-body" key={exec.id}>
+          <span className="es-office">{exec.office}</span>
+          <h2>{exec.full_name}</h2>
+          <p>{details.role}</p>
+
+          <div className="es-act">
+            {phoneLink ? (
+              <a className="es-btn es-btn--wa" href={phoneLink} target="_blank" rel="noreferrer">
+                <MessageCircle size={18} />
+                Message on WhatsApp
+              </a>
+            ) : (
+              <span className="es-btn es-btn--off">No contact listed</span>
+            )}
+            <button type="button" className="es-btn es-btn--ghost" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>,
+    document.querySelector(".app") || document.body
   );
 }
 

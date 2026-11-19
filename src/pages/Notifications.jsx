@@ -8,7 +8,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { enablePushNotifications } from "../utils/sendPushNotification";
 
@@ -121,6 +121,7 @@ function LinkifiedText({ text }) {
 ========================================================= */
 
 function Notifications() {
+  const location = useLocation();
   const [announcements, setAnnouncements] = useState([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -175,6 +176,17 @@ function Notifications() {
 
     setAnnouncements(visible);
     setLoading(false);
+
+    // Arrived from the new-notice banner: open that notice straight away.
+    const openId = location.state?.openId;
+    if (openId) {
+      const hit = (data || []).find((item) => item.id === openId);
+      if (hit) {
+        markAsRead(hit.id);
+        setSelectedAnnouncement(hit);
+      }
+      window.history.replaceState({}, "");
+    }
   }
 
   async function handleEnablePush() {

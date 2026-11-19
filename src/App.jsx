@@ -45,6 +45,7 @@ import MaterialExplanation from "./pages/MaterialExplanation";
 import VerifyReceipt from "./pages/VerifyReceipt";
 import InstallPrompt from "./components/InstallPrompt";
 import ReviewPrompt from "./components/ReviewPrompt";
+import NewNoticePopup from "./components/NewNoticePopup";
 
 /* ADMIN PAGES - ACTIVE */
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -332,6 +333,7 @@ useEffect(() => {
 
         {!isAdminRoute && <InstallPrompt />}
         {!isAdminRoute && <ReviewPrompt />}
+        {!isAdminRoute && <NewNoticePopup />}
       </div>
     </div>
   );
